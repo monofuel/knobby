@@ -13,3 +13,7 @@
 - Auto-detect Arduino Micro and monitor: `nim r examples/midi_monitor.nim`
 - Explicit auto-detect mode: `nim r examples/midi_monitor.nim -- --auto`
 - Start monitor with explicit port: `nim r examples/midi_monitor.nim -- 20:0`
+
+## Audio Outputs Demo
+
+- List active audio outputs with app names and volumes: `nim r examples/audio_outputs.nim`
