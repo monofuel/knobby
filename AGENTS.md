@@ -1,13 +1,13 @@
-# {PROJECT_NAME}
+# Knobby
 
-- {PROJECT_DESCRIPTION}
-- {PROJECT_FOCUS}
+- Linux MIDI controller daemon.
+- Focus: stable background service behavior and predictable MIDI event handling.
 
 ## Dependencies
 
 - Nim >= 2.0.0
-- {PRIMARY_DEPENDENCY_DESCRIPTION}
-- {ADDITIONAL_DEPENDENCIES}
+- Nim standard library.
+- ALSA/MIDI integration libraries as needed by implementation.
 
 ## Tests
 

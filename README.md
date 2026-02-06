@@ -1,7 +1,15 @@
-# You can use this nim template to jump start your nim library or project.
+# Knobby
 
-This template includes:
-* MIT licence
-* src directory and a private common.nim
-* test directory
-* GitHub Actions to run the tests on GitHub
+- Linux MIDI controller daemon.
+
+## Development
+
+- Run tests: `nimble test`
+- Run the app scaffold: `nimble run`
+
+## MIDI Monitor Demo
+
+- List available ALSA MIDI ports: `nim r examples/midi_monitor.nim -- --list`
+- Auto-detect Arduino Micro and monitor: `nim r examples/midi_monitor.nim`
+- Explicit auto-detect mode: `nim r examples/midi_monitor.nim -- --auto`
+- Start monitor with explicit port: `nim r examples/midi_monitor.nim -- 20:0`

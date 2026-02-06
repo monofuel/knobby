@@ -1,3 +1,10 @@
-## Put your tests here.
+import
+  std/unittest,
+  knobby
 
-import nimtemplate
+suite "Knobby":
+  test "exposes app name":
+    check appName() == "Knobby"
+
+  test "exposes daemon description":
+    check daemonDescription().len > 0
