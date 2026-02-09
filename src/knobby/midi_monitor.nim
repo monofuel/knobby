@@ -4,6 +4,7 @@ import
 const
   DefaultMidiPort* = "32:0"
   ArduinoMicroName = "arduino micro"
+  ReconnectPollIntervalMs = 1000
 
 proc midiMonitorUsage*(): string =
   ## Return usage text for the MIDI monitor demo.
@@ -76,65 +77,82 @@ proc detectArduinoAmidiPort*(): string =
     if result.len > 0:
       break
 
-proc runSeqMonitor(port: string) =
-  ## Stream MIDI events from a specific ALSA sequencer port with aseqdump.
-  ensureToolInstalled("aseqdump")
+proc runSeqMonitorSession(port: string): int =
+  ## Stream MIDI events from a sequencer port until the process exits.
   let monitor = startProcess(
     "aseqdump",
     args = @["-p", port],
     options = {poUsePath, poStdErrToStdOut}
   )
-  defer:
-    close(monitor)
 
   var line: string
+  var sawUnsubscribe = false
   while monitor.outputStream.readLine(line):
     echo line
+    if line.toLowerAscii().contains("port unsubscribed"):
+      sawUnsubscribe = true
+      break
 
-  let exitCode = waitForExit(monitor)
-  if exitCode != 0:
-    raise newException(OSError, fmt"aseqdump exited with status {exitCode}.")
+  if sawUnsubscribe:
+    terminate(monitor)
 
-proc runAmidiMonitor(port: string) =
-  ## Stream raw MIDI bytes from a specific amidi hardware port.
-  ensureToolInstalled("amidi")
+  result = waitForExit(monitor)
+  close(monitor)
+
+proc runAmidiMonitorSession(port: string): int =
+  ## Stream raw MIDI bytes from a hardware port until the process exits.
   let monitor = startProcess(
     "amidi",
     args = @["-p", port, "-d"],
     options = {poUsePath, poStdErrToStdOut}
   )
-  defer:
-    close(monitor)
 
   var line: string
   while monitor.outputStream.readLine(line):
     echo line
 
-  let exitCode = waitForExit(monitor)
-  if exitCode != 0:
-    raise newException(OSError, fmt"amidi exited with status {exitCode}.")
+  result = waitForExit(monitor)
+  close(monitor)
 
 proc runMidiMonitor*(port: string = DefaultMidiPort) =
-  ## Stream MIDI events from an explicit ALSA sequencer port.
-  runSeqMonitor(port)
+  ## Stream MIDI events from an explicit ALSA sequencer port and reconnect when disconnected.
+  ensureToolInstalled("aseqdump")
+
+  while true:
+    echo fmt"Monitoring ALSA sequencer port {port}."
+    let exitCode = runSeqMonitorSession(port)
+    echo fmt"MIDI device at {port} disconnected (aseqdump exit {exitCode}). Retrying in 1 second."
+    sleep(ReconnectPollIntervalMs)
 
 proc runMidiMonitorAuto*() =
-  ## Detect an Arduino Micro MIDI port and stream events.
-  if findExe("aconnect").len > 0 and findExe("aseqdump").len > 0:
-    let seqPort = detectArduinoSeqPort()
-    if seqPort.len > 0:
-      echo fmt"Auto-detected Arduino sequencer port: {seqPort}"
-      runSeqMonitor(seqPort)
-      return
+  ## Detect an Arduino Micro MIDI port, wait when unavailable, and reconnect after disconnects.
+  let hasSeqTools = findExe("aconnect").len > 0 and findExe("aseqdump").len > 0
+  let hasAmidi = findExe("amidi").len > 0
 
-  if findExe("amidi").len > 0:
-    let amidiPort = detectArduinoAmidiPort()
-    if amidiPort.len > 0:
-      echo fmt"Auto-detected Arduino raw MIDI port: {amidiPort}"
-      runAmidiMonitor(amidiPort)
-      return
+  if not hasSeqTools and not hasAmidi:
+    raise newException(
+      OSError,
+      "Could not auto-detect an Arduino Micro MIDI port because required tools are unavailable. Install aconnect+aseqdump or amidi."
+    )
 
-  raise newException(
-    OSError,
-    "Could not auto-detect an Arduino Micro MIDI port. Run with --list or pass client:port."
-  )
+  while true:
+    if hasSeqTools:
+      let seqPort = detectArduinoSeqPort()
+      if seqPort.len > 0:
+        echo fmt"Auto-detected Arduino sequencer port: {seqPort}"
+        let exitCode = runSeqMonitorSession(seqPort)
+        echo fmt"MIDI device at {seqPort} disconnected (aseqdump exit {exitCode}). Retrying discovery in 1 second."
+        sleep(ReconnectPollIntervalMs)
+        continue
+
+    if hasAmidi:
+      let amidiPort = detectArduinoAmidiPort()
+      if amidiPort.len > 0:
+        echo fmt"Auto-detected Arduino raw MIDI port: {amidiPort}"
+        let exitCode = runAmidiMonitorSession(amidiPort)
+        echo fmt"MIDI device at {amidiPort} disconnected (amidi exit {exitCode}). Retrying discovery in 1 second."
+        sleep(ReconnectPollIntervalMs)
+        continue
+
+    echo "No Arduino MIDI device detected. Polling again in 1 second."
+    sleep(ReconnectPollIntervalMs)
