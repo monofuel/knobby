@@ -1,0 +1,20 @@
+# Systemd user service for the knobby MIDI controller daemon.
+# Live copy: ~/.config/systemd/user/knobby.service
+# Manage with:
+#   systemctl --user enable --now knobby
+#   systemctl --user status knobby
+#   journalctl --user -u knobby -f
+
+[Unit]
+Description=Knobby MIDI controller daemon
+After=graphical-session.target pipewire.service
+
+[Service]
+WorkingDirectory=/home/monofuel/Documents/Projects/Monolab/knobby
+Environment=DISPLAY=:0
+ExecStart=/run/current-system/sw/bin/nix develop /home/monofuel/Documents/Projects/Monolab/knobby --command nim r src/knobby.nim
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=graphical-session.target
