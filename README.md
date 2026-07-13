@@ -2,6 +2,13 @@
 
 - Linux MIDI controller daemon.
 
+## Scope
+
+- This project is currently for monofuel's personal use on his desktop computer.
+- Nothing is configurable yet, and that is intentional: make the base case work
+  before doing anything clever. Hardware specifics are documented in
+  docs/hardware.md.
+
 ## Development
 
 - Run tests: `nimble test`

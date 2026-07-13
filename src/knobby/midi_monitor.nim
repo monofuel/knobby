@@ -1,10 +1,13 @@
 import
-  std/[os, osproc, streams, strformat, strutils]
+  std/[os, osproc, posix, streams, strformat, strutils],
+  ./common
 
 const
   DefaultMidiPort* = "32:0"
   ArduinoMicroName = "arduino micro"
-  ReconnectPollIntervalMs = 1000
+  SessionEndMarker = "\x04knobby-session-end"
+
+var seqLineChannel: Channel[string]
 
 proc midiMonitorUsage*(): string =
   ## Return usage text for the MIDI monitor demo.
@@ -77,8 +80,9 @@ proc detectArduinoAmidiPort*(): string =
     if result.len > 0:
       break
 
-proc runSeqMonitorSession(port: string): int =
-  ## Stream MIDI events from a sequencer port until the process exits.
+proc runSeqSession*(port: string, onLine: proc (line: string)): int =
+  ## Stream MIDI event lines from a sequencer port to a callback until the
+  ## process exits or the port unsubscribes.
   let monitor = startProcess(
     "aseqdump",
     args = @["-p", port],
@@ -88,7 +92,7 @@ proc runSeqMonitorSession(port: string): int =
   var line: string
   var sawUnsubscribe = false
   while monitor.outputStream.readLine(line):
-    echo line
+    onLine(line)
     if line.toLowerAscii().contains("port unsubscribed"):
       sawUnsubscribe = true
       break
@@ -98,6 +102,67 @@ proc runSeqMonitorSession(port: string): int =
 
   result = waitForExit(monitor)
   close(monitor)
+
+proc runSeqMonitorSession(port: string): int =
+  ## Stream MIDI events from a sequencer port and echo each line.
+  result = runSeqSession(port, proc (line: string) = echo line)
+
+proc readSeqLines(outputHandle: FileHandle) {.thread.} =
+  ## Forward aseqdump output lines to the session channel until EOF.
+  var file: File
+  if open(file, outputHandle, fmRead):
+    var line: string
+    while file.readLine(line):
+      seqLineChannel.send(line)
+    close(file)
+  seqLineChannel.send(SessionEndMarker)
+
+proc runSeqBatchSession*(port: string, onBatch: proc (lines: seq[string])): int =
+  ## Stream MIDI event lines in drained batches until the process exits or the
+  ## port unsubscribes. Lines that arrive while a batch is being handled are
+  ## delivered together in the next batch, so slow handlers see bursts of
+  ## events at once instead of falling behind one line at a time.
+  let monitor = startProcess(
+    "aseqdump",
+    args = @["-p", port],
+    options = {poUsePath, poStdErrToStdOut}
+  )
+  open(seqLineChannel)
+  var reader: Thread[FileHandle]
+  createThread(reader, readSeqLines, FileHandle(dup(monitor.outputHandle.cint)))
+
+  var sessionOver = false
+  while not sessionOver:
+    var lines: seq[string]
+    let first = seqLineChannel.recv()
+    if first == SessionEndMarker:
+      sessionOver = true
+    else:
+      lines.add(first)
+      var draining = true
+      while draining:
+        let (received, line) = seqLineChannel.tryRecv()
+        if not received:
+          draining = false
+        elif line == SessionEndMarker:
+          sessionOver = true
+          draining = false
+        else:
+          lines.add(line)
+
+      var sawUnsubscribe = false
+      for line in lines:
+        if line.toLowerAscii().contains("port unsubscribed"):
+          sawUnsubscribe = true
+      onBatch(lines)
+      if sawUnsubscribe:
+        terminate(monitor)
+        sessionOver = true
+
+  result = waitForExit(monitor)
+  close(monitor)
+  joinThread(reader)
+  close(seqLineChannel)
 
 proc runAmidiMonitorSession(port: string): int =
   ## Stream raw MIDI bytes from a hardware port until the process exits.
