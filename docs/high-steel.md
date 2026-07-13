@@ -100,8 +100,12 @@ matches (Firefox opens several).
 ## Open Questions
 
 - Bindings for the remaining 9 buttons.
-- Whether launcher buttons should focus the app if it is already running
-  instead of launching a second instance.
+
+Resolved: button 10 checks for a running `ffxiv_dx11.exe` process and focuses
+the game window with `wmctrl -a "FINAL FANTASY XIV"` instead of relaunching
+(a second Steam launch fails silently in the background). The game runs under
+XWayland, so wmctrl works even though the desktop session is Wayland. Firefox
+buttons relaunch freely since Firefox delegates to the existing instance.
 - Behavior when a bound app has no active stream: ignore, or remember the
   level and apply when the app appears?
 - Whether fader moves should be absolute-set immediately or soft-takeover.

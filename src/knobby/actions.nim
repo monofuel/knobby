@@ -13,11 +13,11 @@ const
     (18, "Spotify"),
     (19, "FINAL FANTASY XIV"),
   ]
-  ButtonCommands = [
-    (12, "firefox --new-window https://grok.com/"),
-    (9, "firefox --new-window https://claude.ai/"),
-    (10, "steam steam://rungameid/9332724227821797376"),
-  ]
+  GrokCommand = "firefox --new-window https://grok.com/"
+  ClaudeCommand = "firefox --new-window https://claude.ai/"
+  FfxivLaunchCommand = "steam steam://rungameid/9332724227821797376"
+  FfxivProcessPattern = "ffxiv_dx11.exe"
+  FfxivWindowTitle = "FINAL FANTASY XIV"
 
 type
   Dispatcher* = ref object
@@ -93,12 +93,38 @@ proc applyFader(dispatcher: Dispatcher, controller, value: int) =
         echo fmt"Fader {controller}: {appName} volume -> {percent}%"
       dispatcher.lastFaderValues[controller] = value
 
+proc isFfxivRunning(): bool =
+  ## Check whether the FFXIV game process is running.
+  let (_, exitCode) = execCmdEx("pgrep -f " & FfxivProcessPattern)
+  result = exitCode == 0
+
+proc launchFfxiv() =
+  ## Launch FFXIV through Steam, or focus the game window when it is already
+  ## running so Steam does not fail silently on a second launch.
+  if isFfxivRunning():
+    echo "FFXIV already running; focusing its window."
+    discard execProcess(
+      "wmctrl",
+      args = @["-a", FfxivWindowTitle],
+      options = {poUsePath, poStdErrToStdOut}
+    )
+  else:
+    echo fmt"Launching FFXIV: {FfxivLaunchCommand}"
+    launchDetached(FfxivLaunchCommand)
+
 proc pressButton(note: int) =
-  ## Run the command bound to a button, if any.
-  for (buttonNote, command) in ButtonCommands:
-    if buttonNote == note:
-      echo fmt"Button {note}: {command}"
-      launchDetached(command)
+  ## Run the action bound to a button, if any.
+  case note
+  of 12:
+    echo fmt"Button 12: {GrokCommand}"
+    launchDetached(GrokCommand)
+  of 9:
+    echo fmt"Button 9: {ClaudeCommand}"
+    launchDetached(ClaudeCommand)
+  of 10:
+    launchFfxiv()
+  else:
+    discard
 
 proc finalFaderValues*(events: seq[MidiEvent]): OrderedTable[int, int] =
   ## Reduce a batch of events to the newest value per fader, so a burst of

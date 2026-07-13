@@ -18,6 +18,7 @@
           nimble
           alsa-utils
           pulseaudio
+          wmctrl
         ];
 
         shellHook = ''
