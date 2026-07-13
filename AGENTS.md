@@ -2,17 +2,61 @@
 
 - Linux MIDI controller daemon.
 - Focus: stable background service behavior and predictable MIDI event handling.
+- Currently hard-coded for monofuel's desktop (high-steel) by design: see the
+  Scope section in README.md and docs/high-steel.md. Do not add configuration
+  systems.
+- Hardware is an Arduino Micro MIDI mixer documented in docs/hardware.md:
+  12 buttons (notes 1-12) and 4 faders (CC 16-19).
+- Faders drive PipeWire volumes through pactl; buttons launch apps. All
+  bindings are consts in src/knobby/actions.nim.
+
+## Layout
+
+- `src/knobby.nim` - daemon entrypoint: detect the Arduino, dispatch event
+  batches, reconnect on disconnect.
+- `src/knobby/midi_monitor.nim` - aseqdump wrappers: port detection, per-line
+  and batched sessions. Batches coalesce fader bursts so the last value wins.
+- `src/knobby/midi_events.nim` - parse aseqdump output lines into MidiEvent.
+- `src/knobby/actions.nim` - bindings, fader endpoint snap and deadband,
+  pactl volume calls, detached app launchers.
+- `src/knobby/audio_outputs.nim` - pactl sink-input listing.
+- `examples/` - midi_monitor and audio_outputs demos (see README.md).
+- `docs/example_out.txt` - real capture of every button and fader; the
+  reference for parser behavior and test cases.
 
 ## Dependencies
 
-- Nim >= 2.0.0
-- Nim standard library.
-- ALSA/MIDI integration libraries as needed by implementation.
+- Nim >= 2.0.0, standard library only (no package dependencies).
+- External command-line tools, all provided by the flake dev shell
+  (`nix develop`): aseqdump and aconnect (alsa-utils), pactl (pulseaudio),
+  wmctrl. There is no C library linkage; everything shells out.
 
 ## Tests
 
 - Run `nimble test` to run all tests
-- Individual test files can be run individually `nim r tests/test_*.nim` 
+- Individual test files can be run individually `nim r tests/test_*.nim`
+- Unit tests must not call pactl, launch apps, or need the hardware. Test
+  pure logic (parsing, fader math, coalescing) against lines from
+  docs/example_out.txt.
+
+## Systemd User Service
+
+The daemon runs as a systemd user service. The reference copy is
+`docs/knobby.service`; the live copy is `~/.config/systemd/user/knobby.service`.
+
+- After code changes: `systemctl --user restart knobby`. ExecStart runs
+  `nim r` inside `nix develop`, so a restart recompiles automatically.
+- After editing the service file, update the live copy from the repo copy:
+
+```
+cp docs/knobby.service ~/.config/systemd/user/knobby.service
+systemctl --user daemon-reload
+systemctl --user restart knobby
+```
+
+- Logs: `journalctl --user -u knobby -f`
+- Never edit the live copy directly; edit docs/knobby.service and copy it, so
+  the repo copy stays the source of truth.
 
 ## Nim
 
