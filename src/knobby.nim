@@ -14,6 +14,7 @@ proc run*() =
   ## Run the daemon: connect to the Arduino MIDI mixer, dispatch its events
   ## to volume and launcher actions, and reconnect when the device drops.
   let dispatcher = newDispatcher()
+  startStreamWatcher()
   echo fmt"{AppName}: {AppDescription}"
   while true:
     let port = detectArduinoSeqPort()

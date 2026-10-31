@@ -29,7 +29,7 @@
 - Nim >= 2.0.0, standard library only (no package dependencies).
 - External command-line tools, all provided by the flake dev shell
   (`nix develop`): aseqdump and aconnect (alsa-utils), pactl (pulseaudio),
-  wmctrl. There is no C library linkage; everything shells out.
+  wmctrl, curl. There is no C library linkage; everything shells out.
 
 ## Tests
 

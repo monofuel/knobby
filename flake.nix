@@ -19,6 +19,7 @@
           alsa-utils
           pulseaudio
           wmctrl
+          curl
         ];
 
         shellHook = ''

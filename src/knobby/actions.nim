@@ -1,6 +1,6 @@
 import
-  std/[osproc, strformat, strutils, tables],
-  ./[audio_outputs, midi_events]
+  std/[locks, os, osproc, streams, strformat, strutils, tables],
+  ./[audio_outputs, common, discord_rpc, midi_events]
 
 const
   MaxMidiValue = 127
@@ -9,19 +9,35 @@ const
   FaderDeadband = 1
   MasterFaderController = 16
   AppFaderBindings = [
-    (17, "Firefox"),
-    (18, "Spotify"),
-    (19, "FINAL FANTASY XIV"),
+    (17, "Firefox", @["Firefox"], false),
+    (18, "Spotify", @["Spotify"], false),
+    (19, "games", @["FINAL FANTASY XIV", "World of Warcraft"], true),
   ]
+  SteamAppIdVariable = "SteamAppId="
+  GameMediaRole = "game"
+  NewSinkInputEvent = "Event 'new' on sink-input"
+  NewStreamSettleMs = 100
+  StreamWatcherRetryMs = 1000
   GrokCommand = "firefox --new-window https://grok.com/"
   ClaudeCommand = "firefox --new-window https://claude.ai/"
   FfxivLaunchCommand = "steam steam://rungameid/9332724227821797376"
   FfxivProcessPattern = "ffxiv_dx11.exe"
   FfxivWindowTitle = "FINAL FANTASY XIV"
+  BenqMicSource = "alsa_input.usb-Generic_BenQ_EX3210U-00.iec958-stereo"
+  MonitorSourceSuffix = ".monitor"
+  MutedReport = "Mute: yes"
 
 type
   Dispatcher* = ref object
     lastFaderValues*: Table[int, int]
+
+var
+  volumeLock: Lock
+  rememberedPercents: array[4, int]
+  rememberedKnown: array[4, bool]
+  streamWatcherThread: Thread[void]
+
+initLock(volumeLock)
 
 proc newDispatcher*(): Dispatcher =
   ## Create a dispatcher with no fader state.
@@ -47,27 +63,84 @@ proc shouldApplyFader*(lastValue, newValue: int): bool =
 
 proc setMasterVolume(percent: int) =
   ## Set the default sink volume using pactl.
-  discard execProcess(
+  discard runAudioCommand(
     "pactl",
-    args = @["set-sink-volume", "@DEFAULT_SINK@", fmt"{percent}%"],
-    options = {poUsePath, poStdErrToStdOut}
+    @["set-sink-volume", "@DEFAULT_SINK@", fmt"{percent}%"]
   )
 
-proc setAppVolume(appName: string, percent: int) =
-  ## Set the volume of every sink input whose application name matches.
-  for stream in listAudioOutputStreams():
+proc isSteamGame*(processId: string): bool =
+  ## Report whether the process was launched by Steam, which injects a
+  ## SteamAppId variable into the environment of every game it starts.
+  if processId.len == 0:
+    return false
+  let environPath = fmt"/proc/{processId}/environ"
+  if not fileExists(environPath):
+    return false
+  let environ = readFile(environPath)
+  result = environ.startsWith(SteamAppIdVariable) or
+    ("\0" & SteamAppIdVariable) in environ
+
+proc streamMatches*(stream: AudioOutputStream, appNames: openArray[string],
+    includeGames: bool): bool =
+  ## Report whether a stream is targeted by an app fader binding: by app name,
+  ## by being a Steam-launched game, or by declaring the game media role
+  ## (OpenAL Soft apps like decompbound's player set it).
+  for appName in appNames:
     if stream.appName.toLowerAscii().contains(appName.toLowerAscii()):
-      discard execProcess(
+      return true
+  if not includeGames:
+    return false
+  result = stream.mediaRole.toLowerAscii() == GameMediaRole or
+    isSteamGame(stream.processId)
+
+proc setAppVolume(appNames: openArray[string], includeGames: bool,
+    percent: int) =
+  ## Set the volume of every sink input targeted by an app fader binding.
+  for stream in listAudioOutputStreams():
+    if streamMatches(stream, appNames, includeGames):
+      discard runAudioCommand(
         "pactl",
-        args = @["set-sink-input-volume", stream.id, fmt"{percent}%"],
-        options = {poUsePath, poStdErrToStdOut}
+        @["set-sink-input-volume", stream.id, fmt"{percent}%"]
       )
+
+proc isNewSinkInputEvent*(line: string): bool =
+  ## Report whether a pactl subscribe line announces a new sink input.
+  result = NewSinkInputEvent in line
+
+proc applyRememberedFaderLevels() =
+  ## Serialize restoration with direct moves and read current remembered levels.
+  withLock volumeLock:
+    for (controller, _, apps, includeGames) in AppFaderBindings:
+      let index = controller - MasterFaderController
+      if rememberedKnown[index]:
+        setAppVolume(apps, includeGames, rememberedPercents[index])
+
+proc watchForNewStreams() {.thread.} =
+  ## Restore current fader levels when new streams appear.
+  while true:
+    let subscriber = spawnCommand("pactl", @["subscribe"])
+    var line: string
+    while subscriber.outputStream.readLine(line):
+      if isNewSinkInputEvent(line):
+        sleep(NewStreamSettleMs)
+        try:
+          applyRememberedFaderLevels()
+        except OSError as error:
+          echo "Audio stream restoration failed: " & error.msg
+    discard waitForExit(subscriber)
+    close(subscriber)
+    sleep(StreamWatcherRetryMs)
+
+proc startStreamWatcher*() =
+  ## Start the background thread that applies remembered fader levels to
+  ## streams created after the fader last moved.
+  createThread(streamWatcherThread, watchForNewStreams)
 
 proc launchDetached(command: string) =
   ## Launch a command detached from the daemon so it never blocks the event loop.
-  let shell = startProcess(
+  let shell = spawnCommand(
     "/bin/sh",
-    args = @["-c", command & " >/dev/null 2>&1 &"],
+    @["-c", command & " >/dev/null 2>&1 &"],
     options = {poUsePath}
   )
   discard waitForExit(shell)
@@ -75,27 +148,62 @@ proc launchDetached(command: string) =
 
 proc applyFader(dispatcher: Dispatcher, controller, value: int) =
   ## Apply a fader movement to its bound volume target.
-  var appName = ""
+  var label = ""
+  var apps: seq[string]
+  var steamGames = false
   var bound = controller == MasterFaderController
-  for (faderController, app) in AppFaderBindings:
+  for (faderController, faderLabel, faderApps, faderSteamGames) in AppFaderBindings:
     if faderController == controller:
       bound = true
-      appName = app
+      label = faderLabel
+      apps = faderApps
+      steamGames = faderSteamGames
   if bound:
     let lastValue = dispatcher.lastFaderValues.getOrDefault(controller, -1)
     if shouldApplyFader(lastValue, value):
       let percent = faderPercent(value)
-      if appName.len == 0:
-        setMasterVolume(percent)
-        echo fmt"Fader {controller}: master volume -> {percent}%"
-      else:
-        setAppVolume(appName, percent)
-        echo fmt"Fader {controller}: {appName} volume -> {percent}%"
-      dispatcher.lastFaderValues[controller] = value
+      try:
+        withLock volumeLock:
+          if apps.len == 0 and not steamGames:
+            setMasterVolume(percent)
+            echo fmt"Fader {controller}: master volume -> {percent}%"
+          else:
+            let index = controller - MasterFaderController
+            rememberedPercents[index] = percent
+            rememberedKnown[index] = true
+            setAppVolume(apps, steamGames, percent)
+            echo fmt"Fader {controller}: {label} volume -> {percent}%"
+          dispatcher.lastFaderValues[controller] = value
+      except OSError as error:
+        echo fmt"Fader {controller}: audio update failed: {error.msg}"
+
+
+proc parseSourceNames*(output: string): seq[string] =
+  ## Parse source names from `pactl list short sources`, skipping the monitor
+  ## sources that mirror output sinks.
+  for line in output.splitLines():
+    let columns = line.strip().split('\t')
+    if columns.len >= 2 and not columns[1].endsWith(MonitorSourceSuffix):
+      result.add(columns[1])
+
+proc isMuteReported*(output: string): bool =
+  ## Report whether `pactl get-source-mute` output says the source is muted.
+  result = MutedReport in output
+
+proc toggleMicMute() =
+  ## Toggle mute on every real input source at once, keyed off the BenQ
+  ## monitor mic's state so the mics never drift out of sync.
+  let muteRaw = runCommand("pactl", @["get-source-mute", BenqMicSource])
+  let target = if isMuteReported(muteRaw): "0" else: "1"
+  let sourcesRaw = runCommand("pactl", @["list", "short", "sources"])
+  for source in parseSourceNames(sourcesRaw):
+    discard runCommand("pactl", @["set-source-mute", source, target])
+  let stateLabel = if target == "1": "muted" else: "unmuted"
+  echo fmt"Button 11: all mics {stateLabel}"
 
 proc isFfxivRunning(): bool =
   ## Check whether the FFXIV game process is running.
-  let (_, exitCode) = execCmdEx("pgrep -f " & FfxivProcessPattern)
+  let (_, exitCode) = runShellCommand("pgrep -f " & FfxivProcessPattern)
   result = exitCode == 0
 
 proc launchFfxiv() =
@@ -103,14 +211,28 @@ proc launchFfxiv() =
   ## running so Steam does not fail silently on a second launch.
   if isFfxivRunning():
     echo "FFXIV already running; focusing its window."
-    discard execProcess(
-      "wmctrl",
-      args = @["-a", FfxivWindowTitle],
-      options = {poUsePath, poStdErrToStdOut}
-    )
+    discard runCommand("wmctrl", @["-a", FfxivWindowTitle])
   else:
     echo fmt"Launching FFXIV: {FfxivLaunchCommand}"
     launchDetached(FfxivLaunchCommand)
+
+proc pressDiscordMute() =
+  ## Toggle Discord's own self-mute through RPC so the muted icon shows in
+  ## Discord, skipping cleanly when Discord or credentials are absent.
+  if not discordCredsExist():
+    echo fmt"Button 8: no Discord RPC credentials at {discordCredsPath()}; " &
+      "run examples/discord_auth.nim first."
+    return
+  if findDiscordSocketPath().len == 0:
+    echo "Button 8: Discord is not running."
+    return
+  try:
+    let muted = toggleDiscordMute()
+    let stateLabel = if muted: "muted" else: "unmuted"
+    echo fmt"Button 8: Discord {stateLabel}"
+  except CatchableError as error:
+    # A Discord hiccup must not take the whole daemon down with it.
+    echo fmt"Button 8: Discord mute failed: {error.msg}"
 
 proc pressButton(note: int) =
   ## Run the action bound to a button, if any.
@@ -123,6 +245,10 @@ proc pressButton(note: int) =
     launchDetached(ClaudeCommand)
   of 10:
     launchFfxiv()
+  of 11:
+    toggleMicMute()
+  of 8:
+    pressDiscordMute()
   else:
     discard
 

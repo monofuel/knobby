@@ -5,9 +5,10 @@ import
 const
   DefaultMidiPort* = "32:0"
   ArduinoMicroName = "arduino micro"
+  SessionShutdownMs = 1000
   SessionEndMarker = "\x04knobby-session-end"
 
-var seqLineChannel: Channel[string]
+type SeqReaderArgs = tuple[handle: FileHandle, channel: ptr Channel[string]]
 
 proc midiMonitorUsage*(): string =
   ## Return usage text for the MIDI monitor demo.
@@ -21,11 +22,7 @@ proc ensureToolInstalled(toolName: string) =
 proc listMidiPorts*() =
   ## Print ALSA sequencer clients and ports using aconnect.
   ensureToolInstalled("aconnect")
-  let output = execProcess(
-    "aconnect",
-    args = @["-l"],
-    options = {poUsePath, poStdErrToStdOut}
-  )
+  let output = runCommand("aconnect", @["-l"])
   echo output
 
 proc parseLeadingNumber(text: string): string =
@@ -39,11 +36,7 @@ proc parseLeadingNumber(text: string): string =
 proc detectArduinoSeqPort*(): string =
   ## Detect Arduino Micro ALSA sequencer port in client:port format.
   ensureToolInstalled("aconnect")
-  let output = execProcess(
-    "aconnect",
-    args = @["-l"],
-    options = {poUsePath, poStdErrToStdOut}
-  )
+  let output = runCommand("aconnect", @["-l"])
 
   var currentClient = ""
   var isArduinoClient = false
@@ -64,11 +57,7 @@ proc detectArduinoSeqPort*(): string =
 proc detectArduinoAmidiPort*(): string =
   ## Detect Arduino Micro raw MIDI port in amidi hw:X,Y,Z format.
   ensureToolInstalled("amidi")
-  let output = execProcess(
-    "amidi",
-    args = @["-l"],
-    options = {poUsePath, poStdErrToStdOut}
-  )
+  let output = runCommand("amidi", @["-l"])
 
   for line in output.splitLines():
     let lowered = line.toLowerAscii()
@@ -83,11 +72,7 @@ proc detectArduinoAmidiPort*(): string =
 proc runSeqSession*(port: string, onLine: proc (line: string)): int =
   ## Stream MIDI event lines from a sequencer port to a callback until the
   ## process exits or the port unsubscribes.
-  let monitor = startProcess(
-    "aseqdump",
-    args = @["-p", port],
-    options = {poUsePath, poStdErrToStdOut}
-  )
+  let monitor = spawnCommand("aseqdump", @["-p", port])
 
   var line: string
   var sawUnsubscribe = false
@@ -107,29 +92,26 @@ proc runSeqMonitorSession(port: string): int =
   ## Stream MIDI events from a sequencer port and echo each line.
   result = runSeqSession(port, proc (line: string) = echo line)
 
-proc readSeqLines(outputHandle: FileHandle) {.thread.} =
+proc readSeqLines(args: SeqReaderArgs) {.thread.} =
   ## Forward aseqdump output lines to the session channel until EOF.
   var file: File
-  if open(file, outputHandle, fmRead):
+  if open(file, args.handle, fmRead):
     var line: string
     while file.readLine(line):
-      seqLineChannel.send(line)
+      args.channel[].send(line)
     close(file)
-  seqLineChannel.send(SessionEndMarker)
+  args.channel[].send(SessionEndMarker)
 
 proc runSeqBatchSession*(port: string, onBatch: proc (lines: seq[string])): int =
   ## Stream MIDI event lines in drained batches until the process exits or the
   ## port unsubscribes. Lines that arrive while a batch is being handled are
   ## delivered together in the next batch, so slow handlers see bursts of
   ## events at once instead of falling behind one line at a time.
-  let monitor = startProcess(
-    "aseqdump",
-    args = @["-p", port],
-    options = {poUsePath, poStdErrToStdOut}
-  )
+  let monitor = spawnCommand("aseqdump", @["-p", port])
+  var seqLineChannel: Channel[string]
   open(seqLineChannel)
-  var reader: Thread[FileHandle]
-  createThread(reader, readSeqLines, FileHandle(dup(monitor.outputHandle.cint)))
+  var reader: Thread[SeqReaderArgs]
+  createThread(reader, readSeqLines, (FileHandle(dup(monitor.outputHandle.cint)), addr seqLineChannel))
 
   var sessionOver = false
   while not sessionOver:
@@ -159,18 +141,20 @@ proc runSeqBatchSession*(port: string, onBatch: proc (lines: seq[string])): int 
         terminate(monitor)
         sessionOver = true
 
-  result = waitForExit(monitor)
-  close(monitor)
-  joinThread(reader)
-  close(seqLineChannel)
+  defer:
+    if running(monitor):
+      kill(monitor)
+    discard waitForExit(monitor)
+    joinThread(reader)
+    close(monitor)
+    close(seqLineChannel)
+  if running(monitor):
+    terminate(monitor)
+  result = waitForExit(monitor, SessionShutdownMs)
 
 proc runAmidiMonitorSession(port: string): int =
   ## Stream raw MIDI bytes from a hardware port until the process exits.
-  let monitor = startProcess(
-    "amidi",
-    args = @["-p", port, "-d"],
-    options = {poUsePath, poStdErrToStdOut}
-  )
+  let monitor = spawnCommand("amidi", @["-p", port, "-d"])
 
   var line: string
   while monitor.outputStream.readLine(line):

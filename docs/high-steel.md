@@ -21,6 +21,13 @@ Windows only. Knobby's v1 goal is to replicate that setup on Linux.
 - Typical audio clients on this machine: Firefox, Spotify, FINAL FANTASY XIV.
 - Output sink: Bose USB desktop speakers
   (`alsa_output.usb-Generic_Bose_PC_Desktop_Controller_*.analog-stereo`).
+- Microphone: the BenQ EX3210U monitor's built-in mic
+  (`alsa_input.usb-Generic_BenQ_EX3210U-00.iec958-stereo`) is the preferred
+  mic because its noise cancellation beats the other mics on this machine.
+  It is not the PipeWire default source (the Lenovo webcam mic usually is),
+  so mic actions must target sources by name rather than `@DEFAULT_SOURCE@`.
+  Other live mics: the Lenovo Performance Camera, the Bose desktop
+  controller's speakerphone mic, and the onboard analog input.
 
 ## v1 Scope
 
@@ -43,7 +50,7 @@ Fader bindings match the old Windows MIDI Mixer profile:
 | Fader 16  | Master volume (the Bose PC desktop controller sink) |
 | Fader 17  | Firefox (often YouTube)                       |
 | Fader 18  | Spotify                                       |
-| Fader 19  | FINAL FANTASY XIV                             |
+| Fader 19  | Games: any Steam-launched app (SteamAppId in `/proc/<pid>/environ`), any stream with `media.role = game` (OpenAL Soft apps like decompbound's player), plus a name whitelist (FINAL FANTASY XIV, World of Warcraft) |
 
 Button bindings deviate from the Windows profile (just re-organizing). Button
 numbers refer to the grid in `docs/hardware.md`:
@@ -53,7 +60,31 @@ numbers refer to the grid in `docs/hardware.md`:
 | 12     | Top left     | Launch Firefox and open grok.com                   |
 | 9      | Top, col 2   | Launch Firefox and open claude.ai                  |
 | 10     | Bottom left  | Launch FINAL FANTASY XIV through Steam (XIVLauncher) |
+| 11     | Middle left  | Toggle mic mute on every real input source at once |
+| 8      | Middle, col 2 | Toggle Discord self-mute through its local RPC socket |
 | Others | -            | TBD                                                |
+
+Button 11 mutes all mics together rather than just the default source: the
+preferred BenQ monitor mic is not the PipeWire default, and muting everything
+guarantees no mic is hot regardless of which one an app grabbed. The toggle
+keys off the BenQ mic's current state so the sources cannot drift out of
+sync.
+
+Button 8 toggles Discord's own self-mute over the local RPC socket
+(`$XDG_RUNTIME_DIR/discord-ipc-0`, length-prefixed JSON frames implemented in
+`src/knobby/discord_rpc.nim`) so Discord shows its muted icon. It needs a
+one-time OAuth setup: create an application at
+discord.com/developers/applications, add `http://127.0.0.1` as an OAuth2
+redirect (the app must have one registered, but the RPC flow rejects a
+`redirect_uri` passed in the request itself), write its id and secret to
+`~/.config/knobby/discord_rpc.json` as `{"clientId": ..., "clientSecret":
+...}`, then run `nim r examples/discord_auth.nim` and approve the popup in
+Discord. Tokens are cached in the same file and refreshed automatically by
+the daemon. The daemon keeps one authenticated RPC connection open across
+presses: Discord rate-limits handshakes per client id, so
+connecting per press makes the next press hang until the limit expires. The RPC voice API is officially reserved for approved apps but
+works against one's own local client; if Discord ever locks it down, the
+fallback is Vesktop with portal-based global keybinds.
 
 Button 10 launches the non-Steam Steam shortcut named "Final Fantasy XIV",
 which runs XIVLauncher (`XIVLauncher.Core`, the nixpkgs install, config in
@@ -99,14 +130,17 @@ matches (Firefox opens several).
 
 ## Open Questions
 
-- Bindings for the remaining 9 buttons.
+- Bindings for the remaining 7 buttons.
 
 Resolved: button 10 checks for a running `ffxiv_dx11.exe` process and focuses
 the game window with `wmctrl -a "FINAL FANTASY XIV"` instead of relaunching
 (a second Steam launch fails silently in the background). The game runs under
 XWayland, so wmctrl works even though the desktop session is Wayland. Firefox
 buttons relaunch freely since Firefox delegates to the existing instance.
-- Behavior when a bound app has no active stream: ignore, or remember the
-  level and apply when the app appears?
+Resolved: fader levels are remembered and re-applied when new sink inputs
+appear. A background thread watches `pactl subscribe` for new sink-input
+events; without this, apps that open a fresh stream per sound (Firefox web
+apps, for example) would play sounds born after the fader move at their old
+volume.
 - Whether fader moves should be absolute-set immediately or soft-takeover.
   Absolute-set is simpler and matches the hardware doc; start there.

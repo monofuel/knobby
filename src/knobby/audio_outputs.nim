@@ -1,10 +1,13 @@
 import
-  std/[os, osproc, strformat, strutils, tables]
+  std/[os, strformat, strutils, tables],
+  ./common
 
 type
   AudioOutputStream* = object
     id*: string
     appName*: string
+    processId*: string
+    mediaRole*: string
     sinkId*: string
     sinkName*: string
     volume*: string
@@ -51,17 +54,9 @@ proc parseSinkNames(output: string): Table[string, string] =
 proc listAudioOutputStreams*(): seq[AudioOutputStream] =
   ## List currently active sink-input streams and their volume levels.
   ensureToolInstalled("pactl")
-  let sinksRaw = execProcess(
-    "pactl",
-    args = @["list", "short", "sinks"],
-    options = {poUsePath, poStdErrToStdOut}
-  )
+  let sinksRaw = runAudioCommand("pactl", @["list", "short", "sinks"])
   let sinkNames = parseSinkNames(sinksRaw)
-  let inputsRaw = execProcess(
-    "pactl",
-    args = @["list", "sink-inputs"],
-    options = {poUsePath, poStdErrToStdOut}
-  )
+  let inputsRaw = runAudioCommand("pactl", @["list", "sink-inputs"])
 
   var current = AudioOutputStream()
   for line in inputsRaw.splitLines():
@@ -81,6 +76,10 @@ proc listAudioOutputStreams*(): seq[AudioOutputStream] =
         current.sinkName = sinkNames[current.sinkId]
     elif current.id.len > 0 and stripped.startsWith("Volume:") and current.volume.len == 0:
       current.volume = extractPercent(stripped)
+    elif current.id.len > 0 and stripped.startsWith("application.process.id ="):
+      current.processId = afterEquals(stripped).strip(chars = {'"'})
+    elif current.id.len > 0 and stripped.startsWith("media.role ="):
+      current.mediaRole = afterEquals(stripped).strip(chars = {'"'})
     elif current.id.len > 0 and stripped.startsWith("application.name ="):
       let rawName = afterEquals(stripped)
       current.appName = rawName.strip(chars = {'"'})

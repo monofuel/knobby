@@ -1,6 +1,37 @@
 import
-  std/[tables, unittest],
+  std/[strutils, tables, unittest],
   knobby/[actions, midi_events]
+
+suite "isNewSinkInputEvent":
+  test "matches new sink-input events":
+    check isNewSinkInputEvent("Event 'new' on sink-input #18509")
+
+  test "ignores other pactl events":
+    check not isNewSinkInputEvent("Event 'change' on sink-input #18509")
+    check not isNewSinkInputEvent("Event 'new' on client #612")
+    check not isNewSinkInputEvent("Event 'remove' on sink-input #18509")
+
+suite "parseSourceNames":
+  test "keeps real inputs and skips monitor sources":
+    let output = [
+      "75\talsa_input.usb-Lenovo_Lenovo_Performance_Camera_145081A8-04.analog-stereo\tPipeWire\ts16le 2ch 16000Hz\tRUNNING",
+      "77\talsa_output.pci-0000_19_00.6.iec958-stereo.monitor\tPipeWire\ts32le 2ch 48000Hz\tSUSPENDED",
+      "37597\talsa_input.usb-Generic_BenQ_EX3210U-00.iec958-stereo\tPipeWire\ts24le 2ch 48000Hz\tRUNNING",
+    ].join("\n")
+    let names = parseSourceNames(output)
+    check names == @[
+      "alsa_input.usb-Lenovo_Lenovo_Performance_Camera_145081A8-04.analog-stereo",
+      "alsa_input.usb-Generic_BenQ_EX3210U-00.iec958-stereo",
+    ]
+
+  test "ignores blank and malformed lines":
+    check parseSourceNames("").len == 0
+    check parseSourceNames("\n\njunk\n").len == 0
+
+suite "isMuteReported":
+  test "detects muted and unmuted reports":
+    check isMuteReported("Mute: yes")
+    check not isMuteReported("Mute: no")
 
 suite "faderPercent":
   test "maps the full range linearly":
