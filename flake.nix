@@ -20,6 +20,7 @@
           pulseaudio
           wmctrl
           curl
+          systemd
         ];
 
         shellHook = ''

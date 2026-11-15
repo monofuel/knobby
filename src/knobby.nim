@@ -1,6 +1,6 @@
 import
   std/[os, strformat],
-  knobby/[actions, common, midi_events, midi_monitor]
+  knobby/[actions, common, midi_events, midi_monitor, razer_lighting]
 
 proc appName*(): string =
   ## Return the application name.
@@ -16,6 +16,7 @@ proc run*() =
   let dispatcher = newDispatcher()
   startProgressWatchdog()
   startStreamWatcher()
+  startMousepadLighting()
   echo fmt"{AppName}: {AppDescription}"
   while true:
     markProgress()

@@ -20,6 +20,7 @@
 - `src/knobby/actions.nim` - bindings, fader endpoint snap and deadband,
   pactl volume calls, detached app launchers.
 - `src/knobby/audio_outputs.nim` - pactl sink-input listing.
+- `src/knobby/razer_lighting.nim` - optional OpenRazer mousepad lighting through D-Bus.
 - `examples/` - midi_monitor and audio_outputs demos (see README.md).
 - `docs/example_out.txt` - real capture of every button and fader; the
   reference for parser behavior and test cases.
@@ -29,7 +30,9 @@
 - Nim >= 2.0.0, standard library only (no package dependencies).
 - External command-line tools, all provided by the flake dev shell
   (`nix develop`): aseqdump and aconnect (alsa-utils), pactl (pulseaudio),
-  wmctrl, curl. There is no C library linkage; everything shells out.
+  wmctrl, curl, busctl (systemd). There is no C library linkage; everything shells out.
+- Mousepad lighting uses the separately installed OpenRazer driver and user
+  daemon. Missing OpenRazer must not interrupt MIDI or audio handling.
 
 ## Tests
 

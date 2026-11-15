@@ -7,6 +7,8 @@ or Discord mute.
 
 It runs in the background, reconnects when the controller is unplugged, and
 keeps app volumes at their fader levels when new audio streams appear.
+With OpenRazer installed, it also gives the
+[Goliathus mousepad](docs/goliathus-chroma.md) a subtle grey breathing effect.
 
 ## Scope
 
@@ -30,7 +32,8 @@ nimble test
 
 The shell supplies Nim and the command-line tools Knobby needs. Without Nix,
 use Nim 2.0 or newer, Nimble, `alsa-utils`, `pactl`, `wmctrl`, `curl`, and
-`pgrep` (from `procps`).
+`pgrep` (from `procps`). Mousepad lighting also uses `busctl` (from `systemd`)
+and the OpenRazer driver and user daemon; MIDI and audio work without OpenRazer.
 Knobby uses only Nim's standard library. Tests need neither the controller
 nor a running audio server.
 
