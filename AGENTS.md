@@ -21,6 +21,7 @@
   pactl volume calls, detached app launchers.
 - `src/knobby/audio_outputs.nim` - pactl sink-input listing.
 - `src/knobby/razer_lighting.nim` - optional OpenRazer mousepad lighting through D-Bus.
+- `src/knobby/stream_deck.nim` - Linux hidraw transport and MK.2 report codecs for the standalone demo.
 - `examples/` - midi_monitor and audio_outputs demos (see README.md).
 - `docs/example_out.txt` - real capture of every button and fader; the
   reference for parser behavior and test cases.
@@ -30,7 +31,11 @@
 - Nim >= 2.0.0, standard library only (no package dependencies).
 - External command-line tools, all provided by the flake dev shell
   (`nix develop`): aseqdump and aconnect (alsa-utils), pactl (pulseaudio),
-  wmctrl, curl, busctl (systemd). There is no C library linkage; everything shells out.
+  wmctrl, curl, busctl (systemd).
+- Stream Deck support uses Linux hidraw and POSIX calls directly, with the
+  system's Linux headers. It adds no third-party C or Nim library dependency.
+- Regenerating the committed Stream Deck JPEG assets needs FFmpeg and
+  `fc-match` (fontconfig) with DejaVu Sans Bold. Running the demo does not.
 - Mousepad lighting uses the separately installed OpenRazer driver and user
   daemon. Missing OpenRazer must not interrupt MIDI or audio handling.
 

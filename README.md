@@ -57,6 +57,19 @@ nim r examples/midi_monitor.nim -- --list
 nim r examples/audio_outputs.nim
 ```
 
+## Stream Deck demo
+
+The Stream Deck MK.2 demo displays numbered keys and highlights each one
+while held. Presses and releases appear in the terminal:
+
+```sh
+nim r examples/stream_deck.nim
+```
+
+It reconnects after unplugging. Ctrl+C restores the Elgato logo and exits.
+See the [Stream Deck notes](docs/stream-deck.md) for hardware details. This
+demo runs separately from the MIDI daemon; its keys have no desktop actions.
+
 ## Background service
 
 On high-steel, install the checked-in [systemd user service](docs/knobby.service):
