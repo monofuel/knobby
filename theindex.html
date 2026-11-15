@@ -28,7 +28,7 @@
     <label for="nav-toggle" id="nav-overlay"></label>
     <div class="container">
       <h1 class="title">Index</h1>
-      Modules: <a href="knobby.html">knobby</a>, <a href="knobby/actions.html">knobby/actions</a>, <a href="knobby/audio_outputs.html">knobby/audio_outputs</a>, <a href="knobby/common.html">knobby/common</a>, <a href="knobby/discord_rpc.html">knobby/discord_rpc</a>, <a href="knobby/midi_events.html">knobby/midi_events</a>, <a href="knobby/midi_monitor.html">knobby/midi_monitor</a>.<br/><p /><h2>API symbols</h2>
+      Modules: <a href="knobby.html">knobby</a>, <a href="knobby/actions.html">knobby/actions</a>, <a href="knobby/audio_outputs.html">knobby/audio_outputs</a>, <a href="knobby/common.html">knobby/common</a>, <a href="knobby/discord_rpc.html">knobby/discord_rpc</a>, <a href="knobby/midi_events.html">knobby/midi_events</a>, <a href="knobby/midi_monitor.html">knobby/midi_monitor</a>, <a href="knobby/razer_lighting.html">knobby/razer_lighting</a>.<br/><p /><h2>API symbols</h2>
 <dl><dt><a name="AppDescription" href="#AppDescription"><span>AppDescription:</span></a></dt><dd><ul class="simple">
 <li><a class="reference external"
           data-doc-search-tag="common: const AppDescription" href="knobby/common.html#AppDescription">common: const AppDescription</a></li>
@@ -56,6 +56,10 @@
 <dt><a name="authorize" href="#authorize"><span>authorize:</span></a></dt><dd><ul class="simple">
 <li><a class="reference external"
           data-doc-search-tag="discord_rpc: proc authorize(client: DiscordRpcClient; clientId: string): string" href="knobby/discord_rpc.html#authorize%2CDiscordRpcClient%2Cstring">discord_rpc: proc authorize(client: DiscordRpcClient; clientId: string): string</a></li>
+          </ul></dd>
+<dt><a name="BusctlRunner" href="#BusctlRunner"><span>BusctlRunner:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="razer_lighting: type BusctlRunner" href="knobby/razer_lighting.html#BusctlRunner">razer_lighting: type BusctlRunner</a></li>
           </ul></dd>
 <dt><a name="close" href="#close"><span>close:</span></a></dt><dd><ul class="simple">
 <li><a class="reference external"
@@ -205,6 +209,10 @@
 <li><a class="reference external"
           data-doc-search-tag="midi_monitor: proc midiMonitorUsage(): string" href="knobby/midi_monitor.html#midiMonitorUsage">midi_monitor: proc midiMonitorUsage(): string</a></li>
           </ul></dd>
+<dt><a name="MousepadLightingState" href="#MousepadLightingState"><span>MousepadLightingState:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="razer_lighting: object MousepadLightingState" href="knobby/razer_lighting.html#MousepadLightingState">razer_lighting: object MousepadLightingState</a></li>
+          </ul></dd>
 <dt><a name="newDiscordRpcClient" href="#newDiscordRpcClient"><span>newDiscordRpcClient:</span></a></dt><dd><ul class="simple">
 <li><a class="reference external"
           data-doc-search-tag="discord_rpc: proc newDiscordRpcClient(socket: Socket; timeoutMs = DefaultRecvTimeoutMs): DiscordRpcClient" href="knobby/discord_rpc.html#newDiscordRpcClient%2CSocket">discord_rpc: proc newDiscordRpcClient(socket: Socket; timeoutMs = DefaultRecvTimeoutMs): DiscordRpcClient</a></li>
@@ -299,6 +307,10 @@
              options: set[ProcessOption] = {poUsePath, poStdErrToStdOut}): Process" href="knobby/common.html#spawnCommand%2Cstring%2Cseq%5Bstring%5D%2Cset%5BProcessOption%5D">common: proc spawnCommand(command: string; args: seq[string];
              options: set[ProcessOption] = {poUsePath, poStdErrToStdOut}): Process</a></li>
           </ul></dd>
+<dt><a name="startMousepadLighting" href="#startMousepadLighting"><span>startMousepadLighting:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="razer_lighting: proc startMousepadLighting()" href="knobby/razer_lighting.html#startMousepadLighting">razer_lighting: proc startMousepadLighting()</a></li>
+          </ul></dd>
 <dt><a name="startProgressWatchdog" href="#startProgressWatchdog"><span>startProgressWatchdog:</span></a></dt><dd><ul class="simple">
 <li><a class="reference external"
           data-doc-search-tag="common: proc startProgressWatchdog()" href="knobby/common.html#startProgressWatchdog">common: proc startProgressWatchdog()</a></li>
@@ -313,6 +325,10 @@
               includeGames: bool): bool" href="knobby/actions.html#streamMatches%2CAudioOutputStream%2CopenArray%5Bstring%5D%2Cbool">actions: proc streamMatches(stream: AudioOutputStream; appNames: openArray[string];
               includeGames: bool): bool</a></li>
           </ul></dd>
+<dt><a name="syncMousepadLighting" href="#syncMousepadLighting"><span>syncMousepadLighting:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="razer_lighting: proc syncMousepadLighting(state: var MousepadLightingState; run: BusctlRunner)" href="knobby/razer_lighting.html#syncMousepadLighting%2CMousepadLightingState%2CBusctlRunner">razer_lighting: proc syncMousepadLighting(state: var MousepadLightingState; run: BusctlRunner)</a></li>
+          </ul></dd>
 <dt><a name="toggleDiscordMute" href="#toggleDiscordMute"><span>toggleDiscordMute:</span></a></dt><dd><ul class="simple">
 <li><a class="reference external"
           data-doc-search-tag="discord_rpc: proc toggleDiscordMute(): bool" href="knobby/discord_rpc.html#toggleDiscordMute">discord_rpc: proc toggleDiscordMute(): bool</a></li>
@@ -321,7 +337,7 @@
       <div class="twelve-columns footer">
         <span class="nim-sprite"></span>
         <br>
-        <small style="color: var(--hint);">Made with Nim. Generated: 2026-11-15 18:42:21 UTC</small>
+        <small style="color: var(--hint);">Made with Nim. Generated: 2026-11-15 19:59:54 UTC</small>
       </div>
     </div>
   </div>
