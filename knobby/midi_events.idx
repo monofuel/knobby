@@ -1,0 +1,8 @@
+nimTitle	midi_events	knobby/midi_events.html	module knobby/midi_events		0
+nim	NoteOn	knobby/midi_events.html#NoteOn	MidiEventKind.NoteOn		5
+nim	NoteOff	knobby/midi_events.html#NoteOff	MidiEventKind.NoteOff		5
+nim	ControlChange	knobby/midi_events.html#ControlChange	MidiEventKind.ControlChange		5
+nim	OtherEvent	knobby/midi_events.html#OtherEvent	MidiEventKind.OtherEvent		5
+nim	MidiEventKind	knobby/midi_events.html#MidiEventKind	enum MidiEventKind		5
+nim	MidiEvent	knobby/midi_events.html#MidiEvent	object MidiEvent		8
+nim	parseMidiEvent	knobby/midi_events.html#parseMidiEvent,string	proc parseMidiEvent(line: string): MidiEvent		28

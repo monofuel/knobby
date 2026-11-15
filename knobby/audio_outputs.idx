@@ -1,0 +1,5 @@
+nimTitle	audio_outputs	knobby/audio_outputs.html	module knobby/audio_outputs		0
+nim	AudioOutputStream	knobby/audio_outputs.html#AudioOutputStream	object AudioOutputStream		6
+nim	audioOutputsUsage	knobby/audio_outputs.html#audioOutputsUsage	proc audioOutputsUsage(): string		15
+nim	listAudioOutputStreams	knobby/audio_outputs.html#listAudioOutputStreams	proc listAudioOutputStreams(): seq[AudioOutputStream]		54
+nim	printAudioOutputStreams	knobby/audio_outputs.html#printAudioOutputStreams	proc printAudioOutputStreams()		100
