@@ -193,11 +193,11 @@ proc isMuteReported*(output: string): bool =
 proc toggleMicMute() =
   ## Toggle mute on every real input source at once, keyed off the BenQ
   ## monitor mic's state so the mics never drift out of sync.
-  let muteRaw = runCommand("pactl", @["get-source-mute", BenqMicSource])
+  let muteRaw = runAudioCommand("pactl", @["get-source-mute", BenqMicSource])
   let target = if isMuteReported(muteRaw): "0" else: "1"
-  let sourcesRaw = runCommand("pactl", @["list", "short", "sources"])
+  let sourcesRaw = runAudioCommand("pactl", @["list", "short", "sources"])
   for source in parseSourceNames(sourcesRaw):
-    discard runCommand("pactl", @["set-source-mute", source, target])
+    discard runAudioCommand("pactl", @["set-source-mute", source, target])
   let stateLabel = if target == "1": "muted" else: "unmuted"
   echo fmt"Button 11: all mics {stateLabel}"
 
@@ -246,7 +246,10 @@ proc pressButton(note: int) =
   of 10:
     launchFfxiv()
   of 11:
-    toggleMicMute()
+    try:
+      toggleMicMute()
+    except OSError as error:
+      echo "Microphone mute failed: " & error.msg
   of 8:
     pressDiscordMute()
   else:

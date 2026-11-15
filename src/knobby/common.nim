@@ -1,5 +1,5 @@
 import
-  std/[locks, monotimes, os, osproc, posix, strutils, times]
+  std/[atomics, locks, monotimes, os, osproc, posix, strutils, times]
 
 const
   AppName* = "Knobby"
@@ -75,3 +75,29 @@ proc runAudioCommand*(command: string, args: seq[string]): string =
     if exitCode != 0:
       raise newException(OSError, command & " " & args.join(" ") &
         ": exit " & $exitCode & ": " & result.strip())
+
+
+const
+  ProgressTimeoutMs = 30000
+  ProgressCheckMs = 1000
+
+var
+  lastProgress: Atomic[int64]
+  progressThread: Thread[void]
+
+proc markProgress*() =
+  ## Record main-loop progress without depending on subprocess locks.
+  lastProgress.store(getMonoTime().ticks div 1_000_000)
+
+proc watchProgress() {.thread.} =
+  ## Exit a stalled daemon so systemd can restart it.
+  while true:
+    sleep(ProgressCheckMs)
+    if getMonoTime().ticks div 1_000_000 - lastProgress.load() > ProgressTimeoutMs:
+      stderr.writeLine("Knobby main loop stalled for 30 seconds; exiting for restart.")
+      quit(1)
+
+proc startProgressWatchdog*() =
+  ## Start the watchdog only in the daemon, not in library consumers or tests.
+  markProgress()
+  createThread(progressThread, watchProgress)

@@ -1,5 +1,5 @@
 import
-  std/[json, net, os, posix, strformat],
+  std/[json, monotimes, net, os, posix, strformat, times],
   ./common
 
 type
@@ -23,6 +23,8 @@ const
   IpcSocketPrefix = "discord-ipc-"
   MaxIpcSocketIndex = 9
   DefaultRecvTimeoutMs = 5000
+  MaxFrameBytes = 1024 * 1024
+  MaxResponseFrames = 256
   TokenEndpoint = "https://discord.com/api/oauth2/token"
   OauthScopes* = ["rpc", "rpc.voice.read", "rpc.voice.write"]
 
@@ -61,24 +63,31 @@ proc findDiscordSocketPath*(): string =
     if access(path.cstring, F_OK) == 0:
       return path
 
+proc newDiscordRpcClient*(socket: Socket, timeoutMs = DefaultRecvTimeoutMs): DiscordRpcClient =
+  ## Wrap a connected socket with a bounded RPC response timeout.
+  result = DiscordRpcClient(socket: socket, recvTimeoutMs: timeoutMs)
+
 proc connectDiscordRpc*(): DiscordRpcClient =
   ## Connect to the local Discord IPC socket.
   let path = findDiscordSocketPath()
   if path.len == 0:
     raise newException(IOError,
       "No Discord IPC socket found; is Discord running?")
-  let socket = newSocket(net.AF_UNIX, net.SOCK_STREAM, net.IPPROTO_IP)
+  let socket = newSocket(net.AF_UNIX, net.SOCK_STREAM, net.IPPROTO_IP, buffered = false)
   socket.connectUnix(path)
-  result = DiscordRpcClient(socket: socket, recvTimeoutMs: DefaultRecvTimeoutMs)
+  result = newDiscordRpcClient(socket)
 
 proc close*(client: DiscordRpcClient) =
   ## Close the IPC connection.
   client.socket.close()
 
-proc recvExactly(client: DiscordRpcClient, size: int): string =
+proc recvExactly(client: DiscordRpcClient, size: int, deadline: MonoTime): string =
   ## Read exactly the requested number of bytes from the socket.
   while result.len < size:
-    let chunk = client.socket.recv(size - result.len, client.recvTimeoutMs)
+    let remaining = (deadline - getMonoTime()).inMilliseconds
+    if remaining <= 0:
+      raise newException(IOError, "Discord RPC response deadline exceeded.")
+    let chunk = client.socket.recv(size - result.len, int(remaining))
     if chunk.len == 0:
       raise newException(IOError, "Discord IPC socket closed.")
     result.add(chunk)
@@ -87,10 +96,13 @@ proc sendFrame(client: DiscordRpcClient, op: int, payload: JsonNode) =
   ## Send one IPC frame.
   client.socket.send(encodeFrame(op, $payload))
 
-proc recvFrame(client: DiscordRpcClient): (int, JsonNode) =
+proc recvFrame(client: DiscordRpcClient, deadline: MonoTime): (int, JsonNode) =
   ## Receive one IPC frame as its opcode and parsed payload.
-  let header = client.recvExactly(FrameHeaderLen)
-  let payload = client.recvExactly(decodeUint32Le(header, 4))
+  let header = client.recvExactly(FrameHeaderLen, deadline)
+  let size = decodeUint32Le(header, 4)
+  if size > MaxFrameBytes:
+    raise newException(IOError, "Discord RPC frame exceeds size limit.")
+  let payload = client.recvExactly(size, deadline)
   result = (decodeUint32Le(header, 0), parseJson(payload))
 
 proc request(client: DiscordRpcClient, cmd: string, args: JsonNode): JsonNode =
@@ -99,8 +111,9 @@ proc request(client: DiscordRpcClient, cmd: string, args: JsonNode): JsonNode =
   inc client.nonceCounter
   let nonce = $client.nonceCounter
   client.sendFrame(FrameOp, %*{"cmd": cmd, "args": args, "nonce": nonce})
-  while true:
-    let (op, payload) = client.recvFrame()
+  let deadline = getMonoTime() + initDuration(milliseconds = client.recvTimeoutMs)
+  for frame in 0..<MaxResponseFrames:
+    let (op, payload) = client.recvFrame(deadline)
     if op == CloseOp:
       raise newException(IOError, fmt"Discord closed the connection: {payload}")
     if op == FrameOp and payload{"nonce"}.getStr() == nonce:
@@ -109,11 +122,13 @@ proc request(client: DiscordRpcClient, cmd: string, args: JsonNode): JsonNode =
         raise newException(IOError,
           fmt"Discord RPC error for {cmd}: {errorData}")
       return payload
+  raise newException(IOError, "Discord RPC response frame limit exceeded.")
 
 proc handshake*(client: DiscordRpcClient, clientId: string): JsonNode =
   ## Perform the IPC handshake and return the READY dispatch payload.
   client.sendFrame(HandshakeOp, %*{"v": RpcVersion, "client_id": clientId})
-  let (op, payload) = client.recvFrame()
+  let (op, payload) = client.recvFrame(getMonoTime() +
+    initDuration(milliseconds = client.recvTimeoutMs))
   if op != FrameOp:
     raise newException(IOError, fmt"Discord rejected the handshake: {payload}")
   result = payload
@@ -169,7 +184,7 @@ proc saveDiscordCreds*(creds: DiscordCreds) =
 proc requestToken(creds: DiscordCreds, grantParams: seq[string]): JsonNode =
   ## POST a grant to the Discord OAuth token endpoint through curl.
   var args = @[
-    "-s", "-X", "POST", TokenEndpoint,
+    "-s", "--connect-timeout", "3", "--max-time", "5", "-X", "POST", TokenEndpoint,
     "-H", "Content-Type: application/x-www-form-urlencoded",
     "--data-urlencode", fmt"client_id={creds.clientId}",
     "--data-urlencode", fmt"client_secret={creds.clientSecret}"
@@ -207,14 +222,17 @@ proc connectAuthenticated(): DiscordRpcClient =
   ## as needed.
   var creds = loadDiscordCreds()
   result = connectDiscordRpc()
-  discard result.handshake(creds.clientId)
   try:
-    discard result.authenticate(creds.accessToken)
-  except IOError:
-    # An expired access token is the one recoverable failure here: refresh
-    # and retry once before letting anything else bubble up.
-    refreshTokens(creds)
-    discard result.authenticate(creds.accessToken)
+    discard result.handshake(creds.clientId)
+    try:
+      discard result.authenticate(creds.accessToken)
+    except IOError:
+      refreshTokens(creds)
+      discard result.authenticate(creds.accessToken)
+  except CatchableError:
+    result.close()
+    raise
+
 
 proc dropCachedClient() =
   ## Close and forget the cached RPC connection.

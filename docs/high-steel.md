@@ -47,7 +47,7 @@ Fader bindings match the old Windows MIDI Mixer profile:
 
 | Control   | Target                                        |
 |-----------|-----------------------------------------------|
-| Fader 16  | Master volume (the Bose PC desktop controller sink) |
+| Fader 16  | Master volume (the default output sink, normally the Bose PC desktop controller) |
 | Fader 17  | Firefox (often YouTube)                       |
 | Fader 18  | Spotify                                       |
 | Fader 19  | Games: any Steam-launched app (SteamAppId in `/proc/<pid>/environ`), any stream with `media.role = game` (OpenAL Soft apps like decompbound's player), plus a name whitelist (FINAL FANTASY XIV, World of Warcraft) |
@@ -144,3 +144,21 @@ apps, for example) would play sounds born after the fader move at their old
 volume.
 - Whether fader moves should be absolute-set immediately or soft-takeover.
   Absolute-set is simpler and matches the hardware doc; start there.
+
+## Daemon Recovery
+
+MIDI sessions read nonblocking output in bounded batches, with no reader
+thread or channel. Session subprocesses are reaped even when dispatch fails.
+Quiet MIDI input is normal: the main loop polls every 100 ms and continues
+reporting progress without requiring fader movement.
+
+An independent watchdog exits the daemon if the main loop makes no progress
+for 30 seconds. Systemd then restarts it after one second. Discord responses
+have a total deadline, a frame-count limit, and a maximum frame size; token
+requests also have network timeouts. Microphone commands use the same
+one-second timeout as volume commands.
+
+Service startup forces Nim to rebuild rather than relying on its cached
+executable. Inspect recovery messages with
+`journalctl --user -u knobby --since today`. A watchdog restart is recovery
+from a stall, not evidence that its original cause has been identified.

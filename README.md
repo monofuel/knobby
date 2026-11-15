@@ -1,26 +1,71 @@
 # Knobby
 
-- Linux MIDI controller daemon.
+Knobby puts Linux audio on physical faders. An Arduino MIDI mixer controls
+master, browser, music, and game volume without opening a volume panel or
+leaving the app you're using. Its buttons launch apps and toggle microphone
+or Discord mute.
+
+It runs in the background, reconnects when the controller is unplugged, and
+keeps app volumes at their fader levels when new audio streams appear.
 
 ## Scope
 
-- This project is currently for monofuel's personal use on his desktop computer.
-- Nothing is configurable yet, and that is intentional: make the base case work
-  before doing anything clever. Hardware specifics are documented in
-  docs/hardware.md.
+This is monofuel's personal setup for `high-steel`, a NixOS desktop using
+PipeWire's PulseAudio compatibility layer. Bindings and desktop paths are
+hardcoded intentionally; there is no configuration system.
 
-## Development
+The [controller](docs/hardware.md) has four faders and twelve buttons.
+See the [desktop setup](docs/high-steel.md) for bindings and Discord
+authorization. Adapting Knobby to another desktop means editing the bindings
+in [actions.nim](src/knobby/actions.nim) and the service paths.
 
-- Run tests: `nimble test`
-- Run the app scaffold: `nimble run`
+## Try it
 
-## MIDI Monitor Demo
+From the checkout, enter the Nix development shell and run the tests:
 
-- List available ALSA MIDI ports: `nim r examples/midi_monitor.nim -- --list`
-- Auto-detect Arduino Micro and monitor: `nim r examples/midi_monitor.nim`
-- Explicit auto-detect mode: `nim r examples/midi_monitor.nim -- --auto`
-- Start monitor with explicit port: `nim r examples/midi_monitor.nim -- 20:0`
+```sh
+nix develop
+nimble test
+```
 
-## Audio Outputs Demo
+The shell supplies Nim and the command-line tools Knobby needs. Without Nix,
+use Nim 2.0 or newer, Nimble, `alsa-utils`, `pactl`, `wmctrl`, `curl`, and
+`pgrep` (from `procps`).
+Knobby uses only Nim's standard library. Tests need neither the controller
+nor a running audio server.
 
-- List active audio outputs with app names and volumes: `nim r examples/audio_outputs.nim`
+To watch the controller's events without changing volumes or launching apps:
+
+```sh
+nim r examples/midi_monitor.nim
+```
+
+Stop the monitor with Ctrl+C. Once the desktop bindings match your setup, run
+the daemon:
+
+```sh
+nim r src/knobby.nim
+```
+
+To inspect the available MIDI ports or active audio streams:
+
+```sh
+nim r examples/midi_monitor.nim -- --list
+nim r examples/audio_outputs.nim
+```
+
+## Background service
+
+On high-steel, install the checked-in [systemd user service](docs/knobby.service):
+
+```sh
+mkdir -p ~/.config/systemd/user
+cp docs/knobby.service ~/.config/systemd/user/knobby.service
+systemctl --user daemon-reload
+systemctl --user enable --now knobby
+```
+
+The service compiles the daemon on startup. After code changes, restart it
+with `systemctl --user restart knobby`. View logs with
+`journalctl --user -u knobby -f`. Edit the repository's service file and copy
+it again when changing the service.

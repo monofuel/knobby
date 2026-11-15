@@ -1,12 +1,15 @@
-# ignore files with no extention:
+# Ignore files without extensions (compiled executables).
 *
 !*/
 !*.*
 
-# normal ignores:
+# Build artifacts and local files.
 *.exe
 nimcache
 *.pdb
 *.ilk
 *.out
 .*
+!.github/
+!.gitignore
+discord_rpc.json

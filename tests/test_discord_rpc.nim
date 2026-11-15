@@ -1,5 +1,5 @@
 import
-  std/unittest,
+  std/[net, nativesockets, posix, unittest],
   knobby/discord_rpc
 
 suite "uint32 little-endian codec":
@@ -24,3 +24,44 @@ suite "encodeFrame":
     let frame = encodeFrame(CloseOp, "")
     check frame.len == FrameHeaderLen
     check decodeUint32Le(frame, 4) == 0
+
+
+proc rpcPair(): tuple[client: DiscordRpcClient, peer: Socket] =
+  ## Create a local socket pair without connecting to Discord.
+  var handles: array[2, cint]
+  doAssert socketpair(posix.AF_UNIX, posix.SOCK_STREAM, 0, handles) == 0
+  result.client = newDiscordRpcClient(newSocket(SocketHandle(handles[0]),
+    net.AF_UNIX, net.SOCK_STREAM, net.IPPROTO_IP, buffered = false), 30)
+  result.peer = newSocket(SocketHandle(handles[1]),
+    net.AF_UNIX, net.SOCK_STREAM, net.IPPROTO_IP, buffered = false)
+
+suite "RPC failure bounds":
+  test "incomplete frames time out":
+    let pair = rpcPair()
+    defer:
+      pair.client.close()
+      pair.peer.close()
+    pair.peer.send("\x01")
+    expect CatchableError:
+      discard pair.client.getVoiceMute()
+
+  test "oversized frame rejected before reading payload":
+    let pair = rpcPair()
+    defer:
+      pair.client.close()
+      pair.peer.close()
+    pair.peer.send(encodeUint32Le(FrameOp) & encodeUint32Le(2 * 1024 * 1024))
+    expect IOError:
+      discard pair.client.getVoiceMute()
+
+  test "unrelated responses cannot keep a request alive forever":
+    let pair = rpcPair()
+    defer:
+      pair.client.close()
+      pair.peer.close()
+    var frames = ""
+    for index in 0..<256:
+      frames.add(encodeFrame(FrameOp, "{}"))
+    pair.peer.send(frames)
+    expect IOError:
+      discard pair.client.getVoiceMute()

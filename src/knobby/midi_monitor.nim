@@ -6,9 +6,10 @@ const
   DefaultMidiPort* = "32:0"
   ArduinoMicroName = "arduino micro"
   SessionShutdownMs = 1000
-  SessionEndMarker = "\x04knobby-session-end"
-
-type SeqReaderArgs = tuple[handle: FileHandle, channel: ptr Channel[string]]
+  BatchReadLimit = 64
+  ReadBufferSize = 4096
+  MaxPendingLineBytes = 65536
+  MidiPollMs = 100
 
 proc midiMonitorUsage*(): string =
   ## Return usage text for the MIDI monitor demo.
@@ -69,88 +70,73 @@ proc detectArduinoAmidiPort*(): string =
     if result.len > 0:
       break
 
-proc runSeqSession*(port: string, onLine: proc (line: string)): int =
-  ## Stream MIDI event lines from a sequencer port to a callback until the
-  ## process exits or the port unsubscribes.
-  let monitor = spawnCommand("aseqdump", @["-p", port])
-
-  var line: string
-  var sawUnsubscribe = false
-  while monitor.outputStream.readLine(line):
-    onLine(line)
-    if line.toLowerAscii().contains("port unsubscribed"):
-      sawUnsubscribe = true
-      break
-
-  if sawUnsubscribe:
-    terminate(monitor)
-
-  result = waitForExit(monitor)
-  close(monitor)
-
-proc runSeqMonitorSession(port: string): int =
-  ## Stream MIDI events from a sequencer port and echo each line.
-  result = runSeqSession(port, proc (line: string) = echo line)
-
-proc readSeqLines(args: SeqReaderArgs) {.thread.} =
-  ## Forward aseqdump output lines to the session channel until EOF.
-  var file: File
-  if open(file, args.handle, fmRead):
-    var line: string
-    while file.readLine(line):
-      args.channel[].send(line)
-    close(file)
-  args.channel[].send(SessionEndMarker)
-
 proc runSeqBatchSession*(port: string, onBatch: proc (lines: seq[string])): int =
-  ## Stream MIDI event lines in drained batches until the process exits or the
-  ## port unsubscribes. Lines that arrive while a batch is being handled are
-  ## delivered together in the next batch, so slow handlers see bursts of
-  ## events at once instead of falling behind one line at a time.
+  ## Poll MIDI output in bounded batches with session-local buffering.
   let monitor = spawnCommand("aseqdump", @["-p", port])
-  var seqLineChannel: Channel[string]
-  open(seqLineChannel)
-  var reader: Thread[SeqReaderArgs]
-  createThread(reader, readSeqLines, (FileHandle(dup(monitor.outputHandle.cint)), addr seqLineChannel))
-
-  var sessionOver = false
-  while not sessionOver:
-    var lines: seq[string]
-    let first = seqLineChannel.recv()
-    if first == SessionEndMarker:
-      sessionOver = true
-    else:
-      lines.add(first)
-      var draining = true
-      while draining:
-        let (received, line) = seqLineChannel.tryRecv()
-        if not received:
-          draining = false
-        elif line == SessionEndMarker:
-          sessionOver = true
-          draining = false
-        else:
-          lines.add(line)
-
-      var sawUnsubscribe = false
-      for line in lines:
-        if line.toLowerAscii().contains("port unsubscribed"):
-          sawUnsubscribe = true
-      onBatch(lines)
-      if sawUnsubscribe:
-        terminate(monitor)
-        sessionOver = true
-
   defer:
     if running(monitor):
       kill(monitor)
     discard waitForExit(monitor)
-    joinThread(reader)
     close(monitor)
-    close(seqLineChannel)
+  let handle = monitor.outputHandle.cint
+  let flags = fcntl(handle, F_GETFL, 0)
+  if flags < 0 or fcntl(handle, F_SETFL, flags or O_NONBLOCK) < 0:
+    raiseOSError(osLastError())
+  var
+    pending = ""
+    buffer: array[ReadBufferSize, char]
+    finished = false
+  while not finished:
+    markProgress()
+    var descriptor = TPollfd(fd: handle, events: POLLIN)
+    let ready = poll(addr descriptor, Tnfds(1), MidiPollMs)
+    if ready < 0:
+      if errno == EINTR:
+        continue
+      raiseOSError(osLastError())
+    if ready == 0:
+      continue
+    var lines: seq[string]
+    for attempt in 0..<BatchReadLimit:
+      let size = posix.read(handle, addr buffer[0], buffer.len)
+      if size == 0:
+        finished = true
+        break
+      if size < 0:
+        if errno == EINTR:
+          continue
+        if errno == EAGAIN:
+          break
+        raiseOSError(osLastError())
+      for index in 0..<int(size):
+        if buffer[index] == '\n':
+          lines.add(pending)
+          if pending.toLowerAscii().contains("port unsubscribed"):
+            finished = true
+          pending.setLen(0)
+        else:
+          pending.add(buffer[index])
+          if pending.len > MaxPendingLineBytes:
+            raise newException(IOError, "MIDI output line exceeds size limit.")
+      if finished:
+        break
+    if finished and pending.len > 0:
+      lines.add(pending)
+    if lines.len > 0:
+      onBatch(lines)
   if running(monitor):
     terminate(monitor)
   result = waitForExit(monitor, SessionShutdownMs)
+
+proc runSeqSession*(port: string, onLine: proc (line: string)): int =
+  ## Deliver individual lines using the same bounded session lifecycle.
+  result = runSeqBatchSession(port, proc (lines: seq[string]) =
+    for line in lines:
+      onLine(line))
+
+proc runSeqMonitorSession(port: string): int =
+  ## Stream MIDI events from a sequencer port and echo each line.
+  result = runSeqSession(port, proc (line: string) = echo line)
 
 proc runAmidiMonitorSession(port: string): int =
   ## Stream raw MIDI bytes from a hardware port until the process exits.
