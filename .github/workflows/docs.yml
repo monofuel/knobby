@@ -4,7 +4,7 @@ on:
     branches:
       - master
 env:
-  nim-version: 'stable'
+  nim-version: '2.2.4'
   deploy-dir: .gh-pages
 jobs:
   docs:
@@ -15,7 +15,7 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v3
-      - uses: jiro4989/setup-nim-action@v1
+      - uses: treeform/setup-nim-action@v6
         with:
           nim-version: ${{ env.nim-version }}
       - run: nim doc --index:on --project --git.url:https://github.com/${{ github.repository }} --git.commit:master --outdir:${{ env.deploy-dir }} src/knobby.nim

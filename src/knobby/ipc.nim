@@ -116,7 +116,7 @@ proc pump*(peer: Peer): seq[JsonNode] =
   if peer.closed:
     raise newException(IOError, "IPC connection is closed.")
   if peer.output.len > 0:
-    let size = posix.send(peer.socket.getFd(), unsafeAddr peer.output[peer.offset],
+    let size = posix.send(posix.SocketHandle(peer.socket.getFd()), unsafeAddr peer.output[peer.offset],
       min(ChunkBytes, peer.output.len - peer.offset), MSG_NOSIGNAL)
     if size > 0:
       peer.offset += size
@@ -129,7 +129,7 @@ proc pump*(peer: Peer): seq[JsonNode] =
     if monotonicMs() - peer.progress > PeerTimeoutMs:
       raise newException(IOError, "IPC peer stopped reading.")
   var bytes: array[ChunkBytes, char]
-  let size = posix.recv(peer.socket.getFd(), addr bytes[0], bytes.len, 0)
+  let size = posix.recv(posix.SocketHandle(peer.socket.getFd()), addr bytes[0], bytes.len, 0)
   if size == 0:
     raise newException(IOError, "IPC peer disconnected.")
   if size < 0 and errno notin [EAGAIN, EINTR]:

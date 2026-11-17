@@ -4,6 +4,16 @@ set -eu
 repo_dir=$(CDPATH='' cd -- "$(dirname -- "$0")/../../.." && pwd)
 smoke_dir=$(mktemp -d /tmp/knobby-gui-smoke.XXXXXX)
 cd "$repo_dir"
+if [ -z "${DBUS_SESSION_CONF:-}" ]; then
+  for candidate in /usr/share/dbus-1/session.conf /etc/dbus-1/session.conf; do
+    if [ -r "$candidate" ]; then DBUS_SESSION_CONF="$candidate"; break; fi
+  done
+fi
+if [ ! -r "${DBUS_SESSION_CONF:-}" ]; then
+  echo 'Set DBUS_SESSION_CONF to a readable D-Bus session configuration.' >&2
+  exit 1
+fi
+export DBUS_SESSION_CONF
 nim c -o:gui/app/dist/knobby_gui gui/app/src/knobby_gui.nim
 nim c -o:gui/app/dist/test_lifecycle gui/app/tools/test_lifecycle.nim
 nim c -o:gui/app/dist/check_rendering gui/app/tools/check_rendering.nim

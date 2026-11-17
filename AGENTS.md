@@ -2,9 +2,10 @@
 
 - Linux MIDI controller daemon.
 - Focus: stable background service behavior and predictable MIDI event handling.
-- Currently hard-coded for monofuel's desktop (high-steel) by design: see the
-  Scope section in README.md and docs/high-steel.md. Do not add configuration
-  systems.
+- Desktop integration remains specific to high-steel. Buttons and their menus
+  are editable through shared JSON configuration and the GUI/CLI. Faders, audio
+  targeting, and mousepad lighting remain compiled; do not broaden configuration
+  beyond buttons without a user request.
 - Hardware is an Arduino Micro MIDI mixer documented in docs/hardware.md:
   12 buttons (notes 1-12) and 4 faders (CC 16-19).
 - Faders drive PipeWire volumes through pactl; buttons launch apps. Shared
@@ -86,6 +87,10 @@ nix develop --command nim r tools/install.nim
   enables it for future logins without opening a desktop window.
 - Services execute verified prebuilt binaries. Restarting does not rebuild;
   rebuild/install first. The daemon owns all device and audio observations.
+- Installation and verification must not launch or restart desktop GUI
+  processes automatically. Preserve existing viewers and drafts; report an
+  exact reopen step when a protocol/editor update requires it. A task-specific
+  explicit user exception permits restarting an existing viewer for that task.
 - Stream Deck writers take an exclusive process lock outside service-managed
   runtime directories. Stop the daemon before running display demos/probes.
 - Never edit the live copy directly; edit docs/knobby.service and copy it, so
