@@ -1,0 +1,11 @@
+nimTitle	fader_cache	knobby/fader_cache.html	module knobby/fader_cache		0
+nim	FaderPositions	knobby/fader_cache.html#FaderPositions	type FaderPositions		5
+nim	FaderCacheWriter	knobby/fader_cache.html#FaderCacheWriter	object FaderCacheWriter		6
+nim	UnknownFaders	knobby/fader_cache.html#UnknownFaders	const UnknownFaders		12
+nim	FaderSaveIntervalMs	knobby/fader_cache.html#FaderSaveIntervalMs	const FaderSaveIntervalMs		14
+nim	faderCachePath	knobby/fader_cache.html#faderCachePath	proc faderCachePath(): string		16
+nim	decodeFaderCache	knobby/fader_cache.html#decodeFaderCache,string	proc decodeFaderCache(data: string): FaderPositions		28
+nim	loadFaderCache	knobby/fader_cache.html#loadFaderCache,string	proc loadFaderCache(path: string): FaderPositions		41
+nim	writeFaderCache	knobby/fader_cache.html#writeFaderCache,string,FaderPositions	proc writeFaderCache(path: string; positions: FaderPositions)		47
+nim	newFaderCacheWriter	knobby/fader_cache.html#newFaderCacheWriter,string,FaderPositions,int64	proc newFaderCacheWriter(path: string; saved: FaderPositions; timeMs: int64): FaderCacheWriter		57
+nim	flush	knobby/fader_cache.html#flush,FaderCacheWriter,FaderPositions,int64	proc flush(writer: var FaderCacheWriter; positions: FaderPositions; timeMs: int64;\n      force = false)		62

@@ -16,49 +16,40 @@
 <link rel="icon" type="image/png" sizes="32x32" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAABmJLR0QA/wD/AP+gvaeTAAAACXBIWXMAAA3XAAAN1wFCKJt4AAAAB3RJTUUH4QQQEwksSS9ZWwAAAk1JREFUWMPtll2ITVEUx39nn/O7Y5qR8f05wtCUUr6ZIS++8pEnkZInPImneaCQ5METNdOkeFBKUhMPRIkHKfEuUZSUlGlKPN2TrgfncpvmnntnmlEyq1Z7t89/rf9a6+y99oZxGZf/XeIq61EdtgKXgdXA0xrYAvBjOIF1AI9zvjcC74BSpndrJPkBWDScTF8Aa4E3wDlgHbASaANmVqlcCnwHvgDvgVfAJ+AikAAvgfVZwLnSVZHZaOuKoQi3ZOMi4NkYkpe1p4J7A8BpYAD49hfIy/oqG0+hLomiKP2L5L+1ubn5115S+3OAn4EnwBlgMzCjyt6ZAnQCJ4A7wOs88iRJHvw50HoujuPBoCKwHWiosy8MdfZnAdcHk8dxXFJ3VQbQlCTJvRBCGdRbD4M6uc5glpY3eAihpN5S5w12diSEcCCEcKUO4ljdr15T76ur1FDDLIQQ3qv71EdDOe3Kxj3leRXyk+pxdWnFWod6Wt2bY3de3aSuUHcPBVimHs7mK9WrmeOF6lR1o9qnzskh2ar2qm1qizpfXaPeVGdlmGN5pb09qMxz1Xb1kLqgzn1RyH7JUXW52lr5e/Kqi9qpto7V1atuUzfnARrV7jEib1T76gG2qxdGmXyiekkt1GswPTtek0aBfJp6YySGBfWg2tPQ0FAYgf1stUfdmdcjarbYJEniKIq6gY/Aw+zWHAC+p2labGpqiorFYgGYCEzN7oQdQClN07O1/EfDyGgC0ALMBdYAi4FyK+4H3gLPsxfR1zRNi+NP7nH5J+QntnXe5B5mpfQAAAAASUVORK5CYII=">
 
 <!-- CSS -->
-<link rel="stylesheet" type="text/css" href="../nimdoc.out.css?v=2.4.2">
+<link rel="stylesheet" type="text/css" href="../nimdoc.out.css?v=2.2.4">
 
 <!-- JS -->
-<script type="text/javascript" src="../dochack.js?v=2.4.2"></script>
+<script type="text/javascript" src="../dochack.js?v=2.2.4"></script>
 </head>
 <body>
   <div class="document" id="documentId">
-    <input type="checkbox" id="nav-toggle" hidden>
-    <label for="nav-toggle" id="nav-burger">&#9776;</label>
-    <label for="nav-toggle" id="nav-overlay"></label>
     <div class="container">
       <h1 class="title">knobby/actions</h1>
       <div class="row">
   <div class="three columns">
     <div class="theme-select-wrapper">
-  <label for="theme-select">Theme:&nbsp;</label>
-  <select id="theme-select" onchange="setTheme(this.value)">
-    <option value="auto">🌗 Match OS</option>
-    <option value="dark">🌑 Dark</option>
-    <option value="light">🌕 Light</option>
-  </select>
-</div>
-
+      <label for="theme-select">Theme:&nbsp;</label>
+      <select id="theme-select" onchange="setTheme(this.value)">
+        <option value="auto">🌗 Match OS</option>
+        <option value="dark">🌑 Dark</option>
+        <option value="light">🌕 Light</option>
+      </select>
+    </div>
     <div id="global-links">
-  
-  <ul class="simple">
-  <li><a id="indexLink" href="../theindex.html">Index</a></li>
-</ul>
-
-</div>
-
-      <div id="searchInputDiv">
-  Search: <input type="search" id="searchInput" oninput="search()"/>
-</div>
-
-    <div class="search-groupby">
-  Group by:
-  <select onchange="groupBy(this.value)">
-    <option value="section">Section</option>
-    <option value="type">Type</option>
-  </select>
-</div>
-
+      <ul class="simple">
+        <li><a id="indexLink" href="../theindex.html">Index</a></li>
+      </ul>
+    </div>
+    <div id="searchInputDiv">
+      Search: <input type="search" id="searchInput" oninput="search()"/>
+    </div>
+    <div>
+      Group by:
+      <select onchange="groupBy(this.value)">
+        <option value="section">Section</option>
+        <option value="type">Type</option>
+      </select>
+    </div>
     <ul class="simple simple-toc" id="toc-list">
   <li>
   <a class="reference reference-toplevel" href="#6" id="56">Imports</a>
@@ -101,10 +92,6 @@
   <li><a class="reference" href="#isNewSinkInputEvent%2Cstring" title="isNewSinkInputEvent(line: string): bool">isNewSinkInputEvent(line: string): bool</a></li>
 
 </ul>
-<ul class="simple nested-toc-section">isSteamGame
-  <li><a class="reference" href="#isSteamGame%2Cstring" title="isSteamGame(processId: string): bool">isSteamGame(processId: string): bool</a></li>
-
-</ul>
 <ul class="simple nested-toc-section">newDispatcher
   <li><a class="reference" href="#newDispatcher" title="newDispatcher(): Dispatcher">newDispatcher(): Dispatcher</a></li>
 
@@ -131,6 +118,9 @@
     </ul>
   </details>
 </li>
+<li>
+  <a class="reference reference-toplevel" href="#19" id="69">Exports</a>
+</li>
 
 </ul>
 
@@ -145,20 +135,20 @@
     <div class="section" id="6">
   <h1><a class="toc-backref" href="#6">Imports</a></h1>
   <dl class="item">
-    <a class="reference external" href="audio_outputs.html">audio_outputs</a>, <a class="reference external" href="common.html">common</a>, <a class="reference external" href="discord_rpc.html">discord_rpc</a>, <a class="reference external" href="midi_events.html">midi_events</a>
+    <a class="reference external" href="audio_outputs.html">audio_outputs</a>, <a class="reference external" href="bindings.html">bindings</a>, <a class="reference external" href="common.html">common</a>, <a class="reference external" href="discord_rpc.html">discord_rpc</a>, <a class="reference external" href="midi_events.html">midi_events</a>, <a class="reference external" href="runtime.html">runtime</a>
   </dl>
 </div>
 <div class="section" id="7">
   <h1><a class="toc-backref" href="#7">Types</a></h1>
   <dl class="item">
     <div id="Dispatcher">
-  <dt><pre><a href="#Dispatcher"><span class="Identifier">Dispatcher</span></a> <span class="Other">=</span> <span class="Keyword">ref</span> <span class="Keyword">object</span>
+  <dt><pre><a href="actions.html#Dispatcher"><span class="Identifier">Dispatcher</span></a> <span class="Other">=</span> <span class="Keyword">ref</span> <span class="Keyword">object</span>
   <span class="Identifier">lastFaderValues</span><span class="Operator">*</span><span class="Other">:</span> <span class="Identifier">Table</span><span class="Other">[</span><span class="Identifier">int</span><span class="Other">,</span> <span class="Identifier">int</span><span class="Other">]</span></pre></dt>
   <dd>
     
     
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/actions.nim#L31" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/actions.nim#L31" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/actions.nim#L21" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/actions.nim#L21" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -174,8 +164,8 @@
   <dd>
     
     Convert a MIDI fader value to a volume percentage with endpoint snapping.
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/actions.nim#L46" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/actions.nim#L46" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/actions.nim#L36" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/actions.nim#L36" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -188,8 +178,8 @@
   <dd>
     
     Reduce a batch of events to the newest value per fader, so a burst of movement applies the final position instead of replaying the sweep.
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/actions.nim#L258" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/actions.nim#L258" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/actions.nim#L233" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/actions.nim#L233" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -197,15 +187,15 @@
 </div>
 <div id="handleBatch-procs-all">
   <div id="handleBatch,Dispatcher,seq[MidiEvent]">
-  <dt><pre><span class="Keyword">proc</span> <a href="#handleBatch%2CDispatcher%2Cseq%5BMidiEvent%5D"><span class="Identifier">handleBatch</span></a><span class="Other">(</span><span class="Identifier">dispatcher</span><span class="Other">:</span> <a href="#Dispatcher"><span class="Identifier">Dispatcher</span></a><span class="Other">;</span> <span class="Identifier">events</span><span class="Other">:</span> <span class="Identifier">seq</span><span class="Other">[</span><a href="midi_events.html#MidiEvent"><span class="Identifier">MidiEvent</span></a><span class="Other">]</span><span class="Other">)</span> {.
-    <span><span class="Other pragmadots">...</span></span><span class="pragmawrap"><span class="Identifier">raises</span><span class="Other">:</span> <span class="Other">[</span><span class="Identifier">OSError</span><span class="Other">,</span> <span class="Identifier">IOError</span><span class="Other">,</span> <span class="Identifier">ValueError</span><span class="Other">,</span> <span class="Identifier">KeyError</span><span class="Other">]</span><span class="Other">,</span> <span class="Identifier">tags</span><span class="Other">:</span> <span class="Other">[</span><span class="Identifier">ExecIOEffect</span><span class="Other">,</span>
-    <span class="Identifier">ReadEnvEffect</span><span class="Other">,</span> <span class="Identifier">RootEffect</span><span class="Other">,</span> <span class="Identifier">TimeEffect</span><span class="Other">,</span> <span class="Identifier">WriteIOEffect</span><span class="Other">,</span> <span class="Identifier">ReadIOEffect</span><span class="Other">,</span>
-    <span class="Identifier">ReadDirEffect</span><span class="Other">,</span> <span class="Identifier">WriteDirEffect</span><span class="Other">]</span><span class="Other">,</span> <span class="Identifier">forbids</span><span class="Other">:</span> <span class="Other">[</span><span class="Other">]</span></span>.}</pre></dt>
+  <dt><pre><span class="Keyword">proc</span> <a href="#handleBatch%2CDispatcher%2Cseq%5BMidiEvent%5D"><span class="Identifier">handleBatch</span></a><span class="Other">(</span><span class="Identifier">dispatcher</span><span class="Other">:</span> <a href="actions.html#Dispatcher"><span class="Identifier">Dispatcher</span></a><span class="Other">;</span> <span class="Identifier">events</span><span class="Other">:</span> <span class="Identifier">seq</span><span class="Other">[</span><a href="midi_events.html#MidiEvent"><span class="Identifier">MidiEvent</span></a><span class="Other">]</span><span class="Other">)</span> {.
+    <span><span class="Other pragmadots">...</span></span><span class="pragmawrap"><span class="Identifier">raises</span><span class="Other">:</span> <span class="Other">[</span><span class="Identifier">OSError</span><span class="Other">,</span> <span class="Identifier">IOError</span><span class="Other">,</span> <span class="Identifier">ValueError</span><span class="Other">,</span> <span class="Identifier">Exception</span><span class="Other">,</span> <span class="Identifier">KeyError</span><span class="Other">]</span><span class="Other">,</span> <span class="Identifier">tags</span><span class="Other">:</span> <span class="Other">[</span>
+    <span class="Identifier">ExecIOEffect</span><span class="Other">,</span> <span class="Identifier">ReadEnvEffect</span><span class="Other">,</span> <span class="Identifier">RootEffect</span><span class="Other">,</span> <span class="Identifier">TimeEffect</span><span class="Other">,</span> <span class="Identifier">WriteIOEffect</span><span class="Other">,</span>
+    <span class="Identifier">ReadIOEffect</span><span class="Other">,</span> <span class="Identifier">ReadDirEffect</span><span class="Other">,</span> <span class="Identifier">WriteDirEffect</span><span class="Other">]</span><span class="Other">,</span> <span class="Identifier">forbids</span><span class="Other">:</span> <span class="Other">[</span><span class="Other">]</span></span>.}</pre></dt>
   <dd>
     
     Dispatch a batch of parsed MIDI events, coalescing fader moves.
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/actions.nim#L265" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/actions.nim#L265" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/actions.nim#L240" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/actions.nim#L240" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -213,15 +203,15 @@
 </div>
 <div id="handleEvent-procs-all">
   <div id="handleEvent,Dispatcher,MidiEvent">
-  <dt><pre><span class="Keyword">proc</span> <a href="#handleEvent%2CDispatcher%2CMidiEvent"><span class="Identifier">handleEvent</span></a><span class="Other">(</span><span class="Identifier">dispatcher</span><span class="Other">:</span> <a href="#Dispatcher"><span class="Identifier">Dispatcher</span></a><span class="Other">;</span> <span class="Identifier">event</span><span class="Other">:</span> <a href="midi_events.html#MidiEvent"><span class="Identifier">MidiEvent</span></a><span class="Other">)</span> {.
-    <span><span class="Other pragmadots">...</span></span><span class="pragmawrap"><span class="Identifier">raises</span><span class="Other">:</span> <span class="Other">[</span><span class="Identifier">OSError</span><span class="Other">,</span> <span class="Identifier">IOError</span><span class="Other">,</span> <span class="Identifier">ValueError</span><span class="Other">,</span> <span class="Identifier">KeyError</span><span class="Other">]</span><span class="Other">,</span> <span class="Identifier">tags</span><span class="Other">:</span> <span class="Other">[</span><span class="Identifier">ExecIOEffect</span><span class="Other">,</span>
-    <span class="Identifier">ReadEnvEffect</span><span class="Other">,</span> <span class="Identifier">RootEffect</span><span class="Other">,</span> <span class="Identifier">TimeEffect</span><span class="Other">,</span> <span class="Identifier">WriteIOEffect</span><span class="Other">,</span> <span class="Identifier">ReadIOEffect</span><span class="Other">,</span>
-    <span class="Identifier">ReadDirEffect</span><span class="Other">,</span> <span class="Identifier">WriteDirEffect</span><span class="Other">]</span><span class="Other">,</span> <span class="Identifier">forbids</span><span class="Other">:</span> <span class="Other">[</span><span class="Other">]</span></span>.}</pre></dt>
+  <dt><pre><span class="Keyword">proc</span> <a href="#handleEvent%2CDispatcher%2CMidiEvent"><span class="Identifier">handleEvent</span></a><span class="Other">(</span><span class="Identifier">dispatcher</span><span class="Other">:</span> <a href="actions.html#Dispatcher"><span class="Identifier">Dispatcher</span></a><span class="Other">;</span> <span class="Identifier">event</span><span class="Other">:</span> <a href="midi_events.html#MidiEvent"><span class="Identifier">MidiEvent</span></a><span class="Other">)</span> {.
+    <span><span class="Other pragmadots">...</span></span><span class="pragmawrap"><span class="Identifier">raises</span><span class="Other">:</span> <span class="Other">[</span><span class="Identifier">OSError</span><span class="Other">,</span> <span class="Identifier">IOError</span><span class="Other">,</span> <span class="Identifier">ValueError</span><span class="Other">,</span> <span class="Identifier">Exception</span><span class="Other">,</span> <span class="Identifier">KeyError</span><span class="Other">]</span><span class="Other">,</span> <span class="Identifier">tags</span><span class="Other">:</span> <span class="Other">[</span>
+    <span class="Identifier">ExecIOEffect</span><span class="Other">,</span> <span class="Identifier">ReadEnvEffect</span><span class="Other">,</span> <span class="Identifier">RootEffect</span><span class="Other">,</span> <span class="Identifier">TimeEffect</span><span class="Other">,</span> <span class="Identifier">WriteIOEffect</span><span class="Other">,</span>
+    <span class="Identifier">ReadIOEffect</span><span class="Other">,</span> <span class="Identifier">ReadDirEffect</span><span class="Other">,</span> <span class="Identifier">WriteDirEffect</span><span class="Other">]</span><span class="Other">,</span> <span class="Identifier">forbids</span><span class="Other">:</span> <span class="Other">[</span><span class="Other">]</span></span>.}</pre></dt>
   <dd>
     
     Dispatch one parsed MIDI event to its bound action.
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/actions.nim#L273" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/actions.nim#L273" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/actions.nim#L248" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/actions.nim#L248" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -233,8 +223,8 @@
   <dd>
     
     Report whether <tt class="docutils literal"><span class="pre"><span class="Identifier">pactl</span> <span class="Identifier">get</span><span class="Operator">-</span><span class="Identifier">source</span><span class="Operator">-</span><span class="Identifier">mute</span></span></tt> output says the source is muted.
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/actions.nim#L189" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/actions.nim#L189" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/actions.nim#L164" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/actions.nim#L164" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -246,22 +236,8 @@
   <dd>
     
     Report whether a pactl subscribe line announces a new sink input.
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/actions.nim#L106" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/actions.nim#L106" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
-
-  </dd>
-</div>
-
-</div>
-<div id="isSteamGame-procs-all">
-  <div id="isSteamGame,string">
-  <dt><pre><span class="Keyword">proc</span> <a href="#isSteamGame%2Cstring"><span class="Identifier">isSteamGame</span></a><span class="Other">(</span><span class="Identifier">processId</span><span class="Other">:</span> <span class="Identifier">string</span><span class="Other">)</span><span class="Other">:</span> <span class="Identifier">bool</span> {.<span><span class="Other pragmadots">...</span></span><span class="pragmawrap"><span class="Identifier">raises</span><span class="Other">:</span> <span class="Other">[</span><span class="Identifier">IOError</span><span class="Other">]</span><span class="Other">,</span>
-    <span class="Identifier">tags</span><span class="Other">:</span> <span class="Other">[</span><span class="Identifier">ReadDirEffect</span><span class="Other">,</span> <span class="Identifier">ReadIOEffect</span><span class="Other">]</span><span class="Other">,</span> <span class="Identifier">forbids</span><span class="Other">:</span> <span class="Other">[</span><span class="Other">]</span></span>.}</pre></dt>
-  <dd>
-    
-    Report whether the process was launched by Steam, which injects a SteamAppId variable into the environment of every game it starts.
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/actions.nim#L71" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/actions.nim#L71" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/actions.nim#L81" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/actions.nim#L81" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -269,12 +245,12 @@
 </div>
 <div id="newDispatcher-procs-all">
   <div id="newDispatcher">
-  <dt><pre><span class="Keyword">proc</span> <a href="#newDispatcher"><span class="Identifier">newDispatcher</span></a><span class="Other">(</span><span class="Other">)</span><span class="Other">:</span> <a href="#Dispatcher"><span class="Identifier">Dispatcher</span></a> {.<span><span class="Other pragmadots">...</span></span><span class="pragmawrap"><span class="Identifier">raises</span><span class="Other">:</span> <span class="Other">[</span><span class="Other">]</span><span class="Other">,</span> <span class="Identifier">tags</span><span class="Other">:</span> <span class="Other">[</span><span class="Other">]</span><span class="Other">,</span> <span class="Identifier">forbids</span><span class="Other">:</span> <span class="Other">[</span><span class="Other">]</span></span>.}</pre></dt>
+  <dt><pre><span class="Keyword">proc</span> <a href="#newDispatcher"><span class="Identifier">newDispatcher</span></a><span class="Other">(</span><span class="Other">)</span><span class="Other">:</span> <a href="actions.html#Dispatcher"><span class="Identifier">Dispatcher</span></a> {.<span><span class="Other pragmadots">...</span></span><span class="pragmawrap"><span class="Identifier">raises</span><span class="Other">:</span> <span class="Other">[</span><span class="Other">]</span><span class="Other">,</span> <span class="Identifier">tags</span><span class="Other">:</span> <span class="Other">[</span><span class="Other">]</span><span class="Other">,</span> <span class="Identifier">forbids</span><span class="Other">:</span> <span class="Other">[</span><span class="Other">]</span></span>.}</pre></dt>
   <dd>
     
     Create a dispatcher with no fader state.
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/actions.nim#L42" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/actions.nim#L42" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/actions.nim#L32" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/actions.nim#L32" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -287,8 +263,8 @@
   <dd>
     
     Parse source names from <tt class="docutils literal"><span class="pre"><span class="Identifier">pactl</span> <span class="Identifier">list</span> <span class="Identifier">short</span> <span class="Identifier">sources</span></span></tt>, skipping the monitor sources that mirror output sinks.
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/actions.nim#L181" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/actions.nim#L181" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/actions.nim#L156" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/actions.nim#L156" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -301,8 +277,8 @@
   <dd>
     
     Decide whether a fader event is significant enough to apply, ignoring single-step jitter while keeping the snapped endpoints reachable.
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/actions.nim#L54" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/actions.nim#L54" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/actions.nim#L44" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/actions.nim#L44" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -315,8 +291,8 @@
   <dd>
     
     Start the background thread that applies remembered fader levels to streams created after the fader last moved.
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/actions.nim#L134" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/actions.nim#L134" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/actions.nim#L109" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/actions.nim#L109" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -325,19 +301,25 @@
 <div id="streamMatches-procs-all">
   <div id="streamMatches,AudioOutputStream,openArray[string],bool">
   <dt><pre><span class="Keyword">proc</span> <a href="#streamMatches%2CAudioOutputStream%2CopenArray%5Bstring%5D%2Cbool"><span class="Identifier">streamMatches</span></a><span class="Other">(</span><span class="Identifier">stream</span><span class="Other">:</span> <a href="audio_outputs.html#AudioOutputStream"><span class="Identifier">AudioOutputStream</span></a><span class="Other">;</span> <span class="Identifier">appNames</span><span class="Other">:</span> <span class="Identifier">openArray</span><span class="Other">[</span><span class="Identifier">string</span><span class="Other">]</span><span class="Other">;</span>
-                   <span class="Identifier">includeGames</span><span class="Other">:</span> <span class="Identifier">bool</span><span class="Other">)</span><span class="Other">:</span> <span class="Identifier">bool</span> {.<span><span class="Other pragmadots">...</span></span><span class="pragmawrap"><span class="Identifier">raises</span><span class="Other">:</span> <span class="Other">[</span><span class="Identifier">IOError</span><span class="Other">]</span><span class="Other">,</span>
+                   <span class="Identifier">includeGames</span><span class="Other">:</span> <span class="Identifier">bool</span><span class="Other">)</span><span class="Other">:</span> <span class="Identifier">bool</span> {.<span><span class="Other pragmadots">...</span></span><span class="pragmawrap"><span class="Identifier">raises</span><span class="Other">:</span> <span class="Other">[</span><span class="Identifier">Exception</span><span class="Other">]</span><span class="Other">,</span>
     <span class="Identifier">tags</span><span class="Other">:</span> <span class="Other">[</span><span class="Identifier">ReadDirEffect</span><span class="Other">,</span> <span class="Identifier">ReadIOEffect</span><span class="Other">]</span><span class="Other">,</span> <span class="Identifier">forbids</span><span class="Other">:</span> <span class="Other">[</span><span class="Other">]</span></span>.}</pre></dt>
   <dd>
     
     Report whether a stream is targeted by an app fader binding: by app name, by being a Steam-launched game, or by declaring the game media role (OpenAL Soft apps like decompbound's player set it).
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/actions.nim#L83" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/actions.nim#L83" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/actions.nim#L61" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/actions.nim#L61" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
 
 </div>
 
+  </dl>
+</div>
+<div class="section" id="19">
+  <h1><a class="toc-backref" href="#19">Exports</a></h1>
+  <dl class="item">
+    <a href="bindings.html#isSteamGame,string"><span class="Identifier">isSteamGame</span></a>
   </dl>
 </div>
 
@@ -347,7 +329,7 @@
       <div class="twelve-columns footer">
         <span class="nim-sprite"></span>
         <br>
-        <small style="color: var(--hint);">Made with Nim. Generated: 2026-11-15 21:47:00 UTC</small>
+        <small style="color: var(--hint);">Made with Nim. Generated: 2026-11-17 06:50:45 UTC</small>
       </div>
     </div>
   </div>

@@ -4,7 +4,7 @@ nim	midiMonitorUsage	knobby/midi_monitor.html#midiMonitorUsage	proc midiMonitorU
 nim	listMidiPorts	knobby/midi_monitor.html#listMidiPorts	proc listMidiPorts()		23
 nim	detectArduinoSeqPort	knobby/midi_monitor.html#detectArduinoSeqPort	proc detectArduinoSeqPort(): string		37
 nim	detectArduinoAmidiPort	knobby/midi_monitor.html#detectArduinoAmidiPort	proc detectArduinoAmidiPort(): string		58
-nim	runSeqBatchSession	knobby/midi_monitor.html#runSeqBatchSession,string,proc(seq[string])	proc runSeqBatchSession(port: string; onBatch: proc (lines: seq[string])): int		73
-nim	runSeqSession	knobby/midi_monitor.html#runSeqSession,string,proc(string)	proc runSeqSession(port: string; onLine: proc (line: string)): int		131
-nim	runMidiMonitor	knobby/midi_monitor.html#runMidiMonitor,string	proc runMidiMonitor(port: string = DefaultMidiPort)		152
-nim	runMidiMonitorAuto	knobby/midi_monitor.html#runMidiMonitorAuto	proc runMidiMonitorAuto()		162
+nim	runSeqBatchSession	knobby/midi_monitor.html#runSeqBatchSession,string,proc(seq[string]),proc)	proc runSeqBatchSession(port: string; onBatch: proc (lines: seq[string]);\n                   shouldStop: proc (): bool = nil): int		73
+nim	runSeqSession	knobby/midi_monitor.html#runSeqSession,string,proc(string)	proc runSeqSession(port: string; onLine: proc (line: string)): int		132
+nim	runMidiMonitor	knobby/midi_monitor.html#runMidiMonitor,string	proc runMidiMonitor(port: string = DefaultMidiPort)		153
+nim	runMidiMonitorAuto	knobby/midi_monitor.html#runMidiMonitorAuto	proc runMidiMonitorAuto()		163

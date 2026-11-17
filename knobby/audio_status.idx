@@ -1,0 +1,6 @@
+nimTitle	audio_status	knobby/audio_status.html	module knobby/audio_status		0
+nim	AudioLevel	knobby/audio_status.html#AudioLevel	object AudioLevel		6
+nim	AudioStatus	knobby/audio_status.html#AudioStatus	object AudioStatus		11
+nim	parseAudioStatus	knobby/audio_status.html#parseAudioStatus,string,string	proc parseAudioStatus(data, defaultSink: string): AudioStatus		29
+nim	matchesFader	knobby/audio_status.html#matchesFader,AudioLevel,int,bool	proc matchesFader(level: AudioLevel; controller: int; steamGame: bool): bool		41
+nim	levelText	knobby/audio_status.html#levelText,AudioLevel	proc levelText(level: AudioLevel): string		47

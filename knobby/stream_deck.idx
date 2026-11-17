@@ -1,0 +1,28 @@
+nimTitle	stream_deck	knobby/stream_deck.html	module knobby/stream_deck		0
+nim	StreamDeckKeys	knobby/stream_deck.html#StreamDeckKeys	type StreamDeckKeys		6
+nim	StreamDeckKeyEvent	knobby/stream_deck.html#StreamDeckKeyEvent	object StreamDeckKeyEvent		7
+nim	StreamDeckIo	knobby/stream_deck.html#StreamDeckIo	object StreamDeckIo		10
+nim	StreamDeck	knobby/stream_deck.html#StreamDeck	type StreamDeck		15
+nim	StreamDeckMonitor	knobby/stream_deck.html#StreamDeckMonitor	type StreamDeckMonitor		19
+nim	StreamDeckKeyCount	knobby/stream_deck.html#StreamDeckKeyCount	const StreamDeckKeyCount		30
+nim	ImageReportBytes	knobby/stream_deck.html#ImageReportBytes	const ImageReportBytes		39
+nim	ImagePayloadBytes	knobby/stream_deck.html#ImagePayloadBytes	const ImagePayloadBytes		41
+nim	parseKeyStates	knobby/stream_deck.html#parseKeyStates,string	proc parseKeyStates(report: string): Option[StreamDeckKeys]		56
+nim	keyChanges	knobby/stream_deck.html#keyChanges,StreamDeckKeys,StreamDeckKeys	proc keyChanges(previous: var StreamDeckKeys; current: StreamDeckKeys): seq[\n    StreamDeckKeyEvent]		77
+nim	encodeKeyImageReports	knobby/stream_deck.html#encodeKeyImageReports,int,string	proc encodeKeyImageReports(keyIndex: int; jpeg: string): seq[string]		84
+nim	encodeBrightnessReport	knobby/stream_deck.html#encodeBrightnessReport,int	proc encodeBrightnessReport(percent: int): string		108
+nim	newStreamDeck	knobby/stream_deck.html#newStreamDeck,StreamDeckIo	proc newStreamDeck(io: StreamDeckIo): StreamDeck		117
+nim	close	knobby/stream_deck.html#close,StreamDeck	proc close(deck: StreamDeck)		128
+nim	setBrightness	knobby/stream_deck.html#setBrightness,StreamDeck,int	proc setBrightness(deck: StreamDeck; percent: int)		136
+nim	showLogo	knobby/stream_deck.html#showLogo,StreamDeck	proc showLogo(deck: StreamDeck)		143
+nim	setKeyImage	knobby/stream_deck.html#setKeyImage,StreamDeck,int,string	proc setKeyImage(deck: StreamDeck; keyIndex: int; jpeg: string)		152
+nim	pollKeys	knobby/stream_deck.html#pollKeys,StreamDeck	proc pollKeys(deck: StreamDeck; timeoutMs = DefaultPollMs): seq[StreamDeckKeyEvent]		159
+nim	matchesStreamDeckIdentity	knobby/stream_deck.html#matchesStreamDeckIdentity,string	proc matchesStreamDeckIdentity(uevent: string): bool		168
+nim	discoverStreamDeck	knobby/stream_deck.html#discoverStreamDeck	proc discoverStreamDeck(classPath = HidrawClassPath): string		176
+nim	openStreamDeck	knobby/stream_deck.html#openStreamDeck,string	proc openStreamDeck(path: string): StreamDeck		253
+nim	newStreamDeckMonitor	knobby/stream_deck.html#newStreamDeckMonitor,proc(int),proc)	proc newStreamDeckMonitor(readReport: proc (timeoutMs: int): string {.gcsafe.};\n                     closeTransport: proc () {.gcsafe.}): StreamDeckMonitor		267
+nim	openStreamDeckMonitor	knobby/stream_deck.html#openStreamDeckMonitor,string	proc openStreamDeckMonitor(path: string): StreamDeckMonitor		274
+nim	pollKeys	knobby/stream_deck.html#pollKeys,StreamDeckMonitor	proc pollKeys(monitor: StreamDeckMonitor; timeoutMs = DefaultPollMs): seq[\n    StreamDeckKeyEvent]		281
+nim	close	knobby/stream_deck.html#close,StreamDeckMonitor	proc close(monitor: StreamDeckMonitor)		291
+nimgrp	pollkeys	knobby/stream_deck.html#pollKeys-procs-all	proc		159
+nimgrp	close	knobby/stream_deck.html#close-procs-all	proc		128

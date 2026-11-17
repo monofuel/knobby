@@ -1,0 +1,25 @@
+nimTitle	bindings	knobby/bindings.html	module knobby/bindings		0
+nim	Unassigned	knobby/bindings.html#Unassigned	ButtonAction.Unassigned		5
+nim	OpenGrok	knobby/bindings.html#OpenGrok	ButtonAction.OpenGrok		5
+nim	OpenClaude	knobby/bindings.html#OpenClaude	ButtonAction.OpenClaude		5
+nim	LaunchFfxiv	knobby/bindings.html#LaunchFfxiv	ButtonAction.LaunchFfxiv		5
+nim	ToggleMicrophones	knobby/bindings.html#ToggleMicrophones	ButtonAction.ToggleMicrophones		5
+nim	ToggleDiscord	knobby/bindings.html#ToggleDiscord	ButtonAction.ToggleDiscord		5
+nim	ButtonAction	knobby/bindings.html#ButtonAction	enum ButtonAction		5
+nim	ButtonBinding	knobby/bindings.html#ButtonBinding	object ButtonBinding		7
+nim	MasterFaderController	knobby/bindings.html#MasterFaderController	const MasterFaderController		13
+nim	AppFaderBindings	knobby/bindings.html#AppFaderBindings	const AppFaderBindings		14
+nim	ButtonGrid	knobby/bindings.html#ButtonGrid	const ButtonGrid		18
+nim	ButtonBindings	knobby/bindings.html#ButtonBindings	const ButtonBindings		19
+nim	GrokCommand	knobby/bindings.html#GrokCommand	const GrokCommand		25
+nim	ClaudeCommand	knobby/bindings.html#ClaudeCommand	const ClaudeCommand		26
+nim	FfxivLaunchCommand	knobby/bindings.html#FfxivLaunchCommand	const FfxivLaunchCommand		27
+nim	BenqMicSource	knobby/bindings.html#BenqMicSource	const BenqMicSource		28
+nim	GreyBrightness	knobby/bindings.html#GreyBrightness	const GreyBrightness		29
+nim	DarkGrey	knobby/bindings.html#DarkGrey	const DarkGrey		30
+nim	LightGrey	knobby/bindings.html#LightGrey	const LightGrey		31
+nim	StreamDeckDemoBrightness	knobby/bindings.html#StreamDeckDemoBrightness	const StreamDeckDemoBrightness		32
+nim	buttonBinding	knobby/bindings.html#buttonBinding,int	proc buttonBinding(note: int): ButtonBinding		36
+nim	isSteamGame	knobby/bindings.html#isSteamGame,string	proc isSteamGame(processId: string): bool		43
+nim	matchesAudioTarget	knobby/bindings.html#matchesAudioTarget,string,string,bool,openArray[string],bool	proc matchesAudioTarget(appName, mediaRole: string; steamGame: bool;\n                   appNames: openArray[string]; includeGames: bool): bool		59
+nim	bindingCatalog	knobby/bindings.html#bindingCatalog	proc bindingCatalog(): JsonNode		67

@@ -1,0 +1,21 @@
+nimTitle	ipc	knobby/ipc.html	module knobby/ipc		0
+nim	Peer	knobby/ipc.html#Peer	type Peer		5
+nim	LocalServer	knobby/ipc.html#LocalServer	type LocalServer		12
+nim	Request	knobby/ipc.html#Request	object Request		17
+nim	ProtocolVersion	knobby/ipc.html#ProtocolVersion	const ProtocolVersion		22
+nim	MaxFrameBytes	knobby/ipc.html#MaxFrameBytes	const MaxFrameBytes		23
+nim	PeerTimeoutMs	knobby/ipc.html#PeerTimeoutMs	const PeerTimeoutMs		24
+nim	monotonicMs	knobby/ipc.html#monotonicMs	proc monotonicMs(): int64		33
+nim	runtimePath	knobby/ipc.html#runtimePath,string,string	proc runtimePath(directory, name: string): string		37
+nim	acquireOwnership	knobby/ipc.html#acquireOwnership,string	proc acquireOwnership(path: string): cint		44
+nim	encodeMessage	knobby/ipc.html#encodeMessage,JsonNode	proc encodeMessage(message: JsonNode): string		55
+nim	takeMessage	knobby/ipc.html#takeMessage,string	proc takeMessage(buffer: var string): Option[JsonNode]		65
+nim	close	knobby/ipc.html#close,Peer	proc close(peer: Peer)		82
+nim	connectLocal	knobby/ipc.html#connectLocal,string	proc connectLocal(path: string): Peer		95
+nim	queueMessage	knobby/ipc.html#queueMessage,Peer,JsonNode	proc queueMessage(peer: Peer; message: JsonNode)		105
+nim	pump	knobby/ipc.html#pump,Peer	proc pump(peer: Peer): seq[JsonNode]		114
+nim	newLocalServer	knobby/ipc.html#newLocalServer,string	proc newLocalServer(path: string): LocalServer		153
+nim	pollRequests	knobby/ipc.html#pollRequests,LocalServer	proc pollRequests(server: LocalServer): seq[Request]		170
+nim	broadcast	knobby/ipc.html#broadcast,LocalServer,JsonNode	proc broadcast(server: LocalServer; message: JsonNode)		198
+nim	close	knobby/ipc.html#close,LocalServer	proc close(server: LocalServer)		204
+nimgrp	close	knobby/ipc.html#close-procs-all	proc		82

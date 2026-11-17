@@ -1,0 +1,2 @@
+nimTitle	stream_deck_page	knobby/stream_deck_page.html	module knobby/stream_deck_page		0
+nim	runDemoSession	knobby/stream_deck_page.html#runDemoSession,StreamDeck,proc),proc(StreamDeckKeyEvent),proc)	proc runDemoSession(deck: StreamDeck; shouldStop: proc (): bool;\n               onKey: proc (event: StreamDeckKeyEvent); onReady: proc () = nil)		18

@@ -1,0 +1,4 @@
+nimTitle	runtime	knobby/runtime.html	module knobby/runtime		0
+nim	shouldStop	knobby/runtime.html#shouldStop	proc shouldStop(): bool		6
+nim	requestStop	knobby/runtime.html#requestStop	proc requestStop()		10
+nim	installStopHooks	knobby/runtime.html#installStopHooks	proc installStopHooks()		22
