@@ -12,6 +12,7 @@ type
     audio*: AudioStatus
     faderStreams*: array[3, seq[AudioLevel]]
     audioUpdatedMs*: int64
+    buttons*: JsonNode
 
 var
   stateLock: Lock
@@ -57,6 +58,7 @@ proc unavailable(message: string) =
       shared.deckError = message
       shared.audioError = message
       shared.mousepadPresent = false
+      shared.buttons = nil
 
 proc inputLoop() {.thread.} =
   ## Subscribe and reconnect; this process never opens hardware or queries audio.
@@ -70,7 +72,8 @@ proc inputLoop() {.thread.} =
         for message in peer.pump():
           if message{"type"}.getStr() != "state":
             raise newException(ValueError, "Unexpected daemon message.")
-          let state = viewerState(decodeSnapshot($message["state"]))
+          var state = viewerState(decodeSnapshot($message["state"]))
+          state.buttons = message["state"]{"buttonConfig"}
           {.cast(gcsafe).}:
             withLock stateLock: deepCopy(shared, state)
           receivedMs = monotonicMs()

@@ -1,35 +1,30 @@
 import
-  std/[atomics, json, math, os, strutils, tables],
+  std/[atomics, json, math, os, strutils, tables, unicode],
   chroma, jsony, opengl, pixie, silky, vmath, windy,
   silky/[atlas, widgets],
-  knobby/[audio_status, bindings, gui_activation, ipc, status],
-  ./[observers, smoke_input]
+  knobby/[audio_status, bindings, button_config, gui_activation, ipc, status],
+  ./[button_editor, button_editor_model, observers, smoke_input]
 
 type
   DevicePage = enum
-    MixerPage, DeckPage, MousepadPage
+    MixerPage, DeckPage, MousepadPage, EditorPage
   Viewer = ref object
     page: DevicePage
     selected: int
     scroll, contentHeight: float32
     state: ViewerState
+    editor: ButtonEditor
+  SmokeStep = object
+    name: string
+    run: proc (frame: int): bool
 
 const
   Assets = currentSourcePath().parentDir().parentDir() / "assets"
   AtlasBytes = staticRead(Assets / "atlas.png")
   WindowWidth = 1280
   WindowHeight = 820
-  SidebarWidth = 190'f32
-  DetailWidth = 300'f32
-  Margin = 24'f32
-  Background = rgbx(19, 22, 28, 255)
-  Panel = rgbx(28, 32, 40, 255)
-  Tile = rgbx(39, 44, 54, 255)
-  Foreground = rgbx(234, 237, 242, 255)
-  Muted = rgbx(153, 163, 179, 255)
-  Accent = rgbx(107, 187, 176, 255)
-  Active = rgbx(182, 225, 211, 255)
-  Names = ["Arduino mixer", "Stream Deck", "Mousepad"]
+  Names = ["Arduino mixer", "Stream Deck", "Mousepad", "Button editor"]
+  SmokeStepFrames = 1500
   DarkValue = parseInt(DarkGrey).uint8
   LightValue = parseInt(LightGrey).uint8
   DarkHex = "#" & repeat(toHex(DarkValue, 2), 3)
@@ -40,21 +35,6 @@ var interrupted: Atomic[bool]
 proc requestStop() {.noconv.} =
   ## Ask the event loop to exit without doing GUI work in a signal handler.
   interrupted.store(true)
-
-proc label(sk: Silky, value: string, x, y: float32, width: float32,
-    font = "Body", color = Foreground): float32 =
-  ## Draw native-size text on pixel-aligned rows, including the last line's descent.
-  let
-    metrics = sk.atlas.fonts[font]
-    extent = sk.drawText(font, value, vec2(round(x), round(y)), color,
-      maxWidth = floor(width), wordWrap = true)
-  ceil(extent.y - metrics.ascent + metrics.lineHeight)
-
-proc tile(sk: Silky, bounds: Rect, selected, lit: bool): bool =
-  ## Draw an inspection target; selecting it never dispatches a device action.
-  sk.drawRect(bounds.xy, bounds.wh, if selected: Accent else: Panel)
-  sk.drawRect(bounds.xy + vec2(2, 2), bounds.wh - vec2(4, 4), if lit: Active else: Tile)
-  result = sk.interact(bounds, true) == Released
 
 proc deviceStatus(viewer: Viewer): string =
   ## Describe only connection state the corresponding observer can establish.
@@ -69,6 +49,7 @@ proc deviceStatus(viewer: Viewer): string =
   of MousepadPage:
     if viewer.state.mousepadPresent: "Connected / Razer Goliathus Chroma"
     else: "Mousepad disconnected"
+  of EditorPage: ""
 
 proc catalog(viewer: Viewer): JsonNode =
   ## Prefer the running daemon's binding descriptions over offline defaults.
@@ -192,9 +173,17 @@ proc drawDetails(sk: Silky, viewer: Viewer, x, height: float32) =
   of DeckPage:
     text("Key " & $(viewer.selected + 1), "Title")
     text("Stream Deck MK.2", "Small", Accent)
-    text("No desktop action assigned.")
-    text("Numbered demo preview", "Body", Accent)
-    text("White number on black. Holding a key shows black text on light grey.")
+    let
+      model = viewer.editor.model
+      liveMenu = viewer.state.buttons{"deckMenu"}.getStr()
+    if model.loaded and not model.live.findMenu(liveMenu).isNil:
+      let entry = model.live.entryAt(liveMenu, DeckDevice, viewer.selected + 1)
+      viewer.editor.requestGlyphs(sk, entry{"title"}.getStr() & model.live.menuTitle(liveMenu))
+      text(entry{"title"}.getStr())
+      text(model.live.describeAction(entry), "Small", Muted)
+      text("Menu: " & model.live.menuTitle(liveMenu), "Small", Muted)
+    else:
+      text("Open the button editor to change this key.", "Body", Muted)
     text("Demo brightness: " & $StreamDeckDemoBrightness & "%", "Small", Muted)
   of MousepadPage:
     text("Grey breathing", "Title")
@@ -203,11 +192,13 @@ proc drawDetails(sk: Silky, viewer: Viewer, x, height: float32) =
     text("Brightness: " & GreyBrightness & "%")
     text("The hardware breathing cycle fades through black.", "Small", Muted)
     text("OpenRazer lighting preset", "Small", Muted)
+  of EditorPage: discard
   viewer.contentHeight = max(0'f32, y + viewer.scroll - top - (height - top - 35))
 
 proc render(sk: Silky, window: Window, viewer: Viewer) =
   ## Reflow the browser in framebuffer pixels without resampling its font atlas.
   sk.uiScale = 1
+  if viewer.editor.recordRects: viewer.editor.rects.clear()
   sk.beginUi(window, window.size)
   sk.clearScreen(Background)
   let
@@ -220,24 +211,33 @@ proc render(sk: Silky, window: Window, viewer: Viewer) =
   discard sk.label("KNOBBY", 22, 30, 160, "Title")
   discard sk.label("Devices", 22, 96, 150, "Small", Muted)
   for page in DevicePage:
-    let top = 127'f32 + page.ord.float32 * 68
-    if sk.tile(rect(12, top, SidebarWidth - 24, 54), viewer.page == page, false):
+    let
+      top = 127'f32 + page.ord.float32 * 68
+      bounds = rect(12, top, SidebarWidth - 24, 54)
+    if viewer.editor.recordRects: viewer.editor.rects["page:" & $page] = bounds
+    if sk.tile(bounds, viewer.page == page, false):
       viewer.page = page
       viewer.selected = if page == MixerPage: 16 else: 0
       viewer.scroll = 0
     discard sk.label(Names[page.ord], 25, top + 16, SidebarWidth - 45)
-  discard sk.label("Read-only", 22, height - 42, 150, "Small", Muted)
-  discard sk.label(Names[viewer.page.ord], left, 30, boardWidth, "Title")
-  discard sk.label(viewer.deviceStatus(), left, 77, boardWidth, "Small", Muted)
-  discard sk.label("CONTROL DETAILS", detailsX, 114, DetailWidth - 36, "Small", Muted)
   sk.drawRect(vec2(width - DetailWidth, 114), vec2(1, height - 138), Tile)
-  case viewer.page
-  of MixerPage: sk.drawMixer(viewer, left, boardWidth)
-  of DeckPage: sk.drawDeck(viewer, left, boardWidth)
-  of MousepadPage: sk.drawMousepad(left, boardWidth)
-  if sk.mousePos.x >= width - DetailWidth:
-    viewer.scroll = clamp(viewer.scroll - window.scrollDelta.y * 30, 0'f32, viewer.contentHeight)
-  sk.drawDetails(viewer, detailsX, height)
+  if viewer.page == EditorPage:
+    sk.drawMenus(window, viewer.editor, height)
+    sk.drawEditor(window, viewer.editor, left, boardWidth, detailsX, height)
+  else:
+    discard sk.label("Read-only", 22, height - 42, 150, "Small", Muted)
+    discard sk.label(Names[viewer.page.ord], left, 30, boardWidth, "Title")
+    discard sk.label(viewer.deviceStatus(), left, 77, boardWidth, "Small", Muted)
+    discard sk.label("CONTROL DETAILS", detailsX, 114, DetailWidth - 36, "Small", Muted)
+    case viewer.page
+    of MixerPage: sk.drawMixer(viewer, left, boardWidth)
+    of DeckPage: sk.drawDeck(viewer, left, boardWidth)
+    of MousepadPage: sk.drawMousepad(left, boardWidth)
+    of EditorPage: discard
+    if sk.mousePos.x >= width - DetailWidth:
+      viewer.scroll = clamp(viewer.scroll - window.scrollDelta.y * 30, 0'f32, viewer.contentHeight)
+    sk.drawDetails(viewer, detailsX, height)
+  viewer.editor.releaseUndrawnFields()
   sk.endUi()
 
 proc trayImage(): Image =
@@ -257,9 +257,167 @@ proc capture(window: Window, filename: string) =
   image.flipVertical()
   image.writeFile(filename)
 
+proc writeRects(editor: ButtonEditor, filename: string) =
+  ## Save control bounds next to a fixture capture for pixel checks.
+  var rects = newJObject()
+  for name, bounds in editor.rects:
+    rects[name] = %*[bounds.x, bounds.y, bounds.w, bounds.h]
+  writeFile(filename, $rects)
+
+proc editorScript(phase, directory, fixtureImage: string, window: Window, sk: Silky,
+    viewer: Viewer): seq[SmokeStep] =
+  ## Drive the editor through isolated fixture interactions; nothing here touches devices.
+  let editor = viewer.editor
+  proc model(): EditorModel = editor.model
+  proc click(name: string): SmokeStep =
+    ## Move, press, and release the pointer at a recorded control's center.
+    var
+      phase = 0
+      point: Vec2
+    SmokeStep(name: "click " & name, run: proc (frame: int): bool =
+      if phase == 0:
+        if name notin editor.rects: return false
+        let bounds = editor.rects[name]
+        point = bounds.xy + vec2(floor(bounds.w / 2), floor(bounds.h / 2)) + window.pos.vec2
+      if phase mod 2 == 0: pointerEvent(point.x.int, point.y.int, phase div 2)
+      inc phase
+      phase >= 7)
+  proc typeText(value: string): SmokeStep =
+    ## Commit Unicode text through the same rune callback Windy uses for keyboard and IME input.
+    SmokeStep(name: "type " & value, run: proc (frame: int): bool =
+      if frame == 0:
+        for rune in value.runes: window.onRune(rune)
+      frame >= 2)
+  proc key(button: Button, count = 1): SmokeStep =
+    ## Press and release a key through the window's input callbacks.
+    SmokeStep(name: "key " & $button, run: proc (frame: int): bool =
+      if frame mod 2 == 0 and frame div 2 < count: window.onButtonPress(button)
+      elif frame mod 2 == 1: window.onButtonRelease(button)
+      frame >= count * 2 + 1)
+  proc waitFor(name: string, condition: proc (): bool): SmokeStep =
+    ## Wait for an asynchronous editor outcome.
+    SmokeStep(name: name, run: proc (frame: int): bool = condition())
+  proc settle(frames: int): SmokeStep =
+    ## Allow animation, decoding, and layout to reach a stable frame.
+    SmokeStep(name: "settle", run: proc (frame: int): bool = frame >= frames)
+  proc capture(name: string): SmokeStep =
+    ## Save the current frame and its control bounds.
+    SmokeStep(name: "capture " & name, run: proc (frame: int): bool =
+      window.capture(directory / (name & ".png"))
+      editor.writeRects(directory / (name & ".json"))
+      true)
+  proc resize(width, height: int): SmokeStep =
+    ## Resize the isolated window and let the layout reflow.
+    SmokeStep(name: "resize", run: proc (frame: int): bool =
+      if frame == 0: window.size = ivec2(width.int32, height.int32)
+      frame >= 4)
+  proc replaceField(name, value: string): seq[SmokeStep] =
+    ## Focus a field, clear it, and type replacement text.
+    @[click(name), key(KeyEnd), key(KeyBackspace, 24), typeText(value)]
+  proc selectedTitle(): string = model().selected(){"title"}.getStr()
+  let openEditor = @[click("page:EditorPage"),
+    waitFor("configuration loaded", proc (): bool = model().loaded and not editor.busy)]
+  case phase
+  of "edit":
+    result = openEditor & @[
+      click("device:deck"),
+      waitFor("deck preview", proc (): bool = not editor.manifest.isNil),
+      settle(20),
+      capture("deck"),
+      click("key:7"),
+      waitFor("key selected", proc (): bool = model().key == 7)] &
+      replaceField("title", "Música 日本 ✓ 🎵") & @[
+      waitFor("unicode title", proc (): bool = selectedTitle() == "Música 日本 ✓ 🎵"),
+      waitFor("dynamic glyphs", proc (): bool =
+        proc replaced(font, glyph: string): bool =
+          ## Report whether a glyph renders as the visible replacement character.
+          let entries = sk.atlas.fonts[font].entries
+          glyph in entries and "\uFFFD" in entries and entries[glyph][0].x == entries["\uFFFD"][0].x
+        result = true
+        for font in ["Small", "Body", "Title"]:
+          for glyph in ["ú", "✓"]:
+            result = result and sk.hasGlyph(font, glyph.runeAt(0)) and not replaced(font, glyph)
+          for glyph in ["日", "本", "🎵"]:
+            result = result and replaced(font, glyph)),
+      click("action:command")] &
+      replaceField("command", "true") & @[
+      waitFor("command edited", proc (): bool =
+        model().selected()["action"]{"command"}.getStr() == "true" and model().dirty),
+      waitFor("draft autosaved", proc (): bool =
+        fileExists(draftPath()) and "Música" in readFile(draftPath())),
+      settle(10),
+      capture("edited"),
+      click("device:mixer"),
+      click("key:12"),
+      waitFor("mixer key", proc (): bool = model().device == MixerDevice and model().key == 12),
+      capture("mixer")]
+  of "recover":
+    result = openEditor & @[
+      waitFor("draft recovered as stale", proc (): bool =
+        model().notice.startsWith("Recovered") and model().conflict == StaleRevision),
+      settle(4),
+      capture("conflict"),
+      click("keepDraft"),
+      waitFor("draft rebased", proc (): bool = model().conflict == NoConflict and model().canApply()),
+      click("newMenu"),
+      typeText("Spiele 🎮"),
+      key(KeyEnter),
+      waitFor("menu created", proc (): bool = model().menu == "spiele"),
+      click("device:deck"),
+      click("key:1"),
+      waitFor("locked back", proc (): bool = model().selectedLocked() and "title" notin editor.rects),
+      settle(4),
+      capture("locked"),
+      click("key:2"),
+      waitFor("key 2", proc (): bool = model().key == 2),
+      SmokeStep(name: "drop image", run: proc (frame: int): bool =
+        window.onFileDrop(fixtureImage, "")
+        true),
+      waitFor("image imported", proc (): bool = model().selected().hasImage()),
+      waitFor("image preview", proc (): bool =
+        editor.previewEdits == model().edits and not editor.busy and
+          not editor.manifest{"menus"}{"spiele"}{"2"}.isNil),
+      settle(20),
+      capture("image"),
+      click("menu:root"),
+      waitFor("root", proc (): bool = model().menu == RootMenuId),
+      click("key:5"),
+      click("action:menu"),
+      waitFor("menu action", proc (): bool =
+        model().selected()["action"]{"menu"}.getStr() == "spiele"),
+      click("on:deck"),
+      waitFor("deck target", proc (): bool = model().selected().menuTarget() == TargetDeck),
+      click("key:3")] &
+      replaceField("title", "FAIL") & @[
+      waitFor("failing title", proc (): bool = selectedTitle() == "FAIL"),
+      click("save"),
+      waitFor("apply failed", proc (): bool =
+        not editor.busy and model().error.len > 0 and model().dirty),
+      settle(4),
+      capture("failed")] &
+      replaceField("title", "OK ✓") & @[
+      waitFor("fixed title", proc (): bool = selectedTitle() == "OK ✓"),
+      click("save"),
+      waitFor("applied", proc (): bool =
+        editor.applied == 1 and not editor.busy and not model().dirty and
+          not fileExists(draftPath())),
+      settle(20),
+      capture("applied"),
+      resize(960, 640),
+      capture("applied-small"),
+      resize(1183, 761),
+      capture("applied-odd"),
+      resize(1600, 1000),
+      capture("applied-large")]
+  else:
+    raise newException(ValueError, "Unknown editor smoke phase: " & phase)
+
 proc main() =
-  ## Open the viewer; smoke mode renders fixtures on an explicitly isolated display.
-  var smokeDirectory = ""
+  ## Open the viewer; smoke modes render fixtures on an explicitly isolated display.
+  var
+    smokeDirectory = ""
+    editorPhase = ""
+    fixtureImage = ""
   if paramCount() == 1 and paramStr(1) == "--help":
     echo "Usage: knobby-gui [--background | --smoke OUTPUT_DIRECTORY]"
     return
@@ -269,11 +427,17 @@ proc main() =
   if paramCount() > 0:
     if paramCount() == 1 and paramStr(1) == "--background":
       discard
-    elif paramCount() != 2 or paramStr(1) != "--smoke" or getEnv("KNOBBY_GUI_SMOKE") != "1":
+    elif getEnv("KNOBBY_GUI_SMOKE") != "1":
       raise newException(ValueError, "Smoke mode requires KNOBBY_GUI_SMOKE=1 on an isolated X display.")
-    else:
+    elif paramCount() == 2 and paramStr(1) == "--smoke":
       smokeDirectory = paramStr(2)
-      createDir(smokeDirectory)
+    elif paramCount() == 4 and paramStr(1) == "--editor-smoke":
+      editorPhase = paramStr(2)
+      smokeDirectory = paramStr(3)
+      fixtureImage = paramStr(4)
+    else:
+      raise newException(ValueError, "Unknown smoke arguments.")
+    if smokeDirectory.len > 0: createDir(smokeDirectory)
   let activationServer = newLocalServer(runtimePath("knobby-gui", "activate.sock"))
   defer: activationServer.close()
   let
@@ -287,9 +451,16 @@ proc main() =
     image = decodeImage(AtlasBytes)
   metadata.rebuildGlyphLookups()
   let sk = newSilky(window, image, metadata)
+  viewer.editor = newButtonEditor(sk)
+  viewer.editor.recordRects = editorPhase.len > 0
+  startEditorWorkers()
   var
     quitting = false
     frame = 0
+    steps: seq[SmokeStep]
+    stepIndex, stepFrame = 0
+  if editorPhase.len > 0:
+    steps = editorScript(editorPhase, smokeDirectory, fixtureImage, window, sk, viewer)
   proc openViewer() =
     ## Restore and focus the existing window without starting another viewer.
     window.visible = true
@@ -298,11 +469,14 @@ proc main() =
   proc quitViewer() =
     ## Exit only this viewer and its input observers.
     quitting = true
-  if smokeDirectory.len == 0:
+  let fixtureStatus = smokeDirectory.len > 0 and editorPhase.len == 0
+  if not fixtureStatus:
     startObservers()
   defer:
-    if smokeDirectory.len == 0:
+    viewer.editor.flushDraft()
+    if not fixtureStatus:
       stopObservers()
+    stopEditorWorkers()
     hideTrayIcon()
   try:
     showTrayIcon(trayImage(), "Knobby", openViewer, @[
@@ -314,19 +488,36 @@ proc main() =
     ## Hide without ending the service, including when a tray host is unavailable.
     window.closeRequested = false
     window.visible = false
+  window.onFileDrop = proc (fileName, fileData: string) =
+    ## Import a dropped image into the selected Deck key; other pages ignore drops.
+    if viewer.page == EditorPage:
+      viewer.editor.dropFile(fileName)
   window.onFrame = proc () =
     ## Refresh from observer snapshots without blocking on hardware or subprocesses.
-    viewer.state = if smokeDirectory.len > 0: previewState() else: readState()
+    viewer.state = if fixtureStatus: previewState() else: readState()
+    sk.updateEditor(viewer.editor, viewer.state.buttons,
+      window.visible and viewer.page == EditorPage)
     if not window.visible:
       return
-    if smokeDirectory.len > 0 and frame == 40:
+    if fixtureStatus and frame == 40:
       window.size = ivec2(960, 640)
-    if smokeDirectory.len > 0 and frame == 44:
+    if fixtureStatus and frame == 44:
       window.size = ivec2(1183, 761)
-    if smokeDirectory.len > 0 and frame == 48:
+    if fixtureStatus and frame == 48:
       window.size = ivec2(1600, 1000)
     sk.render(window, viewer)
-    if smokeDirectory.len > 0:
+    if editorPhase.len > 0:
+      if stepIndex >= steps.len:
+        quitting = true
+      elif steps[stepIndex].run(stepFrame):
+        inc stepIndex
+        stepFrame = 0
+      else:
+        inc stepFrame
+        if stepFrame > SmokeStepFrames:
+          raise newException(AssertionDefect, "Editor smoke step timed out: " &
+            steps[stepIndex].name & " / " & viewer.editor.model.problem())
+    elif fixtureStatus:
       if frame == 0:
         doAssert viewer.state.faderCaption(0) == "MIDI 100"
         doAssert viewer.state.faderCaption(1) == "Not observed"
@@ -350,7 +541,7 @@ proc main() =
         window.capture(smokeDirectory / ($frame & ".png"))
     window.swapBuffers()
     inc frame
-    if smokeDirectory.len > 0 and frame >= 53:
+    if fixtureStatus and frame >= 53:
       quitting = true
   setControlCHook(requestStop)
   while not quitting and not interrupted.load():

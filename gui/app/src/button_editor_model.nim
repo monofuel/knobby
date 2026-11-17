@@ -1,0 +1,494 @@
+import
+  std/[algorithm, json, os, strutils, unicode],
+  knobby/button_config
+
+type
+  ConflictState* = enum
+    NoConflict, StaleRevision
+  EditorModel* = object
+    ## Draft editing state shared by the GUI and tests; it holds no rendering or I/O handles.
+    live*: JsonNode
+    liveRevision*: string
+    base*: JsonNode
+    baseRevision*: string
+    draft*: JsonNode
+    menu*: string
+    device*: ButtonDevice
+    key*: int
+    dirty*: bool
+    validation*, validationField*: string
+    error*, errorField*, notice*: string
+    conflict*: ConflictState
+    edits*: int
+    loaded*: bool
+
+const
+  BackKey* = 1
+  ActionLabels*: array[ConfigActionKind, string] = ["None", "Command", "Grok",
+    "Claude", "FFXIV", "Microphones", "Discord", "Open menu", "Back", "Home"]
+  TargetLabels*: array[ButtonTarget, string] = ["Mixer", "Deck", "Both"]
+  DeviceLabels*: array[ButtonDevice, string] = ["Arduino mixer", "Stream Deck"]
+  StaleCode* = "stale"
+  DraftFileName = "gui-draft.json"
+
+proc keyCount*(device: ButtonDevice): int =
+  ## Return the number of editable physical keys on a device.
+  case device
+  of MixerDevice: MixerKeyCount
+  of DeckDevice: DeckKeyCount
+
+proc isLockedBack*(menu: string, key: int): bool =
+  ## Report whether a slot is the linked Back key every submenu reserves.
+  menu != RootMenuId and key == BackKey
+
+proc menus*(config: JsonNode): seq[JsonNode] =
+  ## Return menu objects in their configured order.
+  if config.isNil or config{"menus"}.isNil: return
+  for menu in config["menus"]: result.add(menu)
+
+proc findMenu*(config: JsonNode, id: string): JsonNode =
+  ## Return the menu with an ID, or nil when absent.
+  for menu in config.menus():
+    if menu{"id"}.getStr() == id: return menu
+
+proc menuIds*(config: JsonNode): seq[string] =
+  ## List menu IDs in configured order.
+  for menu in config.menus(): result.add(menu{"id"}.getStr())
+
+proc menuTitle*(config: JsonNode, id: string): string =
+  ## Return a menu's display title, falling back to its ID.
+  let menu = config.findMenu(id)
+  if menu.isNil or menu{"title"}.getStr().len == 0: id
+  else: menu["title"].getStr()
+
+proc entryAt*(config: JsonNode, menu: string, device: ButtonDevice, key: int): JsonNode =
+  ## Return a slot from a possibly invalid draft, filling Back and unassigned keys like buttonAt.
+  let menuNode = config.findMenu(menu)
+  if not menuNode.isNil and not menuNode{$device}.isNil and menuNode[$device].kind == JArray:
+    for entry in menuNode[$device]:
+      if entry{"key"}.getInt() == key: return entry
+  if isLockedBack(menu, key):
+    %*{"key": key, "title": BackTitle, "action": {"kind": $BackAction}}
+  else:
+    %*{"key": key, "title": UnassignedTitle, "action": {"kind": $NoAction}}
+
+proc actionKind*(entry: JsonNode): ConfigActionKind =
+  ## Return a slot's action kind.
+  parseEnum[ConfigActionKind](entry{"action"}{"kind"}.getStr("none"), NoAction)
+
+proc menuTarget*(entry: JsonNode): ButtonTarget =
+  ## Return a menu action's target devices.
+  parseEnum[ButtonTarget](entry{"action"}{"target"}.getStr("both"), TargetBoth)
+
+proc hasImage*(entry: JsonNode): bool =
+  ## Report whether a Deck slot uses an imported image.
+  entry{"visual"}{"image"}.getStr().len > 0
+
+proc showsTitle*(entry: JsonNode): bool =
+  ## Return the effective title overlay setting, defaulting by image presence.
+  let value = entry{"visual"}{"showTitle"}
+  if not value.isNil and value.kind == JBool: value.getBool()
+  else: not entry.hasImage()
+
+proc describeAction*(config: JsonNode, entry: JsonNode): string =
+  ## Summarize an action for compact grid tiles and status text.
+  let action = entry{"action"}
+  case entry.actionKind()
+  of NoAction: "No action"
+  of CommandAction: "Run " & action{"command"}.getStr()
+  of MenuAction:
+    "Open " & config.menuTitle(action{"menu"}.getStr()) & " on " &
+      TargetLabels[entry.menuTarget()].toLowerAscii()
+  of HomeAction: "Return to main menu"
+  else: ActionLabels[entry.actionKind()]
+
+proc menuReferences*(config: JsonNode, id: string): seq[string] =
+  ## Describe every slot that opens a menu, so deletion never leaves dangling targets.
+  for menu in config.menus():
+    for device in ButtonDevice:
+      if menu{$device}.isNil: continue
+      for entry in menu[$device]:
+        if entry.actionKind() == MenuAction and entry["action"]{"menu"}.getStr() == id:
+          result.add(config.menuTitle(menu{"id"}.getStr()) & " " & $device &
+            " key " & $entry{"key"}.getInt())
+
+proc menuIdFromTitle*(config: JsonNode, title: string): string =
+  ## Derive a stable unique ASCII ID from a possibly Unicode menu title.
+  var slug = ""
+  for character in title.toLowerAscii():
+    if character in {'a'..'z', '0'..'9'}:
+      slug.add(character)
+    elif slug.len > 0 and slug[^1] != '-':
+      slug.add('-')
+  slug = slug.strip(chars = {'-'})
+  if slug.len == 0: slug = "menu"
+  const SuffixRoom = 4
+  if slug.len > MaxIdBytes - SuffixRoom:
+    slug = slug[0..<MaxIdBytes - SuffixRoom].strip(chars = {'-'})
+  result = slug
+  var suffix = 2
+  let ids = config.menuIds()
+  while result in ids:
+    result = slug & "-" & $suffix
+    inc suffix
+
+proc sameConfiguration(a, b: JsonNode): bool =
+  ## Compare by canonical revision so defaulted fields and entry order are not edits.
+  if a == b: return true
+  try:
+    result = configRevision(a) == configRevision(b)
+  except ValueError:
+    result = false
+
+proc refresh(model: var EditorModel) =
+  ## Recompute dirtiness and run the shared core validator over the draft.
+  model.dirty = model.loaded and not sameConfiguration(model.draft, model.base)
+  model.validation = ""
+  model.validationField = ""
+  try:
+    validateButtonConfig(model.draft)
+  except ButtonConfigError as error:
+    model.validation = error.msg
+    model.validationField = error.field
+
+proc ensureSelection(model: var EditorModel) =
+  ## Keep the selected menu and key valid after configuration changes.
+  if model.draft.findMenu(model.menu).isNil:
+    model.menu = model.draft{"root"}.getStr(RootMenuId)
+  model.key = clamp(model.key, 1, model.device.keyCount())
+
+proc touch(model: var EditorModel) =
+  ## Record a draft edit, clear the previous failure, and revalidate.
+  inc model.edits
+  model.error = ""
+  model.errorField = ""
+  model.notice = ""
+  model.refresh()
+
+proc newEditorModel*(): EditorModel =
+  ## Create an unloaded editor targeting the root mixer page.
+  EditorModel(menu: RootMenuId, device: MixerDevice, key: BackKey)
+
+proc isDirty*(model: EditorModel): bool =
+  ## Report whether the draft differs from the configuration it was based on.
+  model.dirty
+
+proc canApply*(model: EditorModel): bool =
+  ## Report whether Save & Apply can be attempted without a known local failure.
+  model.loaded and model.dirty and model.validation.len == 0 and
+    model.conflict == NoConflict
+
+proc loadLive*(model: var EditorModel, envelope: JsonNode) =
+  ## Record the daemon's configuration, retaining unsaved edits and flagging a changed base.
+  let parsed = parseConfigEnvelope(envelope)
+  model.live = parsed.config.copy()
+  model.liveRevision = parsed.baseRevision
+  if not model.loaded or not model.dirty:
+    model.base = parsed.config.copy()
+    model.baseRevision = parsed.baseRevision
+    model.draft = parsed.config.copy()
+    model.conflict = NoConflict
+  elif parsed.baseRevision != model.baseRevision:
+    model.conflict = StaleRevision
+  model.loaded = true
+  model.ensureSelection()
+  model.refresh()
+
+proc recoverDraft*(model: var EditorModel, draftEnvelope: JsonNode) =
+  ## Restore an autosaved draft after loading live state; an older base becomes a conflict.
+  if not model.loaded:
+    raise newException(ValueError, "Load the live configuration before recovering a draft.")
+  let config = draftEnvelope{"config"}
+  if config.isNil or config.kind != JObject:
+    raise newException(ValueError, "Draft has no config object.")
+  if sameConfiguration(config, model.live):
+    return
+  let revision = draftEnvelope{"baseRevision"}.getStr()
+  model.draft = config.copy()
+  model.base = model.live.copy()
+  model.baseRevision = revision
+  model.conflict = if revision == model.liveRevision: NoConflict else: StaleRevision
+  model.notice = "Recovered unsaved draft."
+  inc model.edits
+  model.ensureSelection()
+  model.refresh()
+
+proc rebaseDraft*(model: var EditorModel) =
+  ## Keep the draft and target the newest live revision, replacing external changes on apply.
+  model.base = model.live.copy()
+  model.baseRevision = model.liveRevision
+  model.conflict = NoConflict
+  model.touch()
+
+proc discardDraft*(model: var EditorModel) =
+  ## Drop all unsaved edits and return to the newest live configuration.
+  model.base = model.live.copy()
+  model.baseRevision = model.liveRevision
+  model.draft = model.live.copy()
+  model.conflict = NoConflict
+  model.ensureSelection()
+  model.touch()
+
+proc draftEnvelope*(model: EditorModel): JsonNode =
+  ## Build the shared CLI/GUI envelope for apply and draft files.
+  %*{"baseRevision": model.baseRevision, "config": model.draft}
+
+proc selectMenu*(model: var EditorModel, id: string) =
+  ## Choose the menu being edited without changing any device's live menu.
+  if model.draft.findMenu(id).isNil:
+    raise newException(ValueError, "Unknown menu: " & id)
+  model.menu = id
+
+proc selectDevice*(model: var EditorModel, device: ButtonDevice) =
+  ## Choose the device grid being edited.
+  model.device = device
+  model.key = clamp(model.key, 1, device.keyCount())
+
+proc selectKey*(model: var EditorModel, key: int) =
+  ## Inspect one slot; selection never dispatches its action.
+  if key notin 1..model.device.keyCount():
+    raise newException(ValueError, "Key " & $key & " is outside the " & $model.device & " grid.")
+  model.key = key
+
+proc selected*(model: EditorModel): JsonNode =
+  ## Return the effective selected slot, including implicit Back and unassigned keys.
+  model.draft.entryAt(model.menu, model.device, model.key)
+
+proc selectedLocked*(model: EditorModel): bool =
+  ## Report whether the selected slot is the immutable linked Back key.
+  isLockedBack(model.menu, model.key)
+
+proc mutableEntry(model: var EditorModel): JsonNode =
+  ## Return the selected slot in the draft, materializing it in key order.
+  if model.selectedLocked():
+    raise newException(ValueError, "Key 1 of a submenu is always Back on both devices.")
+  let menu = model.draft.findMenu(model.menu)
+  if menu.isNil:
+    raise newException(ValueError, "Unknown menu: " & model.menu)
+  if menu{$model.device}.isNil:
+    menu[$model.device] = newJArray()
+  for entry in menu[$model.device]:
+    if entry{"key"}.getInt() == model.key:
+      return entry
+  result = %*{"key": model.key, "title": "", "action": {"kind": "none"}}
+  var entries = menu[$model.device].getElems()
+  entries.add(result)
+  entries.sort(proc (a, b: JsonNode): int = cmp(a{"key"}.getInt(), b{"key"}.getInt()))
+  menu[$model.device] = %entries
+
+proc setTitle*(model: var EditorModel, title: string) =
+  ## Set a slot's Unicode title; a Deck title replaces migrated numbered artwork.
+  if title.validateUtf8() >= 0:
+    raise newException(ValueError, "Title is not valid UTF-8.")
+  let entry = model.mutableEntry()
+  entry["title"] = %title.replace("\n", " ")
+  let visual = entry{"visual"}
+  if model.device == DeckDevice and not visual.isNil and visual.hasKey("builtinNumber"):
+    visual.delete("builtinNumber")
+    if visual.hasKey("showTitle"): visual.delete("showTitle")
+  model.touch()
+
+proc setActionKind*(model: var EditorModel, kind: ConfigActionKind) =
+  ## Change a slot's action, keeping compatible fields and defaulting menu targets.
+  let
+    entry = model.mutableEntry()
+    previous = entry{"action"}
+  var action = %*{"kind": $kind}
+  case kind
+  of CommandAction:
+    action["command"] = %previous{"command"}.getStr()
+  of MenuAction:
+    var target = previous{"menu"}.getStr()
+    if model.draft.findMenu(target).isNil:
+      target = ""
+      for id in model.draft.menuIds():
+        if id != model.menu and id != RootMenuId:
+          target = id
+          break
+    action["menu"] = %target
+    action["target"] = %previous{"target"}.getStr($TargetBoth)
+  else: discard
+  entry["action"] = action
+  model.touch()
+
+proc setCommand*(model: var EditorModel, command: string) =
+  ## Set the shell command for a command action.
+  let entry = model.mutableEntry()
+  if entry.actionKind() != CommandAction:
+    raise newException(ValueError, "Only command actions have a command.")
+  entry["action"]["command"] = %command
+  model.touch()
+
+proc setMenuTarget*(model: var EditorModel, menu: string) =
+  ## Choose the menu a menu action opens.
+  if model.draft.findMenu(menu).isNil:
+    raise newException(ValueError, "Unknown menu: " & menu)
+  let entry = model.mutableEntry()
+  if entry.actionKind() != MenuAction:
+    raise newException(ValueError, "Only menu actions have a target menu.")
+  entry["action"]["menu"] = %menu
+  model.touch()
+
+proc setTargetDevice*(model: var EditorModel, target: ButtonTarget) =
+  ## Choose whether a menu action opens on the mixer, Deck, or both.
+  let entry = model.mutableEntry()
+  if entry.actionKind() != MenuAction:
+    raise newException(ValueError, "Only menu actions have a target device.")
+  entry["action"]["target"] = %($target)
+  model.touch()
+
+proc deckVisual(model: var EditorModel): JsonNode =
+  ## Return the selected Deck slot's mutable visual object.
+  if model.device != DeckDevice:
+    raise newException(ValueError, "Only Stream Deck keys have images.")
+  let entry = model.mutableEntry()
+  if entry{"visual"}.isNil or entry["visual"].kind != JObject:
+    entry["visual"] = newJObject()
+  entry["visual"]
+
+proc setImage*(model: var EditorModel, managedPath: string) =
+  ## Use an imported managed asset; the title overlay defaults off for images.
+  if not isManagedAssetPath(managedPath):
+    raise newException(ValueError, "Images must be imported into the managed assets directory.")
+  let visual = model.deckVisual()
+  if visual.hasKey("builtinNumber"): visual.delete("builtinNumber")
+  visual["image"] = %managedPath
+  if not visual.hasKey("showTitle"):
+    visual["showTitle"] = %false
+  model.touch()
+
+proc clearImage*(model: var EditorModel) =
+  ## Remove a Deck image so the key renders its title.
+  let visual = model.deckVisual()
+  for field in ["image", "showTitle"]:
+    if visual.hasKey(field): visual.delete(field)
+  model.touch()
+
+proc setShowTitle*(model: var EditorModel, show: bool) =
+  ## Choose whether the title is drawn over a Deck key.
+  model.deckVisual()["showTitle"] = %show
+  model.touch()
+
+proc createMenu*(model: var EditorModel, title: string): string =
+  ## Add an empty submenu with a stable ASCII ID derived from its title.
+  let name = title.strip()
+  if name.len == 0:
+    raise newException(ValueError, "Menu title cannot be empty.")
+  if name.validateUtf8() >= 0:
+    raise newException(ValueError, "Menu title is not valid UTF-8.")
+  if model.draft.menus().len >= MaxMenus:
+    raise newException(ValueError, "At most " & $MaxMenus & " menus are supported.")
+  result = model.draft.menuIdFromTitle(name)
+  model.draft["menus"].add(%*{"id": result, "title": name, "mixer": [], "deck": []})
+  model.menu = result
+  model.key = BackKey
+  model.touch()
+
+proc renameMenu*(model: var EditorModel, id, title: string) =
+  ## Change a menu's displayed title; its ID and references stay stable.
+  let menu = model.draft.findMenu(id)
+  if menu.isNil:
+    raise newException(ValueError, "Unknown menu: " & id)
+  menu["title"] = %title.replace("\n", " ")
+  model.touch()
+
+proc deleteMenu*(model: var EditorModel, id: string) =
+  ## Remove an unreferenced submenu; the root menu is permanent.
+  if id == model.draft{"root"}.getStr(RootMenuId):
+    raise newException(ValueError, "The main menu cannot be deleted.")
+  if model.draft.findMenu(id).isNil:
+    raise newException(ValueError, "Unknown menu: " & id)
+  let references = model.draft.menuReferences(id)
+  if references.len > 0:
+    raise newException(ValueError, "Opened by " & references.join(", ") &
+      ". Change those buttons first.")
+  var kept = newJArray()
+  for menu in model.draft["menus"]:
+    if menu{"id"}.getStr() != id: kept.add(menu)
+  model.draft["menus"] = kept
+  if model.menu == id:
+    model.menu = model.draft{"root"}.getStr(RootMenuId)
+  model.touch()
+
+proc setError*(model: var EditorModel, message: string, field = "") =
+  ## Show a failure while retaining every draft edit.
+  model.error = message
+  model.errorField = field
+  model.notice = ""
+
+proc slotField*(model: EditorModel, menu: string, device: ButtonDevice, key: int): string =
+  ## Return the validation path for one stored slot, or "" when it is implicit.
+  var menuIndex = 0
+  for menuNode in model.draft.menus():
+    if menuNode{"id"}.getStr() == menu:
+      var entryIndex = 0
+      if not menuNode{$device}.isNil:
+        for entry in menuNode[$device]:
+          if entry{"key"}.getInt() == key:
+            return "menus[" & $menuIndex & "]." & $device & "[" & $entryIndex & "]"
+          inc entryIndex
+      return ""
+    inc menuIndex
+
+proc menuField*(model: EditorModel, menu: string): string =
+  ## Return the validation path for one menu, or "" when absent.
+  let index = model.draft.menuIds().find(menu)
+  if index >= 0: "menus[" & $index & "]" else: ""
+
+proc fieldWithin(field, prefix: string): bool =
+  ## Report whether a validation path names an object or one of its children.
+  prefix.len > 0 and (field == prefix or field.startsWith(prefix & ".") or
+    field.startsWith(prefix & "["))
+
+proc problemField*(model: EditorModel): string =
+  ## Return the field of the failure currently shown, preferring daemon errors.
+  if model.error.len > 0: model.errorField else: model.validationField
+
+proc problem*(model: EditorModel): string =
+  ## Return the failure currently shown, preferring daemon errors over local validation.
+  if model.error.len > 0: model.error else: model.validation
+
+proc slotHasProblem*(model: EditorModel, menu: string, device: ButtonDevice, key: int): bool =
+  ## Report whether the shown failure points at a slot.
+  model.problemField().fieldWithin(model.slotField(menu, device, key))
+
+proc menuHasProblem*(model: EditorModel, menu: string): bool =
+  ## Report whether the shown failure points into a menu.
+  model.problemField().fieldWithin(model.menuField(menu))
+
+proc applySucceeded*(model: var EditorModel, revision: string) =
+  ## Adopt the applied draft as the new live baseline.
+  model.live = model.draft.copy()
+  model.liveRevision = revision
+  model.base = model.draft.copy()
+  model.baseRevision = revision
+  model.conflict = NoConflict
+  model.error = ""
+  model.errorField = ""
+  model.notice = "Applied."
+  model.refresh()
+
+proc applyFailed*(model: var EditorModel, message, code, field: string) =
+  ## Keep the draft after a failed apply, marking revision conflicts for explicit resolution.
+  model.setError(message, field)
+  if code == StaleCode: model.conflict = StaleRevision
+
+proc draftPath*(): string =
+  ## Return the GUI's autosaved draft path under Knobby's XDG state directory.
+  buttonStateDirectory() / DraftFileName
+
+proc writeDraft*(path: string, envelope: JsonNode) =
+  ## Atomically replace the autosaved draft envelope.
+  createDir(path.parentDir())
+  writeFileAtomic(path, envelope.pretty() & "\n")
+
+proc readDraft*(path: string): JsonNode =
+  ## Load an autosaved draft envelope, or nil when none exists.
+  if not fileExists(path): return nil
+  result = parseFile(path)
+  if result.kind != JObject or result{"config"}.isNil or result["config"].kind != JObject:
+    raise newException(ValueError, "Draft file is not a configuration envelope: " & path)
+
+proc removeDraft*(path: string) =
+  ## Delete an autosaved draft after it was applied or discarded.
+  if fileExists(path): removeFile(path)
