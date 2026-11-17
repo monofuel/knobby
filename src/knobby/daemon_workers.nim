@@ -1,7 +1,7 @@
 import
   std/[atomics, json, locks, os, strutils],
   ./[actions, audio_status, bindings, button_config, button_media, button_runtime,
-    common, fader_cache, ipc, midi_events, runtime, status, stream_deck]
+    common, fader_cache, ipc, midi_events, razer_lighting, runtime, status, stream_deck]
 
 from ./stream_deck_player import runConfiguredSession
 
@@ -9,6 +9,11 @@ type
   PendingActions* = object
     buttons*: seq[MidiEvent]
     faders*: array[4, int]
+  DeckDriver* = object
+    discover*: proc (): string
+    open*: proc (path: string): StreamDeck
+    log*: proc (message: string)
+    retryMs*: int
 
 const
   MaxPendingButtons* = 256
@@ -88,41 +93,59 @@ proc runActions() {.thread.} =
         stderr.writeLine("Action execution failed: " & error.msg)
     sleep(WorkerPollMs)
 
-proc runDeck() {.thread.} =
-  ## Own Stream Deck images and input without depending on GUI availability.
+proc superviseDeck*(driver: DeckDriver, shouldStop: proc (): bool) =
+  ## Own Stream Deck images and input, rediscovering the device by identity
+  ## after absence, open failures, and session errors.
   var lastError = ""
   while not shouldStop():
     try:
-      let path = discoverStreamDeck()
+      let path = driver.discover()
       if path.len == 0:
         setDeckConnection(false, "Disconnected")
         resetDeckInput()
       else:
-        {.cast(gcsafe).}:
-          runConfiguredSession(openStreamDeck(path), shouldStop,
-            proc (event: StreamDeckKeyEvent) =
-              ## Observe all edges while routing only eligible fresh presses.
-              observeDeck(event)
-              try: routeDeckButton(event.keyIndex, event.pressed)
-              except IOError as error:
-                setComponentError("actions", error.msg)
-                stderr.writeLine(error.msg),
-            readDeckPage,
-            proc () =
-              ## Announce a ready page only after all fifteen images are uploaded.
-              deckPageReady()
-              setDeckConnection(true))
+        var connected = false
+        runConfiguredSession(driver.open(path), shouldStop,
+          proc (event: StreamDeckKeyEvent) =
+            ## Observe all edges while routing only eligible fresh presses.
+            observeDeck(event)
+            try: routeDeckButton(event.keyIndex, event.pressed)
+            except IOError as error:
+              setComponentError("actions", error.msg)
+              driver.log(error.msg),
+          readDeckPage,
+          proc () =
+            ## Announce a ready page only after all fifteen images are uploaded.
+            deckPageReady()
+            setDeckConnection(true)
+            if not connected:
+              connected = true
+              lastError.setLen(0)
+              driver.log("Stream Deck connected at " & path & "."))
         resetDeckInput()
         lastError.setLen(0)
     except CatchableError as error:
       setDeckConnection(false, error.msg)
       resetDeckInput()
       if error.msg != lastError:
-        stderr.writeLine("Stream Deck unavailable: " & error.msg)
+        driver.log("Stream Deck unavailable: " & error.msg)
         lastError = error.msg
-    for _ in 0..<RetryMs div WorkerPollMs:
+    for _ in 0..<driver.retryMs div WorkerPollMs:
       if shouldStop(): break
       sleep(WorkerPollMs)
+
+proc writeDeckLog(message: string) =
+  ## Write a Stream Deck lifecycle message to the service log.
+  stderr.writeLine(message)
+
+proc runDeck() {.thread.} =
+  ## Supervise the physical Stream Deck without depending on GUI availability.
+  {.cast(gcsafe).}:
+    superviseDeck(DeckDriver(
+      discover: proc (): string =
+        ## Find the MK.2 through the system hidraw class.
+        discoverStreamDeck(),
+      open: openStreamDeck, log: writeDeckLog, retryMs: RetryMs), shouldStop)
 
 proc runAudio() {.thread.} =
   ## Publish actual audio and USB presence independently of input and UI loops.
@@ -140,10 +163,7 @@ proc runAudio() {.thread.} =
       setComponentError("audio", error.msg)
     var present = false
     try:
-      for _, path in walkDir("/sys/bus/usb/devices"):
-        if fileExists(path / "idVendor") and fileExists(path / "idProduct") and
-            readFile(path / "idVendor").strip() == "1532" and readFile(path / "idProduct").strip() == "0c02":
-          present = true
+      present = observeMousepadAttachment().len > 0
     except IOError:
       present = false
     setMousepadPresence(present)

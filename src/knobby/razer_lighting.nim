@@ -1,11 +1,12 @@
 import
-  std/[json, os, osproc, streams, strutils],
+  std/[algorithm, json, os, osproc, streams, strutils],
   ./[bindings, common, runtime, status]
 
 type
   BusctlRunner* = proc (args: seq[string]): JsonNode {.gcsafe.}
   MousepadLightingState* = object
     daemonOwner: string
+    attachment: string
     handledDevices: seq[string]
 
 const
@@ -15,6 +16,9 @@ const
   RazerVendorId = 0x1532
   GoliathusExtendedId = 0x0c02
   LightingPollMs = 5000
+  UsbDevicesPath = "/sys/bus/usb/devices"
+  RazerVendorText = "1532"
+  GoliathusExtendedText = "0c02"
 
 var lightingThread: Thread[void]
 
@@ -34,13 +38,29 @@ proc runBusctl(args: seq[string]): JsonNode =
     raise newException(OSError, "busctl: " & output.strip())
   result = if output.strip().len == 0: newJNull() else: parseJson(output)
 
-proc syncMousepadLighting*(state: var MousepadLightingState, run: BusctlRunner) =
-  ## Apply grey breathing to newly seen mousepads and after OpenRazer restarts.
+proc observeMousepadAttachment*(usbDevices = UsbDevicesPath): string =
+  ## Identify each attached Goliathus by USB port and device number, empty when absent.
+  ## The kernel assigns a new device number on every enumeration, so a replug
+  ## changes the result even when it happens between two observations.
+  var attachments: seq[string]
+  for _, path in walkDir(usbDevices):
+    if fileExists(path / "idVendor") and fileExists(path / "idProduct") and
+        readFile(path / "idVendor").strip() == RazerVendorText and
+        readFile(path / "idProduct").strip() == GoliathusExtendedText:
+      attachments.add(path.lastPathPart() & "#" & readFile(path / "devnum").strip())
+  attachments.sort()
+  result = attachments.join(",")
+
+proc syncMousepadLighting*(state: var MousepadLightingState, run: BusctlRunner,
+    attachment: string) =
+  ## Apply grey breathing to newly seen mousepads, after a USB reattachment,
+  ## and after OpenRazer restarts.
   let owner = run(@["call", "org.freedesktop.DBus", "/org/freedesktop/DBus",
     "org.freedesktop.DBus", "GetNameOwner", "s", RazerService])["data"][0].getStr()
-  if state.daemonOwner != owner:
+  if state.daemonOwner != owner or state.attachment != attachment:
     state.handledDevices.setLen(0)
     state.daemonOwner = owner
+    state.attachment = attachment
   let devices = run(@["call", RazerService, RazerManagerPath,
     "razer.devices", "getDevices"])["data"][0]
   var handledDevices: seq[string]
@@ -68,7 +88,7 @@ proc watchMousepadLighting() {.thread.} =
     lastError = ""
   while not shouldStop():
     try:
-      state.syncMousepadLighting(runBusctl)
+      state.syncMousepadLighting(runBusctl, observeMousepadAttachment())
       setComponentError("lighting", "")
       lastError.setLen(0)
     except CatchableError as error:

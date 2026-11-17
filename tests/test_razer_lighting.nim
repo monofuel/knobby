@@ -1,5 +1,5 @@
 import
-  std/[json, unittest],
+  std/[json, os, unittest],
   knobby/razer_lighting
 
 type
@@ -8,6 +8,9 @@ type
     devices: seq[tuple[serial: string, vendorId, productId: int]]
     calls: seq[seq[string]]
     failEffect: bool
+
+const
+  Attached = "1-4#7"
 
 proc runner(fake: FakeRazer): BusctlRunner =
   ## Simulate OpenRazer D-Bus responses without hardware or subprocesses.
@@ -49,7 +52,7 @@ suite "OpenRazer mousepad lighting":
       ("other-vendor", 0x1234, 0x0c02),
       ("mousepad", 0x1532, 0x0c02)])
     var state: MousepadLightingState
-    state.syncMousepadLighting(fake.runner())
+    state.syncMousepadLighting(fake.runner(), Attached)
     check fake.writes() == @[
       @["call", "org.razer", "/org/razer/device/mousepad",
         "razer.device.lighting.brightness", "setBrightness", "d", "25"],
@@ -60,20 +63,20 @@ suite "OpenRazer mousepad lighting":
   test "quiet polls preserve the running hardware animation":
     let fake = FakeRazer(owner: ":1.3", devices: @[("pad", 0x1532, 0x0c02)])
     var state: MousepadLightingState
-    state.syncMousepadLighting(fake.runner())
-    state.syncMousepadLighting(fake.runner())
+    state.syncMousepadLighting(fake.runner(), Attached)
+    state.syncMousepadLighting(fake.runner(), Attached)
     check fake.writes().len == 2
 
   test "reapply after unplugging or restarting OpenRazer":
     let fake = FakeRazer(owner: ":1.3", devices: @[("pad", 0x1532, 0x0c02)])
     var state: MousepadLightingState
-    state.syncMousepadLighting(fake.runner())
+    state.syncMousepadLighting(fake.runner(), Attached)
     fake.devices.setLen(0)
-    state.syncMousepadLighting(fake.runner())
+    state.syncMousepadLighting(fake.runner(), Attached)
     fake.devices = @[("pad", 0x1532, 0x0c02)]
-    state.syncMousepadLighting(fake.runner())
+    state.syncMousepadLighting(fake.runner(), Attached)
     fake.owner = ":1.42"
-    state.syncMousepadLighting(fake.runner())
+    state.syncMousepadLighting(fake.runner(), Attached)
     check fake.writes().len == 6
 
   test "failed effects remain eligible for retry":
@@ -81,7 +84,35 @@ suite "OpenRazer mousepad lighting":
       failEffect: true)
     var state: MousepadLightingState
     expect IOError:
-      state.syncMousepadLighting(fake.runner())
+      state.syncMousepadLighting(fake.runner(), Attached)
     fake.failEffect = false
-    state.syncMousepadLighting(fake.runner())
+    state.syncMousepadLighting(fake.runner(), Attached)
     check fake.writes().len == 4
+
+  test "a replug between polls reapplies to the same serial":
+    let fake = FakeRazer(owner: ":1.3", devices: @[("pad", 0x1532, 0x0c02)])
+    var state: MousepadLightingState
+    state.syncMousepadLighting(fake.runner(), "1-4#7")
+    state.syncMousepadLighting(fake.runner(), "1-4#7")
+    state.syncMousepadLighting(fake.runner(), "1-4#9")
+    check fake.writes().len == 4
+
+  test "attachment identity follows the USB device number":
+    let root = getTempDir() / ("knobby-usb-test-" & $getCurrentProcessId())
+    proc device(name, vendor, product, devnum: string) =
+      ## Create a synthetic sysfs USB device directory.
+      createDir(root / name)
+      writeFile(root / name / "idVendor", vendor & "\n")
+      writeFile(root / name / "idProduct", product & "\n")
+      writeFile(root / name / "devnum", devnum & "\n")
+    defer: removeDir(root)
+    createDir(root)
+    check observeMousepadAttachment(root) == ""
+    device("1-3", "1532", "0098", "5")
+    createDir(root / "1-4:1.0")
+    check observeMousepadAttachment(root) == ""
+    device("1-4", "1532", "0c02", "7")
+    check observeMousepadAttachment(root) == "1-4#7"
+    writeFile(root / "1-4" / "devnum", "9\n")
+    check observeMousepadAttachment(root) == "1-4#9"
+    check observeMousepadAttachment(root / "missing") == ""
