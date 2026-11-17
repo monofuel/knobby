@@ -10,6 +10,9 @@ import
 type
   JobKind* = enum
     LoadJob, ApplyJob, PreviewJob, ImportJob, BrowseJob
+  PreviewView* = enum
+    ## Which preview source the player shows: none, the daemon's active page, or the draft.
+    NoPreview, LivePreview, DraftPreview
   ConfigJob = object
     kind: JobKind
     payload: string
@@ -21,8 +24,10 @@ type
     frames: seq[tuple[path: string, durationMs: int]]
   PreviewPage = object
     sources: array[16, PreviewSource]
+    manifestPath, menu: string
+    pressedKey: int
   SlotPixels = object
-    generation: int
+    generation, page: int
     pixels: seq[ColorRGBX]
     error: string
   EditorField = ref object
@@ -44,15 +49,18 @@ type
     manifest*: JsonNode
     previewEdits*, previewRequestedEdits: int
     previewError*: string
-    editChangedMs, previewRetryMs: int64
-    savedEdits, seenEdits: int
+    previewRetryMs: int64
+    saver: DraftSaver
     status*: JsonNode
     statusRevision: string
     opened*, recovered: bool
     importPath, newMenuTitle: string
     scroll, contentHeight: float32
-    slotUploaded: array[16, int]
+    slotUploaded, slotPage: array[16, int]
     pageKey: string
+    publishedPage: int
+    liveKey*: int
+    liveArtError*: string
     glyphs: GlyphCache
     recordRects*: bool
     rects*: Table[string, Rect]
@@ -73,7 +81,7 @@ const
   Muted* = rgbx(153, 163, 179, 255)
   Accent* = rgbx(107, 187, 176, 255)
   Active* = rgbx(182, 225, 211, 255)
-  Danger = rgbx(236, 118, 108, 255)
+  Danger* = rgbx(236, 118, 108, 255)
   Black = rgbx(0, 0, 0, 255)
   SidebarWidth* = 190'f32
   DetailWidth* = 300'f32
@@ -88,7 +96,6 @@ const
   Gap = 8'f32
   PreviewDebounceMs = 600
   PreviewBusyRetryMs = 1000
-  DraftSaveDelayMs = 700
   PlayerPollMs = 8
   PlayerIdleMs = 50
   MaxDynamicGlyphs = 512
@@ -122,6 +129,7 @@ var
   playerLock: Lock
   playerPage: PreviewPage
   playerGeneration: int
+  playerPageError: string
   playerSlots: array[PreviewSlotCount, SlotPixels]
   playerStopping: Atomic[bool]
   workerBusy: Atomic[bool]
@@ -174,6 +182,41 @@ proc blankPixels(): seq[ColorRGBX] =
   result = newSeq[ColorRGBX](PreviewSize * PreviewSize)
   for pixel in result.mitems: pixel = Black
 
+proc menuPage(manifest: JsonNode, menu: string, selectedKey: int): PreviewPage =
+  ## Translate one manifest menu into player sources for the grid and pressed preview.
+  let keys = manifest{"menus"}{menu}
+  proc source(entry: JsonNode, pressed: bool): PreviewSource =
+    ## Convert one manifest key into frames, using compiled art for built-in numbers.
+    if entry.isNil: return
+    if entry.hasKey("builtinNumber"):
+      let number = entry["builtinNumber"].getInt()
+      result.frames.add((BuiltinPrefix & $number & (if pressed: ":pressed" else: ":normal"), 0))
+    elif pressed:
+      if entry{"pressed"}.getStr().len > 0:
+        result.frames.add((entry["pressed"].getStr(), 0))
+    else:
+      for frame in entry{"normal"}.getElems():
+        result.frames.add((frame{"path"}.getStr(), frame{"durationMs"}.getInt(100)))
+  if keys.isNil: return
+  for key in 1..DeckKeyCount:
+    result.sources[key - 1] = source(keys{$key}, false)
+  result.sources[PressedSlot] = source(keys{$selectedKey}, true)
+
+proc resolveLivePage(page: var PreviewPage, cachedPath: var string, cached: var JsonNode): string =
+  ## Fill a live page from the daemon's active manifest file, returning a failure message or "".
+  if page.manifestPath.len == 0: return
+  try:
+    if page.manifestPath != cachedPath:
+      cached = parseFile(page.manifestPath)
+      cachedPath = page.manifestPath
+    if cached{"menus"}{page.menu}.isNil:
+      raise newException(ValueError, "Active manifest has no menu " & page.menu & ".")
+    page.sources = cached.menuPage(page.menu, page.pressedKey).sources
+  except CatchableError as failure:
+    cachedPath = ""
+    cached = nil
+    result = "Live key images unavailable: " & failure.msg
+
 proc playerLoop() {.thread.} =
   ## Decode only the frame due on each visible key, publishing changed pixels to the render thread.
   var
@@ -183,14 +226,24 @@ proc playerLoop() {.thread.} =
     shown: array[PreviewSlotCount, string]
     cache: Table[string, seq[ColorRGBX]]
     cacheBytes = 0
+    manifestPath: string
+    manifest: JsonNode
   while not playerStopping.load():
+    var changed = false
     {.cast(gcsafe).}:
       withLock playerLock:
         if generation != playerGeneration:
           page = playerPage
           generation = playerGeneration
-          started = nowMs()
-          for slot in shown.mitems: slot = "\0"
+          changed = true
+    if changed:
+      # Manifests are revision-addressed and immutable, so the last parsed one is reused.
+      let pageError = page.resolveLivePage(manifestPath, manifest)
+      {.cast(gcsafe).}:
+        withLock playerLock:
+          if generation == playerGeneration: playerPageError = pageError
+      started = nowMs()
+      for slot in shown.mitems: slot = "\0"
     let elapsed = nowMs() - started
     var animated = false
     for slot in 0..<PreviewSlotCount:
@@ -229,6 +282,7 @@ proc playerLoop() {.thread.} =
         withLock playerLock:
           playerSlots[slot].pixels = move(pixels)
           playerSlots[slot].error = error
+          playerSlots[slot].page = generation
           inc playerSlots[slot].generation
     sleep(if animated: PlayerPollMs else: PlayerIdleMs)
 
@@ -285,7 +339,7 @@ proc runJob(job: ConfigJob): ConfigReply =
     of BrowseJob:
       if findExe("zenity").len == 0:
         raise newException(ValueError,
-          "The file dialog needs zenity. Paste an image path or drop a file on this window.")
+          "The file dialog needs zenity. Paste an absolute image path and choose Import.")
       let chosen = openFileDialog("Choose a key image", ImageFilters, getHomeDir())
       result.payload = if chosen.len == 0: $(%*{"cancelled": true}) else: $importSource(chosen)
   except CatchableError as error:
@@ -337,8 +391,10 @@ proc reservePreviewSlots(sk: Silky) =
 proc newButtonEditor*(sk: Silky): ButtonEditor =
   ## Create the editor, reserving its bounded preview atlas slots.
   sk.reservePreviewSlots()
-  result = ButtonEditor(model: newEditorModel(), glyphs: GlyphCache(typeface: parseTtf(FontBytes)))
+  result = ButtonEditor(model: newEditorModel(), saver: newDraftSaver(draftPath()),
+    glyphs: GlyphCache(typeface: parseTtf(FontBytes)))
   for slot in result.slotUploaded.mitems: slot = -1
+  for slot in result.slotPage.mitems: slot = -1
 
 proc submit(editor: ButtonEditor, kind: JobKind, payload: string): bool =
   ## Start one background job when the worker is idle.
@@ -362,52 +418,47 @@ proc requestImport*(editor: ButtonEditor, source: string) =
   editor.importTarget = ImportTarget(menu: editor.model.menu, key: editor.model.key)
   editor.queued.incl(ImportJob)
 
-proc dropFile*(editor: ButtonEditor, path: string) =
-  ## Treat a file dropped on the window as an import for the selected Deck key.
-  editor.requestImport(path)
+proc liveDeckSource(editor: ButtonEditor): tuple[manifestPath, menu: string] =
+  ## Return the daemon's active Deck manifest and menu, never the draft being edited.
+  if editor.status.isNil or editor.status.kind != JObject: return
+  (editor.status{"manifestPath"}.getStr(), editor.status{"deckMenu"}.getStr())
 
-proc menuPage(manifest: JsonNode, menu: string, selectedKey: int): PreviewPage =
-  ## Translate one manifest menu into player sources for the grid and pressed preview.
-  let keys = manifest{"menus"}{menu}
-  proc source(entry: JsonNode, pressed: bool): PreviewSource =
-    ## Convert one manifest key into frames, using compiled art for built-in numbers.
-    if entry.isNil: return
-    if entry.hasKey("builtinNumber"):
-      let number = entry["builtinNumber"].getInt()
-      result.frames.add((BuiltinPrefix & $number & (if pressed: ":pressed" else: ":normal"), 0))
-    elif pressed:
-      if entry{"pressed"}.getStr().len > 0:
-        result.frames.add((entry["pressed"].getStr(), 0))
-    else:
-      for frame in entry{"normal"}.getElems():
-        result.frames.add((frame{"path"}.getStr(), frame{"durationMs"}.getInt(100)))
-  if keys.isNil: return
-  for key in 1..DeckKeyCount:
-    result.sources[key - 1] = source(keys{$key}, false)
-  result.sources[PressedSlot] = source(keys{$selectedKey}, true)
-
-proc publishPreviewPage(editor: ButtonEditor, visible: bool) =
-  ## Send the visible menu's frames to the player, or an empty page so a hidden editor stays idle.
-  let key =
-    if not visible or editor.manifest.isNil or editor.model.device != DeckDevice: ""
-    else: editor.model.menu & "/" & $editor.model.key & "/" & $editor.previewEdits
+proc publishPreviewPage(editor: ButtonEditor, view: PreviewView) =
+  ## Send the visible view's frames to the player, or an empty page so hidden views stay idle.
+  let
+    live = editor.liveDeckSource()
+    key =
+      case view
+      of NoPreview: ""
+      of LivePreview:
+        if live.manifestPath.len == 0 or live.menu.len == 0: ""
+        else: "live/" & live.manifestPath & "/" & live.menu & "/" & $editor.liveKey
+      of DraftPreview:
+        if editor.manifest.isNil or editor.model.device != DeckDevice: ""
+        else: "draft/" & editor.model.menu & "/" & $editor.model.key & "/" & $editor.previewEdits
   if key == editor.pageKey: return
   editor.pageKey = key
-  let page =
-    if key.len == 0: PreviewPage()
-    else: editor.manifest.menuPage(editor.model.menu, editor.model.key)
+  var page = PreviewPage()
+  if key.len > 0 and view == LivePreview:
+    page = PreviewPage(manifestPath: live.manifestPath, menu: live.menu, pressedKey: editor.liveKey)
+  elif key.len > 0:
+    page = editor.manifest.menuPage(editor.model.menu, editor.model.key)
   withLock playerLock:
     playerPage = page
+    playerPageError = ""
     inc playerGeneration
+    editor.publishedPage = playerGeneration
 
 proc syncPreviewSlots*(sk: Silky, editor: ButtonEditor) =
   ## Copy decoded frames into their reserved atlas regions with partial texture uploads.
   var bound = false
   withLock playerLock:
+    editor.liveArtError = playerPageError
     for slot in 0..<PreviewSlotCount:
       let pixels = playerSlots[slot]
       if pixels.generation == editor.slotUploaded[slot] or pixels.pixels.len == 0: continue
       editor.slotUploaded[slot] = pixels.generation
+      editor.slotPage[slot] = pixels.page
       let entry = sk.atlas.entries["preview." & $slot]
       for y in 0..<PreviewSize:
         copyMem(addr sk.image.data[sk.image.dataIndex(entry.x, entry.y + y)],
@@ -420,7 +471,23 @@ proc syncPreviewSlots*(sk: Silky, editor: ButtonEditor) =
         PreviewSize.GLsizei, PreviewSize.GLsizei, GL_RGBA, GL_UNSIGNED_BYTE,
         unsafeAddr pixels.pixels[0])
 
-proc slotDecodeError(slot: int): string =
+proc previewCurrent*(editor: ButtonEditor, slot: int): bool =
+  ## Report whether a reserved slot holds pixels for the page currently published.
+  editor.pageKey.len > 0 and editor.slotPage[slot] == editor.publishedPage
+
+proc drawPreview*(sk: Silky, editor: ButtonEditor, slot: int, position: Vec2) =
+  ## Draw a preview slot, showing black until it holds frames of the current page.
+  if editor.previewCurrent(slot):
+    sk.drawImage("preview." & $slot, position)
+  else:
+    sk.drawRect(position, vec2(PreviewSize, PreviewSize), Black)
+
+proc liveDeckReady*(editor: ButtonEditor): bool =
+  ## Report whether the daemon published an active Deck manifest the live view can show.
+  let live = editor.liveDeckSource()
+  live.manifestPath.len > 0 and live.menu.len > 0
+
+proc slotDecodeError*(slot: int): string =
   ## Return the decode failure for one preview slot.
   withLock playerLock: result = playerSlots[slot].error
 
@@ -515,7 +582,7 @@ proc hasGlyph*(sk: Silky, font: string, rune: Rune): bool =
   ## Report whether a font currently renders a rune from its own atlas entry.
   rune in sk.atlas.fonts[font].lookup.entries
 
-proc record(editor: ButtonEditor, name: string, bounds: Rect) =
+proc record*(editor: ButtonEditor, name: string, bounds: Rect) =
   ## Remember a control's bounds for the isolated interaction fixture.
   if editor.recordRects: editor.rects[name] = bounds
 
@@ -735,7 +802,7 @@ proc drawSlot(sk: Silky, editor: ButtonEditor, bounds: Rect, key: int, showPrevi
     model = editor.model
     entry = model.draft.entryAt(model.menu, model.device, key)
     selected = model.key == key
-    locked = isLockedBack(model.menu, key)
+    locked = model.draft.isLockedBack(model.menu, key)
     problem = model.slotHasProblem(model.menu, model.device, key)
     name = "key:" & $key
   editor.record(name, bounds)
@@ -754,12 +821,8 @@ proc drawSlot(sk: Silky, editor: ButtonEditor, bounds: Rect, key: int, showPrevi
     maxWidth = inner, maxHeight = 18)
   y += 20
   if showPreview:
-    let manifestEntry = editor.manifest{"menus"}{model.menu}{$key}
     let previewPos = vec2(round(bounds.x + (bounds.w - PreviewSize) / 2), y)
-    if manifestEntry.isNil:
-      sk.drawRect(previewPos, vec2(PreviewSize, PreviewSize), Black)
-    else:
-      sk.drawImage("preview." & $(key - 1), previewPos)
+    sk.drawPreview(editor, key - 1, previewPos)
     editor.record("preview:" & $key, rect(previewPos, vec2(PreviewSize, PreviewSize)))
   else:
     sk.line(editor, if title.len > 0: title else: "Untitled", bounds.x + 10, y,
@@ -854,7 +917,7 @@ proc drawToolbar(sk: Silky, window: Window, editor: ButtonEditor, x, width: floa
       editor.scroll = 0
   let
     model = editor.model
-    isRoot = model.menu == model.draft{"root"}.getStr(RootMenuId)
+    isRoot = model.menu == model.draft.rootMenu()
     top = 156'f32
   discard sk.label("Menu title", x, top + 9, 80, "Small", Muted)
   let
@@ -898,7 +961,7 @@ proc drawDetails(sk: Silky, window: Window, editor: ButtonEditor, x, height: flo
         if manifestEntry.isNil:
           sk.drawRect(position, vec2(PreviewSize, PreviewSize), Black)
         else:
-          sk.drawImage("preview." & $slot, position)
+          sk.drawPreview(editor, slot, position)
         editor.record("detailPreview:" & caption, rect(position, vec2(PreviewSize, PreviewSize)))
         discard sk.label(caption, x + offset, y + PreviewSize + 4, 80, "Small", Muted)
       y += PreviewSize + 24
@@ -928,7 +991,7 @@ proc drawDetails(sk: Silky, window: Window, editor: ButtonEditor, x, height: flo
     let chipWidth = floor((width - Gap) / 2)
     var actions: seq[ConfigActionKind]
     for action in ConfigActionKind:
-      if action != BackAction or model.menu != model.draft{"root"}.getStr(RootMenuId):
+      if action != BackAction or model.menu != model.draft.rootMenu():
         actions.add(action)
     for index, action in actions:
       let bounds = rect(x + (index mod 2).float32 * (chipWidth + Gap),
@@ -989,8 +1052,7 @@ proc drawDetails(sk: Silky, window: Window, editor: ButtonEditor, x, height: flo
         enabled = editor.importPath.strip().len > 0)
       if importNow or (imported.submitted and editor.importPath.strip().len > 0):
         editor.requestImport(editor.importPath)
-      y += FieldHeight + 6
-      y += sk.label("Or drop a PNG, JPEG, or GIF on this window.", x, y, width, "Small", Muted) + 10
+      y += FieldHeight + 10
       if sk.checkbox(editor, "showTitle", x, y, width, "Show title on key", current.showsTitle()):
         editor.applyEdit: editor.model.setShowTitle(not editor.model.selected().showsTitle())
       y += 34
@@ -1098,7 +1160,7 @@ proc handleReply(editor: ButtonEditor, reply: ConfigReply) =
           model[].recoverDraft(payload["draft"])
         except ValueError as error:
           model[].setError("Draft could not be recovered: " & error.msg)
-        editor.savedEdits = model.edits
+        editor.saver.markDraftSaved(model[])
       elif payload.hasKey("draftError"):
         model[].setError("Draft could not be read: " & payload["draftError"].getStr())
     if payload{"startupError"}.getStr().len > 0 and model.error.len == 0:
@@ -1115,11 +1177,8 @@ proc handleReply(editor: ButtonEditor, reply: ConfigReply) =
     model[].notice = "Applied revision " & shortRevision(model.liveRevision) & "."
     editor.statusRevision = model.liveRevision
     inc editor.applied
-    try:
-      removeDraft(draftPath())
-    except OSError as error:
-      model[].setError("Applied, but the old draft could not be removed: " & error.msg)
-    editor.savedEdits = model.edits
+    editor.saver.markDraftStale()
+    editor.saver.autosaveDraft(model[], nowMs(), force = true)
   of PreviewJob:
     if not reply.ok:
       if reply.code == "busy":
@@ -1155,30 +1214,16 @@ proc handleReply(editor: ButtonEditor, reply: ConfigReply) =
     model[].selectDevice(previousDevice)
     model[].selectKey(previousKey)
 
-proc autosave(editor: ButtonEditor) =
-  ## Persist the draft shortly after edits so a crash or restart cannot lose it.
-  let model = editor.model
-  if model.edits != editor.seenEdits:
-    editor.seenEdits = model.edits
-    editor.editChangedMs = nowMs()
-  if model.edits == editor.savedEdits or not model.loaded or
-      nowMs() - editor.editChangedMs < DraftSaveDelayMs:
-    return
-  editor.savedEdits = model.edits
-  try:
-    if model.dirty: writeDraft(draftPath(), model.draftEnvelope())
-    else: removeDraft(draftPath())
-  except CatchableError as error:
-    editor.model.setError("Draft autosave failed: " & error.msg)
-
-proc schedule(editor: ButtonEditor, visible: bool) =
-  ## Start the highest-priority queued job, then a debounced preview while the Deck grid is visible.
+proc schedule(editor: ButtonEditor, view: PreviewView) =
+  ## Start the highest-priority queued job, then a debounced preview while the draft Deck grid is visible.
   let statusRevision = editor.status{"revision"}.getStr()
-  if statusRevision.len > 0 and statusRevision != editor.statusRevision:
+  if statusRevision.len == 0:
+    editor.statusRevision = ""
+  elif statusRevision != editor.statusRevision and statusRevision != editor.model.liveRevision and
+      (editor.opened or view == LivePreview):
     editor.statusRevision = statusRevision
-    if statusRevision != editor.model.liveRevision and editor.opened:
-      if not editor.model.loaded: editor.model.error = ""
-      editor.queued.incl(LoadJob)
+    if not editor.model.loaded: editor.model.error = ""
+    editor.queued.incl(LoadJob)
   if editor.busy: return
   for kind in [LoadJob, ApplyJob, ImportJob, BrowseJob]:
     if kind notin editor.queued: continue
@@ -1195,36 +1240,33 @@ proc schedule(editor: ButtonEditor, visible: bool) =
       editor.queued.excl(kind)
       return
   let model = editor.model
-  if not visible or not model.loaded or model.device != DeckDevice or model.validation.len > 0 or
-      nowMs() < editor.previewRetryMs:
+  if view != DraftPreview or not model.loaded or model.device != DeckDevice or
+      model.validation.len > 0 or nowMs() < editor.previewRetryMs:
     return
   let wanted = editor.previewRequestedEdits != model.edits or
     editor.manifest.isNil and editor.previewError.len == 0
-  if wanted and (editor.manifest.isNil or nowMs() - editor.editChangedMs >= PreviewDebounceMs):
+  if wanted and (editor.manifest.isNil or nowMs() - editor.saver.changedMs >= PreviewDebounceMs):
     let edits = model.edits
     if editor.submit(PreviewJob, $model.draft):
       editor.previewRequestedEdits = edits
 
-proc updateEditor*(sk: Silky, editor: ButtonEditor, status: JsonNode, visible: bool) =
-  ## Process finished jobs, autosave, schedule work, and refresh preview pixels each frame.
+proc updateEditor*(sk: Silky, editor: ButtonEditor, status: JsonNode, view: PreviewView) =
+  ## Process finished jobs, autosave, schedule work, and refresh the visible view's preview pixels.
   editor.status = status
-  if visible and not editor.model.loaded and not editor.busy and LoadJob notin editor.queued and
-      editor.model.error.len == 0:
+  if view == DraftPreview and not editor.model.loaded and not editor.busy and
+      LoadJob notin editor.queued and editor.model.error.len == 0:
     editor.request(LoadJob)
   while true:
     let (available, reply) = replies.tryRecv()
     if not available: break
     editor.handleReply(reply)
-  editor.autosave()
-  editor.schedule(visible)
-  editor.publishPreviewPage(visible)
-  if visible:
+  editor.saver.autosaveDraft(editor.model, nowMs())
+  editor.schedule(view)
+  editor.publishPreviewPage(view)
+  if view != NoPreview:
     sk.syncPreviewSlots(editor)
   sk.flushGlyphs(editor)
 
 proc flushDraft*(editor: ButtonEditor) =
-  ## Write pending draft edits immediately, for clean viewer shutdown.
-  if not editor.model.loaded or editor.model.edits == editor.savedEdits: return
-  editor.editChangedMs = 0
-  editor.seenEdits = editor.model.edits
-  editor.autosave()
+  ## Write pending draft edits immediately, including after a failed write, for clean viewer shutdown.
+  editor.saver.autosaveDraft(editor.model, nowMs(), force = true)

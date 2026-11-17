@@ -16,6 +16,9 @@ const
   PixelTolerance = 2
   AllowedRequests = ["subscribe", "config.get", "config.apply", "config.preview", "config.importAsset"]
   UnicodeTitle = "Música 日本 ✓ 🎵"
+  MixerTitle = "Música ✓"
+  AudioName = "Écouteurs"
+  LiveDeckTitle = "Grüße"
 
 var
   serverThread: Thread[void]
@@ -59,6 +62,9 @@ proc stateMessage(): JsonNode =
   ## Build a complete status frame carrying the real button runtime status.
   var state = parseJson(encodeSnapshot(emptyMixer(), "editor-fixture", nowMs()))
   state["buttonConfig"] = buttonRuntimeStatus()
+  state["catalog"] = activeMixerCatalog()
+  state["audio"]["master"]["name"] = %AudioName
+  state["audioUpdatedMs"] = %nowMs()
   %*{"version": ProtocolVersion, "type": "state", "state": state}
 
 proc serveLoop() {.thread.} =
@@ -92,6 +98,12 @@ proc runPhase(binary, phase, directory, fixture: string) =
     process.kill()
     raise newException(IOError, "Editor smoke phase " & phase & " timed out.")
   doAssert code == 0, "Editor smoke phase " & phase & " failed with exit code " & $code
+
+proc requestCount(kind: string): int =
+  ## Count requests of one type received so far.
+  withLock requestLock:
+    for received in requestKinds:
+      if received == kind: inc result
 
 proc rectOf(directory, capture, name: string): tuple[x, y, w, h: int] =
   ## Read a control's recorded bounds for a capture.
@@ -127,6 +139,17 @@ proc checkPreview(directory, capture, name: string, candidates: openArray[string
     if frame.matches(bounds.x, bounds.y, upright(path)): return
   raise newException(AssertionDefect, name & " in " & capture & " does not show an exact upright prepared frame.")
 
+proc checkBlack(directory, capture, name: string) =
+  ## Require a preview slot to show the black face of a key without prepared artwork.
+  let
+    frame = readImage(directory / (capture & ".png"))
+    bounds = rectOf(directory, capture, name)
+  for y in bounds.y..<bounds.y + bounds.h:
+    for x in bounds.x..<bounds.x + bounds.w:
+      let pixel = frame[x, y]
+      doAssert pixel.r.int + pixel.g.int + pixel.b.int <= PixelTolerance * 3,
+        name & " in " & capture & " is not black at " & $x & ", " & $y
+
 proc checkStableText(directory: string, captures: openArray[string], regions: openArray[(int, int, int, int)]) =
   ## Require unchanged text pixels across window sizes, proving reflow without atlas resampling.
   let reference = readImage(directory / (captures[0] & ".png"))
@@ -141,6 +164,14 @@ proc checkStableText(directory: string, captures: openArray[string], regions: op
 proc deckEntry(config: JsonNode, menu: string, key: int): JsonNode =
   ## Read one stored Deck entry from canonical configuration.
   config.entryAt(menu, DeckDevice, key)
+
+proc putEntry(menu: JsonNode, device: string, entry: JsonNode) =
+  ## Replace or add one stored slot in a menu's device list.
+  var entries = newJArray()
+  for existing in menu{device}.getElems():
+    if existing["key"] != entry["key"]: entries.add(existing)
+  entries.add(entry)
+  menu[device] = entries
 
 proc main() =
   ## Exercise the editor end to end against the real core runtime with fixture media.
@@ -205,6 +236,41 @@ proc main() =
   checkStableText(directory / "recover",
     ["applied", "applied-small", "applied-odd", "applied-large"],
     [(20, 28, 165, 38), (12, 399, 166, 100)])
+
+  var live = requireConfigResult(requestConfig("config.get"))["envelope"]
+  for menu in live["config"]["menus"]:
+    if menu["id"].getStr() == RootMenuId:
+      menu.putEntry("mixer", %*{"key": 1, "title": MixerTitle, "action": {"kind": "none"}})
+    elif menu["id"].getStr() == "spiele":
+      menu.putEntry("deck", %*{"key": 3, "title": LiveDeckTitle, "action": {"kind": "home"}})
+  discard runConfigOperation("config.apply", %*{"envelope": live})
+  discard readDeckPage(0)
+  deckPageReady()
+  routeDeckButton(4, true)
+  routeDeckButton(4, false)
+  let
+    liveStatus = buttonRuntimeStatus()
+    liveConfig = readFile(paths.configPath())
+    appliesBefore = requestCount("config.apply")
+  doAssert liveStatus["deckMenu"].getStr() == "spiele" and liveStatus["mixerMenu"].getStr() == RootMenuId
+  runPhase(binary, "live", directory, fixture)
+  let after = buttonRuntimeStatus()
+  doAssert after["revision"] == liveStatus["revision"] and after["deckMenu"].getStr() == "spiele",
+    "Viewing the live Deck or editing a draft changed the active configuration or navigation."
+  doAssert readFile(paths.configPath()) == liveConfig
+  doAssert takeButtonActions().len == 0, "The viewer dispatched a button action."
+  doAssert requestCount("config.apply") == appliesBefore
+  let liveDraft = readDraft(draftPath())
+  doAssert not liveDraft.isNil and not liveDraft["config"].deckEntry("spiele", 2).hasImage()
+  let liveDirectory = directory / "live"
+  checkPreview(liveDirectory, "live-deck", "liveArt:2", FramePaths)
+  checkPreview(liveDirectory, "live-deck", "liveDetail:Normal", FramePaths)
+  checkPreview(liveDirectory, "live-deck", "liveDetail:Pressed", [PressedPath])
+  checkBlack(liveDirectory, "live-deck", "liveArt:1")
+  checkBlack(liveDirectory, "live-draft", "preview:2")
+  checkPreview(liveDirectory, "live-after-draft", "liveArt:2", FramePaths)
+  checkPreview(liveDirectory, "live-after-draft", "liveDetail:Normal", FramePaths)
+  checkPreview(liveDirectory, "live-after-draft", "liveDetail:Pressed", [PressedPath])
   withLock requestLock:
     for kind in requestKinds:
       doAssert kind in AllowedRequests, "Editor sent an unexpected request: " & kind

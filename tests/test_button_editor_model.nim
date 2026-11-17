@@ -184,3 +184,76 @@ suite "Button editor model":
     check config.menuIdFromTitle("  Hello, World!  ") == "hello-world"
     let long = config.menuIdFromTitle("x".repeat(200))
     check long.len <= MaxIdBytes
+
+  test "a root menu not named root keeps key 1 editable and locks Back elsewhere":
+    let config = %*{"version": ButtonConfigVersion, "root": "top", "menus": [
+      {"id": "top", "title": "Top", "mixer": [], "deck": [
+        {"key": 2, "title": "Games", "action": {"kind": "menu", "menu": "games", "target": "both"}}]},
+      {"id": "root", "title": "Not the root", "mixer": [], "deck": []},
+      {"id": "games", "title": "Games", "mixer": [], "deck": []}]}
+    var model = liveModel(config)
+    check model.validation == "" and model.menu == "top"
+    check not model.draft.isLockedBack("top", 1)
+    for device in ButtonDevice:
+      model.selectDevice(device)
+      model.selectKey(1)
+      check not model.selectedLocked()
+      check model.selected().actionKind() == NoAction
+    model.setTitle("Lights")
+    model.setActionKind(GrokAction)
+    check model.validation == "" and model.canApply()
+    for menu in ["root", "games"]:
+      model.selectMenu(menu)
+      for device in ButtonDevice:
+        model.selectDevice(device)
+        model.selectKey(1)
+        check model.selectedLocked()
+        check model.selected().actionKind() == BackAction
+        check model.draft.entryAt(menu, device, 1) == buttonAt(model.draft, menu, $device, 1)
+        expect ValueError: model.setActionKind(HomeAction)
+    expect ValueError: model.deleteMenu("top")
+    model.deleteMenu("root")
+    check model.validation == ""
+
+  test "draft autosave counts edits saved only after the file operation succeeds":
+    let
+      directory = getTempDir() / "knobby-editor-autosave-test"
+      blocker = directory / "knobby"
+      path = blocker / "gui-draft.json"
+    removeDir(directory)
+    createDir(directory)
+    defer: removeDir(directory)
+    writeFile(blocker, "not a directory")
+    var
+      model = liveModel()
+      saver = newDraftSaver(path)
+    saver.markDraftSaved(model)
+    model.selectKey(4)
+    model.setTitle("Pending ✓")
+    saver.autosaveDraft(model, 1_000)
+    check saver.draftPending(model) and model.error == ""
+    saver.autosaveDraft(model, 1_000 + DraftSaveDelayMs)
+    check saver.draftPending(model)
+    check model.error.startsWith("Draft autosave failed") and model.isDirty()
+    check saver.retryMs == 1_000 + 2 * DraftSaveDelayMs
+    saver.autosaveDraft(model, saver.retryMs - 1)
+    check saver.draftPending(model)
+    removeFile(blocker)
+    saver.autosaveDraft(model, saver.retryMs)
+    check not saver.draftPending(model) and model.error == ""
+    check readDraft(path)["config"] == model.draft
+    model.setTitle("Second")
+    saver.autosaveDraft(model, 5_000, force = true)
+    check not saver.draftPending(model)
+    check readDraft(path)["config"] == model.draft
+    setFilePermissions(blocker, {fpUserRead, fpUserExec})
+    defer: setFilePermissions(blocker, {fpUserRead, fpUserWrite, fpUserExec})
+    model.discardDraft()
+    saver.autosaveDraft(model, 6_000, force = true)
+    check saver.draftPending(model) and model.error.startsWith("Draft autosave failed")
+    check fileExists(path)
+    setFilePermissions(blocker, {fpUserRead, fpUserWrite, fpUserExec})
+    saver.autosaveDraft(model, 6_000 + DraftSaveDelayMs - 1)
+    check saver.draftPending(model)
+    saver.autosaveDraft(model, 6_000 + DraftSaveDelayMs)
+    check not saver.draftPending(model) and not fileExists(path) and model.error == ""

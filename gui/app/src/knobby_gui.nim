@@ -51,6 +51,12 @@ proc deviceStatus(viewer: Viewer): string =
     else: "Mousepad disconnected"
   of EditorPage: ""
 
+proc userLabel(sk: Silky, viewer: Viewer, value: string, x, y, width: float32,
+    font = "Body", color = Foreground): float32 =
+  ## Draw daemon- or user-provided text after requesting glyphs missing from the atlas.
+  viewer.editor.requestGlyphs(sk, value)
+  sk.label(value, x, y, width, font, color)
+
 proc catalog(viewer: Viewer): JsonNode =
   ## Prefer the running daemon's binding descriptions over offline defaults.
   if viewer.state.mixerError.len == 0: viewer.state.snapshot.catalog
@@ -71,7 +77,7 @@ proc drawMixer(sk: Silky, viewer: Viewer, x, width: float32) =
     if sk.tile(bounds, viewer.selected == index + 16, false):
       viewer.selected = index + 16
       viewer.scroll = 0
-    discard sk.label(definitions["faders"][index]["label"].getStr(), left + 10, 170, column - 20)
+    discard sk.userLabel(viewer, definitions["faders"][index]["label"].getStr(), left + 10, 170, column - 20)
     sk.drawRect(vec2(left + floor(column / 2) - 3, 207), vec2(6, 81), Background)
     if value >= 0:
       sk.drawRect(vec2(left + floor(column / 2) - 21,
@@ -90,23 +96,47 @@ proc drawMixer(sk: Silky, viewer: Viewer, x, width: float32) =
         viewer.scroll = 0
       let color = if lit: Background else: Foreground
       discard sk.label("NOTE " & $note, left + 10, top + 10, column - 20, "Small", if lit: Background else: Muted)
-      discard sk.label(definitions["buttons"][note - 1]["label"].getStr(), left + 10, top + 34, column - 20, color = color)
+      discard sk.userLabel(viewer, definitions["buttons"][note - 1]["label"].getStr(), left + 10, top + 34, column - 20, color = color)
+
+proc liveDeckMenu(viewer: Viewer): string =
+  ## Return the daemon's active Deck menu once the applied configuration is loaded, else "".
+  let
+    model = viewer.editor.model
+    menu = viewer.state.buttons{"deckMenu"}.getStr()
+  if model.loaded and menu.len > 0 and not model.live.findMenu(menu).isNil: menu else: ""
 
 proc drawDeck(sk: Silky, viewer: Viewer, x, width: float32) =
-  ## Preview the known numbered demo while independently highlighting input.
-  let size = floor(min((width - 40) / 5, 104'f32))
+  ## Show the daemon's active Deck page with its prepared key images while highlighting input.
+  let
+    editor = viewer.editor
+    size = floor(min((width - 40) / 5, 104'f32))
+    model = editor.model
+    menu = viewer.liveDeckMenu()
+    artwork = editor.liveDeckReady() and size >= PreviewSize + 8
   for index in 0..14:
     let
       left = x + (index mod 5).float32 * (size + 10)
       top = 185'f32 + (index div 5).float32 * (size + 10)
       lit = viewer.state.deckConnected and buttonLit(viewer.state.deckHeld[index],
         viewer.state.deckPressedMs[index], nowMs())
-    if sk.tile(rect(left, top, size, size), viewer.selected == index, lit):
+      bounds = rect(left, top, size, size)
+    editor.record("live:" & $(index + 1), bounds)
+    if sk.tile(bounds, viewer.selected == index, lit):
       viewer.selected = index
       viewer.scroll = 0
-    discard sk.drawText("Key", $(index + 1), vec2(left, top),
-      if lit: Background else: Foreground, maxWidth = size, maxHeight = size,
-      hAlign = CenterAlign, vAlign = MiddleAlign)
+    if artwork:
+      let position = vec2(round(left + (size - PreviewSize) / 2), round(top + (size - PreviewSize) / 2))
+      sk.drawPreview(editor, index, position)
+      editor.record("liveArt:" & $(index + 1), rect(position, vec2(PreviewSize, PreviewSize)))
+    elif menu.len > 0:
+      let title = model.live.entryAt(menu, DeckDevice, index + 1){"title"}.getStr()
+      editor.requestGlyphs(sk, title)
+      discard sk.drawText("Small", title, vec2(left + 6, top), if lit: Background else: Foreground,
+        maxWidth = size - 12, maxHeight = size, hAlign = CenterAlign, vAlign = MiddleAlign)
+    else:
+      discard sk.drawText("Key", $(index + 1), vec2(left, top),
+        if lit: Background else: Foreground, maxWidth = size, maxHeight = size,
+        hAlign = CenterAlign, vAlign = MiddleAlign)
 
 proc drawMousepad(sk: Silky, x, width: float32) =
   ## Represent the intended breathing palette without claiming a live RGB readout.
@@ -127,7 +157,7 @@ proc drawDetails(sk: Silky, viewer: Viewer, x, height: float32) =
   sk.pushClipRect(rect(x, top, width, height - top - 35))
   defer: sk.popClipRect()
   template text(value: string, font = "Body", color = Foreground) =
-    y += sk.label(value, x, y, width, font, color) + 12
+    y += sk.userLabel(viewer, value, x, y, width, font, color) + 12
   template audioLevel(level: AudioLevel) =
     text(level.name, "Small", Muted)
     text(level.levelText(), "Small")
@@ -171,19 +201,34 @@ proc drawDetails(sk: Silky, viewer: Viewer, x, height: float32) =
             text(microphone.name, "Small", Muted)
             text(if microphone.muted: "Muted" else: "Unmuted")
   of DeckPage:
+    let
+      editor = viewer.editor
+      menu = viewer.liveDeckMenu()
     text("Key " & $(viewer.selected + 1), "Title")
     text("Stream Deck MK.2", "Small", Accent)
-    let
-      model = viewer.editor.model
-      liveMenu = viewer.state.buttons{"deckMenu"}.getStr()
-    if model.loaded and not model.live.findMenu(liveMenu).isNil:
-      let entry = model.live.entryAt(liveMenu, DeckDevice, viewer.selected + 1)
-      viewer.editor.requestGlyphs(sk, entry{"title"}.getStr() & model.live.menuTitle(liveMenu))
-      text(entry{"title"}.getStr())
-      text(model.live.describeAction(entry), "Small", Muted)
-      text("Menu: " & model.live.menuTitle(liveMenu), "Small", Muted)
-    else:
-      text("Open the button editor to change this key.", "Body", Muted)
+    if editor.liveDeckReady():
+      for (slot, caption, offset) in [(viewer.selected, "Normal", 0'f32), (PressedSlot, "Pressed", 90'f32)]:
+        let position = vec2(x + offset, y)
+        sk.drawPreview(editor, slot, position)
+        editor.record("liveDetail:" & caption, rect(position, vec2(PreviewSize, PreviewSize)))
+        discard sk.label(caption, x + offset, y + PreviewSize + 4, 80, "Small", Muted)
+      y += PreviewSize + 32
+      let failure =
+        if editor.liveArtError.len > 0: editor.liveArtError
+        elif editor.previewCurrent(viewer.selected): slotDecodeError(viewer.selected)
+        else: ""
+      if failure.len > 0: text(failure, "Small", Danger)
+    if menu.len > 0:
+      let
+        live = editor.model.live
+        entry = live.entryAt(menu, DeckDevice, viewer.selected + 1)
+        title = entry{"title"}.getStr()
+      text(if title.len > 0: title else: "Untitled", "Body", if title.len > 0: Foreground else: Muted)
+      text(live.describeAction(entry), "Small", Muted)
+      text("Menu: " & live.menuTitle(menu), "Small", Muted)
+    elif not viewer.state.buttons.isNil:
+      if editor.model.error.len > 0: text(editor.model.error, "Small", Danger)
+      else: text("Loading configuration...", "Small", Muted)
     text("Demo brightness: " & $StreamDeckDemoBrightness & "%", "Small", Muted)
   of MousepadPage:
     text("Grey breathing", "Title")
@@ -194,6 +239,15 @@ proc drawDetails(sk: Silky, viewer: Viewer, x, height: float32) =
     text("OpenRazer lighting preset", "Small", Muted)
   of EditorPage: discard
   viewer.contentHeight = max(0'f32, y + viewer.scroll - top - (height - top - 35))
+
+proc previewView(viewer: Viewer, window: Window): PreviewView =
+  ## Choose the preview source: the active Deck page in the viewer, the draft in the editor.
+  if not window.visible: NoPreview
+  else:
+    case viewer.page
+    of DeckPage: LivePreview
+    of EditorPage: DraftPreview
+    else: NoPreview
 
 proc render(sk: Silky, window: Window, viewer: Viewer) =
   ## Reflow the browser in framebuffer pixels without resampling its font atlas.
@@ -370,9 +424,9 @@ proc editorScript(phase, directory, fixtureImage: string, window: Window, sk: Si
       capture("locked"),
       click("key:2"),
       waitFor("key 2", proc (): bool = model().key == 2),
-      SmokeStep(name: "drop image", run: proc (frame: int): bool =
-        window.onFileDrop(fixtureImage, "")
-        true),
+      waitFor("key 2 editable", proc (): bool = "importPath" in editor.rects)] &
+      replaceField("importPath", fixtureImage) & @[
+      click("import"),
       waitFor("image imported", proc (): bool = model().selected().hasImage()),
       waitFor("image preview", proc (): bool =
         editor.previewEdits == model().edits and not editor.busy and
@@ -409,6 +463,51 @@ proc editorScript(phase, directory, fixtureImage: string, window: Window, sk: Si
       capture("applied-odd"),
       resize(1600, 1000),
       capture("applied-large")]
+  of "live":
+    proc dynamicGlyphs(glyphs: varargs[string]): bool =
+      ## Report whether every font renders the glyphs natively, none of which the base atlas has.
+      result = true
+      for font in ["Small", "Body", "Title"]:
+        for glyph in glyphs:
+          result = result and sk.hasGlyph(font, glyph.runeAt(0))
+    proc liveArt(): bool =
+      ## Report whether the live grid and selected key show frames of the published active page.
+      editor.liveDeckReady() and editor.previewCurrent(viewer.selected) and
+        editor.previewCurrent(PressedSlot)
+    result = @[
+      waitFor("readonly mixer glyphs", proc (): bool =
+        not editor.opened and dynamicGlyphs("ú", "É")),
+      settle(4),
+      capture("live-mixer"),
+      click("page:DeckPage"),
+      waitFor("live configuration", proc (): bool = model().loaded and not editor.opened),
+      click("live:3"),
+      waitFor("live unicode title", proc (): bool = viewer.selected == 2 and dynamicGlyphs("ß")),
+      click("live:2"),
+      waitFor("live artwork", proc (): bool = viewer.selected == 1 and liveArt()),
+      settle(20),
+      capture("live-deck")] &
+      openEditor & @[
+      click("menu:spiele"),
+      waitFor("spiele", proc (): bool = model().menu == "spiele"),
+      click("device:deck"),
+      click("key:2"),
+      waitFor("draft key", proc (): bool = model().device == DeckDevice and model().key == 2),
+      click("clearImage"),
+      waitFor("draft without image", proc (): bool =
+        not model().selected().hasImage() and model().dirty),
+      waitFor("draft preview", proc (): bool =
+        editor.previewEdits == model().edits and not editor.busy and
+          editor.manifest{"menus"}{"spiele"}{"2"}.isNil and editor.previewCurrent(1)),
+      waitFor("draft autosaved", proc (): bool = fileExists(draftPath())),
+      settle(4),
+      capture("live-draft"),
+      click("page:DeckPage"),
+      waitFor("live artwork again", proc (): bool = viewer.selected == 0 and liveArt()),
+      click("live:2"),
+      waitFor("live key 2 again", proc (): bool = viewer.selected == 1 and liveArt()),
+      settle(20),
+      capture("live-after-draft")]
   else:
     raise newException(ValueError, "Unknown editor smoke phase: " & phase)
 
@@ -488,15 +587,11 @@ proc main() =
     ## Hide without ending the service, including when a tray host is unavailable.
     window.closeRequested = false
     window.visible = false
-  window.onFileDrop = proc (fileName, fileData: string) =
-    ## Import a dropped image into the selected Deck key; other pages ignore drops.
-    if viewer.page == EditorPage:
-      viewer.editor.dropFile(fileName)
   window.onFrame = proc () =
     ## Refresh from observer snapshots without blocking on hardware or subprocesses.
     viewer.state = if fixtureStatus: previewState() else: readState()
-    sk.updateEditor(viewer.editor, viewer.state.buttons,
-      window.visible and viewer.page == EditorPage)
+    viewer.editor.liveKey = viewer.selected + 1
+    sk.updateEditor(viewer.editor, viewer.state.buttons, viewer.previewView(window))
     if not window.visible:
       return
     if fixtureStatus and frame == 40:

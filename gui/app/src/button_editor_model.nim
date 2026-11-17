@@ -21,6 +21,12 @@ type
     conflict*: ConflictState
     edits*: int
     loaded*: bool
+  DraftSaver* = object
+    ## Autosave bookkeeping; edits count as saved only after the file write or removal succeeds.
+    path*: string
+    savedEdits*, seenEdits*: int
+    changedMs*, retryMs*: int64
+    failure*: string
 
 const
   BackKey* = 1
@@ -30,6 +36,7 @@ const
   DeviceLabels*: array[ButtonDevice, string] = ["Arduino mixer", "Stream Deck"]
   StaleCode* = "stale"
   DraftFileName = "gui-draft.json"
+  DraftSaveDelayMs* = 700
 
 proc keyCount*(device: ButtonDevice): int =
   ## Return the number of editable physical keys on a device.
@@ -37,9 +44,13 @@ proc keyCount*(device: ButtonDevice): int =
   of MixerDevice: MixerKeyCount
   of DeckDevice: DeckKeyCount
 
-proc isLockedBack*(menu: string, key: int): bool =
-  ## Report whether a slot is the linked Back key every submenu reserves.
-  menu != RootMenuId and key == BackKey
+proc rootMenu*(config: JsonNode): string =
+  ## Return the configured root menu ID, which need not be named "root".
+  if config.isNil: RootMenuId else: config{"root"}.getStr(RootMenuId)
+
+proc isLockedBack*(config: JsonNode, menu: string, key: int): bool =
+  ## Report whether a slot is the linked Back key every non-root menu reserves.
+  menu != config.rootMenu() and key == BackKey
 
 proc menus*(config: JsonNode): seq[JsonNode] =
   ## Return menu objects in their configured order.
@@ -67,7 +78,7 @@ proc entryAt*(config: JsonNode, menu: string, device: ButtonDevice, key: int): J
   if not menuNode.isNil and not menuNode{$device}.isNil and menuNode[$device].kind == JArray:
     for entry in menuNode[$device]:
       if entry{"key"}.getInt() == key: return entry
-  if isLockedBack(menu, key):
+  if config.isLockedBack(menu, key):
     %*{"key": key, "title": BackTitle, "action": {"kind": $BackAction}}
   else:
     %*{"key": key, "title": UnassignedTitle, "action": {"kind": $NoAction}}
@@ -154,7 +165,7 @@ proc refresh(model: var EditorModel) =
 proc ensureSelection(model: var EditorModel) =
   ## Keep the selected menu and key valid after configuration changes.
   if model.draft.findMenu(model.menu).isNil:
-    model.menu = model.draft{"root"}.getStr(RootMenuId)
+    model.menu = model.draft.rootMenu()
   model.key = clamp(model.key, 1, model.device.keyCount())
 
 proc touch(model: var EditorModel) =
@@ -190,6 +201,8 @@ proc loadLive*(model: var EditorModel, envelope: JsonNode) =
     model.conflict = NoConflict
   elif parsed.baseRevision != model.baseRevision:
     model.conflict = StaleRevision
+  if not model.loaded:
+    model.menu = model.draft.rootMenu()
   model.loaded = true
   model.ensureSelection()
   model.refresh()
@@ -256,7 +269,7 @@ proc selected*(model: EditorModel): JsonNode =
 
 proc selectedLocked*(model: EditorModel): bool =
   ## Report whether the selected slot is the immutable linked Back key.
-  isLockedBack(model.menu, model.key)
+  model.draft.isLockedBack(model.menu, model.key)
 
 proc mutableEntry(model: var EditorModel): JsonNode =
   ## Return the selected slot in the draft, materializing it in key order.
@@ -302,7 +315,7 @@ proc setActionKind*(model: var EditorModel, kind: ConfigActionKind) =
     if model.draft.findMenu(target).isNil:
       target = ""
       for id in model.draft.menuIds():
-        if id != model.menu and id != RootMenuId:
+        if id != model.menu and id != model.draft.rootMenu():
           target = id
           break
     action["menu"] = %target
@@ -394,7 +407,7 @@ proc renameMenu*(model: var EditorModel, id, title: string) =
 
 proc deleteMenu*(model: var EditorModel, id: string) =
   ## Remove an unreferenced submenu; the root menu is permanent.
-  if id == model.draft{"root"}.getStr(RootMenuId):
+  if id == model.draft.rootMenu():
     raise newException(ValueError, "The main menu cannot be deleted.")
   if model.draft.findMenu(id).isNil:
     raise newException(ValueError, "Unknown menu: " & id)
@@ -407,7 +420,7 @@ proc deleteMenu*(model: var EditorModel, id: string) =
     if menu{"id"}.getStr() != id: kept.add(menu)
   model.draft["menus"] = kept
   if model.menu == id:
-    model.menu = model.draft{"root"}.getStr(RootMenuId)
+    model.menu = model.draft.rootMenu()
   model.touch()
 
 proc setError*(model: var EditorModel, message: string, field = "") =
@@ -492,3 +505,46 @@ proc readDraft*(path: string): JsonNode =
 proc removeDraft*(path: string) =
   ## Delete an autosaved draft after it was applied or discarded.
   if fileExists(path): removeFile(path)
+
+proc newDraftSaver*(path: string): DraftSaver =
+  ## Track autosave progress for one draft file.
+  DraftSaver(path: path)
+
+proc markDraftSaved*(saver: var DraftSaver, model: EditorModel) =
+  ## Record that the file already matches the current draft, as after recovering it.
+  saver.savedEdits = model.edits
+  saver.seenEdits = model.edits
+
+proc markDraftStale*(saver: var DraftSaver) =
+  ## Require the next autosave to rewrite or remove the file, as after an apply adopts the draft.
+  saver.savedEdits = low(int)
+
+proc draftPending*(saver: DraftSaver, model: EditorModel): bool =
+  ## Report whether the draft file lags behind the latest edit.
+  model.loaded and model.edits != saver.savedEdits
+
+proc autosaveDraft*(saver: var DraftSaver, model: var EditorModel, timeMs: int64, force = false) =
+  ## Write or remove the draft once edits settle; failures stay pending and retry after the same delay.
+  if model.edits != saver.seenEdits:
+    saver.seenEdits = model.edits
+    saver.changedMs = timeMs
+  if not saver.draftPending(model): return
+  if not force and timeMs < max(saver.changedMs + DraftSaveDelayMs, saver.retryMs): return
+  let edits = model.edits
+  var failure = ""
+  try:
+    if model.dirty: writeDraft(saver.path, model.draftEnvelope())
+    else: removeDraft(saver.path)
+  except IOError, OSError:
+    failure = "Draft autosave failed: " & getCurrentExceptionMsg() & " Retrying."
+  if failure.len > 0:
+    saver.retryMs = timeMs + DraftSaveDelayMs
+    saver.failure = failure
+    model.setError(failure)
+  else:
+    saver.savedEdits = edits
+    saver.retryMs = 0
+    if saver.failure.len > 0 and model.error == saver.failure:
+      model.error = ""
+      model.errorField = ""
+    saver.failure = ""
