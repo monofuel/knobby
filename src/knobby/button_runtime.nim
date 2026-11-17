@@ -63,6 +63,8 @@ const
   RunningStatus = "running"
   SucceededStatus = "succeeded"
   FailedStatus = "failed"
+  NavigationLimitMessage = "Menu navigation is limited to " & $MaxNavigationHistory &
+    " levels; press Back or Home before opening another menu."
   CanonicalSource = "canonical"
   LastAppliedSource = "lastApplied"
   DefaultsSource = "defaults"
@@ -82,6 +84,10 @@ template withState(body: untyped) =
   {.cast(gcsafe).}:
     withLock routerLock:
       body
+
+proc ownedCopy[T](value: T): T =
+  ## Return an independent copy so no string, sequence, or ref is shared between threads.
+  deepCopy(result, value)
 
 proc epochMs(): int64 =
   ## Return wall-clock milliseconds for operation timestamps shown to clients.
@@ -195,17 +201,21 @@ proc targetDevices(target: ButtonTarget): set[ButtonDevice] =
   of TargetBoth: {MixerDevice, DeckDevice}
 
 proc openMenu(current: var RuntimeState, target: ButtonTarget, menu: string) =
-  ## Record one linked transition for the target devices whose menu actually changes.
-  var transition: Transition
-  for device in targetDevices(target):
+  ## Record one linked transition for every target device unless all are already there.
+  ## A full history rejects the transition and leaves menus and history unchanged.
+  let devices = targetDevices(target)
+  var changes = false
+  for device in devices:
     if current.menus[device] != menu:
-      transition.devices.incl(device)
+      changes = true
+  if changes:
+    if current.history.len >= MaxNavigationHistory:
+      raise newException(IOError, NavigationLimitMessage)
+    var transition = Transition(devices: devices)
+    for device in devices:
       transition.previous[device] = current.menus[device]
-  if transition.devices.card > 0:
     current.history.add(transition)
-    if current.history.len > MaxNavigationHistory:
-      current.history.delete(0)
-    for device in transition.devices:
+    for device in devices:
       current.setMenu(device, menu)
 
 proc goBack(current: var RuntimeState, device: ButtonDevice) =
@@ -236,15 +246,11 @@ proc goBack(current: var RuntimeState, device: ButtonDevice) =
   for target in restored:
     current.setMenu(target, restore[target])
 
-proc goHome(current: var RuntimeState, device: ButtonDevice) =
-  ## Unwind every transition affecting a device, then pin that device to the root menu.
-  var depth = current.history.len
-  while depth > 0:
-    current.goBack(device)
-    if current.history.len == depth:
-      break
-    depth = current.history.len
-  current.setMenu(device, current.active.buttons.root)
+proc goHome(current: var RuntimeState) =
+  ## Return both devices to the root menu and clear all navigation history.
+  current.history = @[]
+  for device in ButtonDevice:
+    current.setMenu(device, current.active.buttons.root)
 
 proc route(device: ButtonDevice, key: int, pressed: bool) =
   ## Resolve one physical edge against the active menu, navigating synchronously.
@@ -255,7 +261,7 @@ proc route(device: ButtonDevice, key: int, pressed: bool) =
     if not pressed:
       state.input[device].held[index] = false
       state.input[device].quarantined[index] = false
-    elif not state.input[device].quarantined[index]:
+    elif not state.input[device].held[index] and not state.input[device].quarantined[index]:
       state.input[device].held[index] = true
       if device == DeckDevice and not state.deckReady:
         state.input[device].quarantined[index] = true
@@ -267,14 +273,14 @@ proc route(device: ButtonDevice, key: int, pressed: bool) =
         of NoAction: discard
         of MenuAction: state.openMenu(button.action.target, button.action.menu)
         of BackAction: state.goBack(device)
-        of HomeAction: state.goHome(device)
+        of HomeAction: state.goHome()
         else:
           if state.actions.len >= MaxButtonActions:
             raise newException(IOError, "Button action queue is full.")
           inc state.actionSequence
-          state.actions.add(CapturedAction(sequence: state.actionSequence, device: device,
-            key: key, menu: menu.id, revision: state.active.revision, title: button.title,
-            action: button.action))
+          state.actions.add(ownedCopy(CapturedAction(sequence: state.actionSequence,
+            device: device, key: key, menu: menu.id, revision: state.active.revision,
+            title: button.title, action: button.action)))
 
 proc routeMixerButton*(note: int, pressed: bool) =
   ## Route a mixer note edge; notes outside the twelve buttons are ignored.
@@ -322,8 +328,8 @@ proc readDeckPage*(previousGeneration: int64): JsonNode =
     state.deckReady = false
     state.deckReadGeneration = state.deckGeneration
     generation = state.deckGeneration
-    menu = state.menus[DeckDevice]
-    page = state.active.pages[menu]
+    menu = ownedCopy(state.menus[DeckDevice])
+    page = ownedCopy(state.active.pages[menu])
   result = %*{"generation": generation, "menu": menu, "keys": parseJson(page)}
 
 proc deckPageReady*() =
@@ -366,7 +372,7 @@ proc activeMixerCatalog*(): JsonNode =
     menu: ConfiguredMenu
     buttons: ButtonSet
   withState:
-    buttons = state.active.buttons
+    buttons = ownedCopy(state.active.buttons)
     menu = menuButtons(buttons, state.menus[MixerDevice])
   result = %*{"buttons": [], "faders": bindingCatalog()["faders"]}
   for button in menu.mixer:
@@ -412,7 +418,7 @@ proc buttonOperation*(id: string): JsonNode =
 
 proc installConfig(current: var RuntimeState, active: ActiveConfig) =
   ## Swap the active configuration, resetting navigation and quarantining held keys.
-  current.active = active
+  current.active = ownedCopy(active)
   current.history = @[]
   for device in ButtonDevice:
     current.menus[device] = active.buttons.root
@@ -487,9 +493,9 @@ proc initializeButtons*(paths = newButtonPaths(), buttonServices = defaultButton
   if diskExists and chosen.active.source == CanonicalSource:
     matches = true
   withState:
-    state = RuntimeState(initialized: true, paths: paths,
+    state = RuntimeState(initialized: true, paths: ownedCopy(paths),
       session: $getCurrentProcessId() & "." & $epochMs(), startupError: errors.join("\n"),
-      diskText: diskText, diskExists: diskExists, diskMatchesActive: matches)
+      diskText: ownedCopy(diskText), diskExists: diskExists, diskMatchesActive: matches)
     state.installConfig(chosen.active)
 
 proc readDisk(paths: ButtonPaths): tuple[exists: bool, text: string] =
@@ -507,11 +513,11 @@ proc runApply(job: ConfigJob, paths: ButtonPaths, record: var OperationRecord) =
     activeRevision, diskText, activeManifest: string
     diskExists, diskMatches: bool
   withState:
-    activeRevision = state.active.revision
-    diskText = state.diskText
+    activeRevision = ownedCopy(state.active.revision)
+    diskText = ownedCopy(state.diskText)
     diskExists = state.diskExists
     diskMatches = state.diskMatchesActive
-    activeManifest = state.active.manifestPath
+    activeManifest = ownedCopy(state.active.manifestPath)
   if activeRevision != job.baseRevision:
     fail("stale", "Configuration changed since revision " & job.baseRevision & ".")
   var manifest: JsonNode
@@ -557,7 +563,7 @@ proc runPreview(job: ConfigJob, paths: ButtonPaths, record: var OperationRecord)
     manifest: JsonNode
     activeManifest: string
   withState:
-    activeManifest = state.active.manifestPath
+    activeManifest = ownedCopy(state.active.manifestPath)
   step("prepare"):
     {.cast(gcsafe).}:
       manifest = services.prepare(config)
@@ -587,11 +593,11 @@ proc runWorker() {.thread.} =
       while not state.hasJob and not state.workerStopping:
         wait(jobReady, routerLock)
       if state.hasJob:
-        job = state.job
+        job = ownedCopy(state.job)
         state.hasJob = false
         state.current.status = RunningStatus
-        record = state.current
-        paths = state.paths
+        record = ownedCopy(state.current)
+        paths = ownedCopy(state.paths)
         haveJob = true
     if not haveJob:
       break
@@ -610,7 +616,7 @@ proc runWorker() {.thread.} =
     withState:
       state.hasCurrent = false
       state.busy = false
-      state.recent.insert(record, 0)
+      state.recent.insert(ownedCopy(record), 0)
       if state.recent.len > MaxRecentOperations:
         state.recent.setLen(MaxRecentOperations)
 
@@ -661,7 +667,8 @@ proc enqueue(kind: OperationKind, baseRevision, payload: string): JsonNode =
       return
     inc state.operationSequence
     let id = state.session & "-" & $state.operationSequence
-    state.job = ConfigJob(kind: kind, id: id, baseRevision: baseRevision, payload: payload)
+    state.job = ownedCopy(ConfigJob(kind: kind, id: id, baseRevision: baseRevision,
+      payload: payload))
     state.hasJob = true
     state.busy = true
     state.current = OperationRecord(id: id, kind: $kind, status: QueuedStatus, startedMs: epochMs())
@@ -691,12 +698,16 @@ proc processConfigRequest*(message: JsonNode): JsonNode =
   try:
     case kind
     of RequestPrefix & "get":
-      result = resultReply(true)
+      var revision, configText, source, startupError: string
       withState:
-        result["envelope"] = %*{"baseRevision": state.active.revision,
-          "config": parseJson(state.active.configText)}
-        result["source"] = %state.active.source
-        result["startupError"] = %state.startupError
+        revision = ownedCopy(state.active.revision)
+        configText = ownedCopy(state.active.configText)
+        source = ownedCopy(state.active.source)
+        startupError = ownedCopy(state.startupError)
+      result = resultReply(true)
+      result["envelope"] = %*{"baseRevision": revision, "config": parseJson(configText)}
+      result["source"] = %source
+      result["startupError"] = %startupError
     of RequestPrefix & "validate":
       let canonical = canonicalButtonConfig(requestedConfig(message))
       result = resultReply(true)

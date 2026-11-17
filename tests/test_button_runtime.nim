@@ -59,14 +59,16 @@ proc navConfig(): JsonNode =
     {"id": "a", "title": "A",
       "mixer": [
         {"key": 2, "title": "Both B", "action": {"kind": "menu", "menu": "b", "target": "both"}},
-        {"key": 4, "title": "Mixer B", "action": {"kind": "menu", "menu": "b", "target": "mixer"}}],
+        {"key": 4, "title": "Mixer B", "action": {"kind": "menu", "menu": "b", "target": "mixer"}},
+        {"key": 5, "title": "Both A", "action": {"kind": "menu", "menu": "a", "target": "both"}}],
       "deck": [
         {"key": 3, "title": "Deck B", "action": {"kind": "menu", "menu": "b", "target": "deck"}}]},
     {"id": "b", "title": "B",
       "mixer": [
         {"key": 4, "title": "Mixer A", "action": {"kind": "menu", "menu": "a", "target": "mixer"}},
         {"key": 6, "title": "Home", "action": {"kind": "home"}}],
-      "deck": []}]}
+      "deck": [
+        {"key": 6, "title": "Home", "action": {"kind": "home"}}]}]}
 
 proc newPaths(): ButtonPaths =
   ## Create empty private config and state directories for one test.
@@ -220,28 +222,106 @@ suite "Button runtime":
     press(DeckDevice, 1)
     check menus() == ("root", "root")
 
-  test "Home unwinds linked history and history keeps the newest 32 transitions":
+  test "Home returns both devices to root and clears independent histories":
     let paths = newPaths()
     writeFileAtomic(paths.configPath(), encodeConfigFile(navConfig()))
     start(paths)
     defer: finish(paths)
     syncDeck()
-    press(MixerDevice, 2)
-    press(MixerDevice, 2)
+    press(MixerDevice, 3)
+    press(DeckDevice, 5)
+    syncDeck()
+    press(MixerDevice, 4)
     check menus() == ("b", "b")
+    check status()["historyDepth"].getInt() == 3
+    let generation = status()["deckGeneration"].getBiggestInt()
     press(MixerDevice, 6)
     check menus() == ("root", "root")
     check status()["historyDepth"].getInt() == 0
+    check status()["deckGeneration"].getBiggestInt() > generation
+    press(MixerDevice, 1)
+    check menus() == ("root", "root")
+    press(MixerDevice, 2)
+    press(MixerDevice, 2)
+    syncDeck()
+    check menus() == ("b", "b")
+    press(DeckDevice, 6)
+    check menus() == ("root", "root")
+    check status()["historyDepth"].getInt() == 0
+    check takeButtonActions().len == 0
+
+  test "a linked menu records both devices when only one changes":
+    let paths = newPaths()
+    writeFileAtomic(paths.configPath(), encodeConfigFile(navConfig()))
+    start(paths)
+    defer: finish(paths)
+    syncDeck()
     press(MixerDevice, 3)
-    for _ in 2..40:
+    check menus() == ("a", "root")
+    press(DeckDevice, 2)
+    check menus() == ("a", "a")
+    check status()["historyDepth"].getInt() == 2
+    press(MixerDevice, 5)
+    check menus() == ("a", "a")
+    check status()["historyDepth"].getInt() == 2
+    syncDeck()
+    press(MixerDevice, 1)
+    check menus() == ("a", "root")
+    check status()["historyDepth"].getInt() == 1
+    press(MixerDevice, 1)
+    check menus() == ("root", "root")
+    check status()["historyDepth"].getInt() == 0
+
+  test "repeated pressed reports while a key is held act once":
+    let paths = newPaths()
+    writeFileAtomic(paths.configPath(), encodeConfigFile(navConfig()))
+    start(paths)
+    defer: finish(paths)
+    syncDeck()
+    for _ in 1..3:
+      routeMixerButton(5, true)
+    for _ in 1..3:
+      routeDeckButton(6, true)
+    check takeButtonActions().len == 2
+    routeMixerButton(5, false)
+    routeDeckButton(6, false)
+    routeMixerButton(5, true)
+    routeMixerButton(5, true)
+    routeDeckButton(6, true)
+    let actions = takeButtonActions()
+    check kinds(actions) == @["command", "discord"]
+    check actions[0]["action"]["command"].getStr() == "echo root"
+
+  test "navigation beyond the history limit is rejected without changing state":
+    let paths = newPaths()
+    writeFileAtomic(paths.configPath(), encodeConfigFile(navConfig()))
+    start(paths)
+    defer: finish(paths)
+    syncDeck()
+    press(MixerDevice, 3)
+    for _ in 2..MaxNavigationHistory:
       press(MixerDevice, 4)
     check status()["historyDepth"].getInt() == MaxNavigationHistory
-    for _ in 1..40:
-      press(MixerDevice, 1)
-    check status()["historyDepth"].getInt() == 0
+    check menus() == ("b", "root")
+    let generation = status()["deckGeneration"].getBiggestInt()
+    for _ in 1..2:
+      try:
+        routeMixerButton(4, true)
+        check false
+      except IOError as error:
+        check "limited to " & $MaxNavigationHistory in error.msg
+      routeMixerButton(4, false)
+    check menus() == ("b", "root")
+    check status()["historyDepth"].getInt() == MaxNavigationHistory
+    check status()["deckGeneration"].getBiggestInt() == generation
+    press(MixerDevice, 1)
+    check menus() == ("a", "root")
+    check status()["historyDepth"].getInt() == MaxNavigationHistory - 1
+    press(MixerDevice, 4)
     check menus() == ("b", "root")
     press(MixerDevice, 6)
     check menus() == ("root", "root")
+    check status()["historyDepth"].getInt() == 0
 
   test "Deck input waits for the current page and stale readiness is ignored":
     let paths = newPaths()
