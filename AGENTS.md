@@ -18,6 +18,7 @@
 - `src/knobby/midi_monitor.nim` - aseqdump wrappers: port detection, per-line
   and batched sessions. Batches coalesce fader bursts so the last value wins.
 - `src/knobby/midi_events.nim` - parse aseqdump output lines into MidiEvent.
+- `src/knobby/midi_supervisor.nim` - retry MIDI discovery and sessions without restarting other workers.
 - `src/knobby/actions.nim` - action dispatch, fader endpoint snap and deadband,
   pactl volume calls, detached app launchers.
 - `src/knobby/audio_outputs.nim` - pactl sink-input listing.

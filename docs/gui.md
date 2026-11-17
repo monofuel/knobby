@@ -58,6 +58,21 @@ and receives a complete state snapshot. It retains last-known fader positions
 while the device or daemon is disconnected, with connection status shown
 separately.
 
+## Unplugging and reconnecting
+
+Knobby keeps running when a device is unplugged. The mixer and Stream Deck
+are rediscovered automatically, including when their ALSA port or hidraw node
+changes. Reconnecting the Deck restores its active menu and artwork. Mixer
+connection changes clear held buttons while retaining last-known fader positions;
+they do not apply those positions to audio. Mousepad lighting is reapplied after
+a new USB attachment or OpenRazer restart, including quick unplug/replug cycles.
+MIDI failures retry locally without restarting the other device workers.
+
+The GUI is independent of these reconnect loops. A missing USB device must first
+return in Linux's device listings; charging-only hubs provide no USB data
+connection for Knobby to discover. Lifecycle messages appear in the daemon's
+journal, with repeated identical failures suppressed.
+
 The daemon remembers MIDI positions in `$XDG_STATE_HOME/knobby/faders.json`
 (normally `~/.local/state/knobby/faders.json`). A separate worker saves changed
 positions at most once every two seconds and flushes remaining changes on clean

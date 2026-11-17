@@ -37,7 +37,7 @@ proc parseLeadingNumber(text: string): string =
 proc detectArduinoSeqPort*(): string =
   ## Detect Arduino Micro ALSA sequencer port in client:port format.
   ensureToolInstalled("aconnect")
-  let output = runCommand("aconnect", @["-l"])
+  let output = runAudioCommand("aconnect", @["-l"])
 
   var currentClient = ""
   var isArduinoClient = false
@@ -58,7 +58,7 @@ proc detectArduinoSeqPort*(): string =
 proc detectArduinoAmidiPort*(): string =
   ## Detect Arduino Micro raw MIDI port in amidi hw:X,Y,Z format.
   ensureToolInstalled("amidi")
-  let output = runCommand("amidi", @["-l"])
+  let output = runAudioCommand("amidi", @["-l"])
 
   for line in output.splitLines():
     let lowered = line.toLowerAscii()

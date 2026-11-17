@@ -1,5 +1,5 @@
 import
-  std/[os, unittest],
+  std/[monotimes, os, times, unittest],
   knobby/midi_monitor
 
 suite "MIDI session lifecycle":
@@ -37,6 +37,26 @@ proc withFakeMonitor(script: string, callback: proc ()) =
   callback()
 
 suite "MIDI session failure handling":
+  test "hung discovery times out and a later enumeration recovers":
+    let
+      directory = getTempDir() / ("knobby-discovery-test-" & $getCurrentProcessId())
+      previousPath = getEnv("PATH")
+    createDir(directory)
+    let executable = directory / "aconnect"
+    writeFile(executable, "#!/bin/sh\nwhile :; do :; done\n")
+    setFilePermissions(executable, {fpUserRead, fpUserWrite, fpUserExec})
+    putEnv("PATH", directory & ":" & previousPath)
+    defer:
+      putEnv("PATH", previousPath)
+      removeFile(executable)
+      removeDir(directory)
+    let started = getMonoTime()
+    expect OSError:
+      discard detectArduinoSeqPort()
+    check (getMonoTime() - started).inMilliseconds < 2500
+    writeFile(executable, "#!/bin/sh\necho \"client 45: 'Arduino Micro' [type=kernel]\"\necho \"    0 'Arduino Micro MIDI 1'\"\n")
+    check detectArduinoSeqPort() == "45:0"
+
   test "preserves final line without a newline":
     withFakeMonitor("printf 'last line'", proc () =
       var captured: seq[string]

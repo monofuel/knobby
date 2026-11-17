@@ -1,5 +1,5 @@
 import
-  std/[algorithm, json, os, osproc, streams, strutils],
+  std/[algorithm, json, os, strutils],
   ./[bindings, common, runtime, status]
 
 type
@@ -23,19 +23,9 @@ const
 var lightingThread: Thread[void]
 
 proc runBusctl(args: seq[string]): JsonNode =
-  ## Call D-Bus with a reply deadline and decode busctl's JSON response.
-  let process = spawnCommand("busctl",
+  ## Bound the entire command as well as its D-Bus reply and decode stdout separately.
+  let output = runAudioCommand("busctl",
     @["--user", "--timeout=1s", "--json=short"] & args)
-  defer:
-    if running(process):
-      kill(process)
-    discard waitForExit(process)
-    close(process)
-  let
-    output = process.outputStream.readAll()
-    exitCode = waitForExit(process)
-  if exitCode != 0:
-    raise newException(OSError, "busctl: " & output.strip())
   result = if output.strip().len == 0: newJNull() else: parseJson(output)
 
 proc observeMousepadAttachment*(usbDevices = UsbDevicesPath): string =
