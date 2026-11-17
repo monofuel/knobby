@@ -2,9 +2,10 @@ nimTitle	common	knobby/common.html	module knobby/common		0
 nim	AppName	knobby/common.html#AppName	const AppName		5
 nim	AppDescription	knobby/common.html#AppDescription	const AppDescription		6
 nim	ReconnectPollIntervalMs	knobby/common.html#ReconnectPollIntervalMs	const ReconnectPollIntervalMs		7
-nim	runCommand	knobby/common.html#runCommand,string,seq[string]	proc runCommand(command: string; args: seq[string]): string		12
-nim	spawnCommand	knobby/common.html#spawnCommand,string,seq[string],set[ProcessOption]	proc spawnCommand(command: string; args: seq[string];\n             options: set[ProcessOption] = {poUsePath, poStdErrToStdOut}): Process		23
-nim	runShellCommand	knobby/common.html#runShellCommand,string	proc runShellCommand(command: string): tuple[output: string, exitCode: int]		29
-nim	runAudioCommand	knobby/common.html#runAudioCommand,string,seq[string]	proc runAudioCommand(command: string; args: seq[string]): string		38
-nim	markProgress	knobby/common.html#markProgress	proc markProgress()		96
-nim	startProgressWatchdog	knobby/common.html#startProgressWatchdog	proc startProgressWatchdog()		108
+nim	knobbyFontPath	knobby/common.html#knobbyFontPath	proc knobbyFontPath(): string		14
+nim	runCommand	knobby/common.html#runCommand,string,seq[string]	proc runCommand(command: string; args: seq[string]): string		21
+nim	spawnCommand	knobby/common.html#spawnCommand,string,seq[string],set[ProcessOption]	proc spawnCommand(command: string; args: seq[string];\n             options: set[ProcessOption] = {poUsePath, poStdErrToStdOut}): Process		32
+nim	runShellCommand	knobby/common.html#runShellCommand,string	proc runShellCommand(command: string): tuple[output: string, exitCode: int]		38
+nim	runAudioCommand	knobby/common.html#runAudioCommand,string,seq[string]	proc runAudioCommand(command: string; args: seq[string]): string		47
+nim	markProgress	knobby/common.html#markProgress	proc markProgress()		105
+nim	startProgressWatchdog	knobby/common.html#startProgressWatchdog	proc startProgressWatchdog()		117

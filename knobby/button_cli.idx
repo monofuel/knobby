@@ -1,0 +1,3 @@
+nimTitle	button_cli	knobby/button_cli.html	module knobby/button_cli		0
+nim	configUsage	knobby/button_cli.html#configUsage	proc configUsage(): string		5
+nim	runButtonConfigCli	knobby/button_cli.html#runButtonConfigCli,seq[string]	proc runButtonConfigCli(args: seq[string])		22

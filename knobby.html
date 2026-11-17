@@ -88,7 +88,7 @@
     <div class="section" id="6">
   <h1><a class="toc-backref" href="#6">Imports</a></h1>
   <dl class="item">
-    <a class="reference external" href="knobby/actions.html">knobby/actions</a>, <a class="reference external" href="knobby/common.html">knobby/common</a>, <a class="reference external" href="knobby/daemon_workers.html">knobby/daemon_workers</a>, <a class="reference external" href="knobby/ipc.html">knobby/ipc</a>, <a class="reference external" href="knobby/midi_events.html">knobby/midi_events</a>, <a class="reference external" href="knobby/midi_monitor.html">knobby/midi_monitor</a>, <a class="reference external" href="knobby/razer_lighting.html">knobby/razer_lighting</a>, <a class="reference external" href="knobby/runtime.html">knobby/runtime</a>, <a class="reference external" href="knobby/status.html">knobby/status</a>
+    <a class="reference external" href="knobby/actions.html">knobby/actions</a>, <a class="reference external" href="knobby/button_cli.html">knobby/button_cli</a>, <a class="reference external" href="knobby/common.html">knobby/common</a>, <a class="reference external" href="knobby/daemon_workers.html">knobby/daemon_workers</a>, <a class="reference external" href="knobby/ipc.html">knobby/ipc</a>, <a class="reference external" href="knobby/midi_events.html">knobby/midi_events</a>, <a class="reference external" href="knobby/midi_monitor.html">knobby/midi_monitor</a>, <a class="reference external" href="knobby/razer_lighting.html">knobby/razer_lighting</a>, <a class="reference external" href="knobby/runtime.html">knobby/runtime</a>, <a class="reference external" href="knobby/status.html">knobby/status</a>
   </dl>
 </div>
 <div class="section" id="12">
@@ -122,10 +122,11 @@
 </div>
 <div id="run-procs-all">
   <div id="run">
-  <dt><pre><span class="Keyword">proc</span> <a href="#run"><span class="Identifier">run</span></a><span class="Other">(</span><span class="Other">)</span> {.<span><span class="Other pragmadots">...</span></span><span class="pragmawrap"><span class="Identifier">raises</span><span class="Other">:</span> <span class="Other">[</span><span class="Identifier">OSError</span><span class="Other">,</span> <span class="Identifier">IOError</span><span class="Other">,</span> <span class="Identifier">KeyError</span><span class="Other">,</span> <span class="Identifier">ResourceExhaustedError</span><span class="Other">,</span>
-                      <span class="Identifier">ValueError</span><span class="Other">,</span> <span class="Identifier">Exception</span><span class="Other">]</span><span class="Other">,</span> <span class="Identifier">tags</span><span class="Other">:</span> <span class="Other">[</span><span class="Identifier">WriteDirEffect</span><span class="Other">,</span>
-    <span class="Identifier">ReadDirEffect</span><span class="Other">,</span> <span class="Identifier">ReadEnvEffect</span><span class="Other">,</span> <span class="Identifier">ReadIOEffect</span><span class="Other">,</span> <span class="Identifier">WriteIOEffect</span><span class="Other">,</span> <span class="Identifier">TimeEffect</span><span class="Other">,</span>
-    <span class="Identifier">ExecIOEffect</span><span class="Other">,</span> <span class="Identifier">RootEffect</span><span class="Other">]</span><span class="Other">,</span> <span class="Identifier">forbids</span><span class="Other">:</span> <span class="Other">[</span><span class="Other">]</span></span>.}</pre></dt>
+  <dt><pre><span class="Keyword">proc</span> <a href="#run"><span class="Identifier">run</span></a><span class="Other">(</span><span class="Other">)</span> {.<span><span class="Other pragmadots">...</span></span><span class="pragmawrap"><span class="Identifier">raises</span><span class="Other">:</span> <span class="Other">[</span><span class="Identifier">OSError</span><span class="Other">,</span> <span class="Identifier">IOError</span><span class="Other">,</span> <span class="Identifier">ValueError</span><span class="Other">,</span> <span class="Identifier">Exception</span><span class="Other">,</span>
+                      <span class="Identifier">ButtonConfigError</span><span class="Other">,</span> <span class="Identifier">KeyError</span><span class="Other">,</span> <span class="Identifier">JsonParsingError</span><span class="Other">,</span>
+                      <span class="Identifier">ResourceExhaustedError</span><span class="Other">]</span><span class="Other">,</span> <span class="Identifier">tags</span><span class="Other">:</span> <span class="Other">[</span><span class="Identifier">WriteDirEffect</span><span class="Other">,</span>
+    <span class="Identifier">ReadDirEffect</span><span class="Other">,</span> <span class="Identifier">ReadEnvEffect</span><span class="Other">,</span> <span class="Identifier">ReadIOEffect</span><span class="Other">,</span> <span class="Identifier">RootEffect</span><span class="Other">,</span> <span class="Identifier">WriteIOEffect</span><span class="Other">,</span>
+    <span class="Identifier">TimeEffect</span><span class="Other">,</span> <span class="Identifier">ExecIOEffect</span><span class="Other">]</span><span class="Other">,</span> <span class="Identifier">forbids</span><span class="Other">:</span> <span class="Other">[</span><span class="Other">]</span></span>.}</pre></dt>
   <dd>
     
     Run the daemon: connect to the Arduino MIDI mixer, dispatch its events to volume and launcher actions, and reconnect when the device drops.
@@ -146,7 +147,7 @@
       <div class="twelve-columns footer">
         <span class="nim-sprite"></span>
         <br>
-        <small style="color: var(--hint);">Made with Nim. Generated: 2026-11-17 06:50:45 UTC</small>
+        <small style="color: var(--hint);">Made with Nim. Generated: 2026-11-17 07:54:14 UTC</small>
       </div>
     </div>
   </div>

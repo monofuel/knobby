@@ -1,2 +1,6 @@
 nimTitle	stream_deck_page	knobby/stream_deck_page.html	module knobby/stream_deck_page		0
-nim	runDemoSession	knobby/stream_deck_page.html#runDemoSession,StreamDeck,proc),proc(StreamDeckKeyEvent),proc)	proc runDemoSession(deck: StreamDeck; shouldStop: proc (): bool;\n               onKey: proc (event: StreamDeckKeyEvent); onReady: proc () = nil)		18
+nim	builtinNormalImage	knobby/stream_deck_page.html#builtinNormalImage,int	proc builtinNormalImage(number: int): string		20
+nim	builtinPressedImage	knobby/stream_deck_page.html#builtinPressedImage,int	proc builtinPressedImage(number: int): string		26
+nim	blankKeyImage	knobby/stream_deck_page.html#blankKeyImage	proc blankKeyImage(): string		32
+nim	missingKeyImage	knobby/stream_deck_page.html#missingKeyImage	proc missingKeyImage(): string		36
+nim	runDemoSession	knobby/stream_deck_page.html#runDemoSession,StreamDeck,proc),proc(StreamDeckKeyEvent),proc)	proc runDemoSession(deck: StreamDeck; shouldStop: proc (): bool;\n               onKey: proc (event: StreamDeckKeyEvent); onReady: proc () = nil)		40

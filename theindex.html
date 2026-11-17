@@ -25,10 +25,18 @@
   <div class="document" id="documentId">
     <div class="container">
       <h1 class="title">Index</h1>
-      Modules: <a href="knobby.html">knobby</a>, <a href="knobby/actions.html">knobby/actions</a>, <a href="knobby/audio_outputs.html">knobby/audio_outputs</a>, <a href="knobby/audio_status.html">knobby/audio_status</a>, <a href="knobby/bindings.html">knobby/bindings</a>, <a href="knobby/common.html">knobby/common</a>, <a href="knobby/daemon_workers.html">knobby/daemon_workers</a>, <a href="knobby/discord_rpc.html">knobby/discord_rpc</a>, <a href="knobby/fader_cache.html">knobby/fader_cache</a>, <a href="knobby/ipc.html">knobby/ipc</a>, <a href="knobby/midi_events.html">knobby/midi_events</a>, <a href="knobby/midi_monitor.html">knobby/midi_monitor</a>, <a href="knobby/razer_lighting.html">knobby/razer_lighting</a>, <a href="knobby/runtime.html">knobby/runtime</a>, <a href="knobby/status.html">knobby/status</a>, <a href="knobby/stream_deck.html">knobby/stream_deck</a>, <a href="knobby/stream_deck_page.html">knobby/stream_deck_page</a>.<br/><p /><h2>API symbols</h2>
+      Modules: <a href="knobby.html">knobby</a>, <a href="knobby/actions.html">knobby/actions</a>, <a href="knobby/audio_outputs.html">knobby/audio_outputs</a>, <a href="knobby/audio_status.html">knobby/audio_status</a>, <a href="knobby/bindings.html">knobby/bindings</a>, <a href="knobby/button_cli.html">knobby/button_cli</a>, <a href="knobby/button_client.html">knobby/button_client</a>, <a href="knobby/button_config.html">knobby/button_config</a>, <a href="knobby/button_media.html">knobby/button_media</a>, <a href="knobby/button_runtime.html">knobby/button_runtime</a>, <a href="knobby/common.html">knobby/common</a>, <a href="knobby/daemon_workers.html">knobby/daemon_workers</a>, <a href="knobby/discord_rpc.html">knobby/discord_rpc</a>, <a href="knobby/fader_cache.html">knobby/fader_cache</a>, <a href="knobby/ipc.html">knobby/ipc</a>, <a href="knobby/midi_events.html">knobby/midi_events</a>, <a href="knobby/midi_monitor.html">knobby/midi_monitor</a>, <a href="knobby/razer_lighting.html">knobby/razer_lighting</a>, <a href="knobby/runtime.html">knobby/runtime</a>, <a href="knobby/status.html">knobby/status</a>, <a href="knobby/stream_deck.html">knobby/stream_deck</a>, <a href="knobby/stream_deck_page.html">knobby/stream_deck_page</a>, <a href="knobby/stream_deck_player.html">knobby/stream_deck_player</a>.<br/><p /><h2>API symbols</h2>
 <dl><dt><a name="acquireOwnership" href="#acquireOwnership"><span>acquireOwnership:</span></a></dt><dd><ul class="simple">
 <li><a class="reference external"
           data-doc-search-tag="ipc: proc acquireOwnership(path: string): cint" href="knobby/ipc.html#acquireOwnership%2Cstring">ipc: proc acquireOwnership(path: string): cint</a></li>
+          </ul></dd>
+<dt><a name="actionJson" href="#actionJson"><span>actionJson:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_config: proc actionJson(action: ConfiguredAction): JsonNode" href="knobby/button_config.html#actionJson%2CConfiguredAction">button_config: proc actionJson(action: ConfiguredAction): JsonNode</a></li>
+          </ul></dd>
+<dt><a name="activeMixerCatalog" href="#activeMixerCatalog"><span>activeMixerCatalog:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_runtime: proc activeMixerCatalog(): JsonNode" href="knobby/button_runtime.html#activeMixerCatalog">button_runtime: proc activeMixerCatalog(): JsonNode</a></li>
           </ul></dd>
 <dt><a name="AppDescription" href="#AppDescription"><span>AppDescription:</span></a></dt><dd><ul class="simple">
 <li><a class="reference external"
@@ -49,6 +57,14 @@
 <dt><a name="AppName" href="#AppName"><span>AppName:</span></a></dt><dd><ul class="simple">
 <li><a class="reference external"
           data-doc-search-tag="common: const AppName" href="knobby/common.html#AppName">common: const AppName</a></li>
+          </ul></dd>
+<dt><a name="ArtworkKey" href="#ArtworkKey"><span>ArtworkKey:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_media: KeyPlanKind.ArtworkKey" href="knobby/button_media.html#ArtworkKey">button_media: KeyPlanKind.ArtworkKey</a></li>
+          </ul></dd>
+<dt><a name="assetDirectory" href="#assetDirectory"><span>assetDirectory:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_config: proc assetDirectory(paths: ButtonPaths): string" href="knobby/button_config.html#assetDirectory%2CButtonPaths">button_config: proc assetDirectory(paths: ButtonPaths): string</a></li>
           </ul></dd>
 <dt><a name="AudioLevel" href="#AudioLevel"><span>AudioLevel:</span></a></dt><dd><ul class="simple">
 <li><a class="reference external"
@@ -74,6 +90,16 @@
 <li><a class="reference external"
           data-doc-search-tag="discord_rpc: proc authorize(client: DiscordRpcClient; clientId: string): string" href="knobby/discord_rpc.html#authorize%2CDiscordRpcClient%2Cstring">discord_rpc: proc authorize(client: DiscordRpcClient; clientId: string): string</a></li>
           </ul></dd>
+<dt><a name="BackAction" href="#BackAction"><span>BackAction:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_config: ConfigActionKind.BackAction" href="knobby/button_config.html#BackAction">button_config: ConfigActionKind.BackAction</a></li>
+          </ul></dd>
+<dt><a name="BackTitle" href="#BackTitle"><span>BackTitle:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_config: const BackTitle" href="knobby/button_config.html#BackTitle">button_config: const BackTitle</a></li>
+          <li><a class="reference external"
+          data-doc-search-tag="button_media: const BackTitle" href="knobby/button_media.html#BackTitle">button_media: const BackTitle</a></li>
+          </ul></dd>
 <dt><a name="BenqMicSource" href="#BenqMicSource"><span>BenqMicSource:</span></a></dt><dd><ul class="simple">
 <li><a class="reference external"
           data-doc-search-tag="bindings: const BenqMicSource" href="knobby/bindings.html#BenqMicSource">bindings: const BenqMicSource</a></li>
@@ -82,9 +108,37 @@
 <li><a class="reference external"
           data-doc-search-tag="bindings: proc bindingCatalog(): JsonNode" href="knobby/bindings.html#bindingCatalog">bindings: proc bindingCatalog(): JsonNode</a></li>
           </ul></dd>
+<dt><a name="blankKeyImage" href="#blankKeyImage"><span>blankKeyImage:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="stream_deck_page: proc blankKeyImage(): string" href="knobby/stream_deck_page.html#blankKeyImage">stream_deck_page: proc blankKeyImage(): string</a></li>
+          </ul></dd>
 <dt><a name="broadcast" href="#broadcast"><span>broadcast:</span></a></dt><dd><ul class="simple">
 <li><a class="reference external"
           data-doc-search-tag="ipc: proc broadcast(server: LocalServer; message: JsonNode)" href="knobby/ipc.html#broadcast%2CLocalServer%2CJsonNode">ipc: proc broadcast(server: LocalServer; message: JsonNode)</a></li>
+          </ul></dd>
+<dt><a name="builtinButtonManifest" href="#builtinButtonManifest"><span>builtinButtonManifest:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_runtime: proc builtinButtonManifest(config: JsonNode): JsonNode" href="knobby/button_runtime.html#builtinButtonManifest%2CJsonNode">button_runtime: proc builtinButtonManifest(config: JsonNode): JsonNode</a></li>
+          </ul></dd>
+<dt><a name="builtinDeckPage" href="#builtinDeckPage"><span>builtinDeckPage:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="stream_deck_player: proc builtinDeckPage(generation: int64 = 1; menu = &quot;root&quot;): JsonNode" href="knobby/stream_deck_player.html#builtinDeckPage%2Cint64%2Cstring">stream_deck_player: proc builtinDeckPage(generation: int64 = 1; menu = &quot;root&quot;): JsonNode</a></li>
+          </ul></dd>
+<dt><a name="BuiltinKey" href="#BuiltinKey"><span>BuiltinKey:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_media: KeyPlanKind.BuiltinKey" href="knobby/button_media.html#BuiltinKey">button_media: KeyPlanKind.BuiltinKey</a></li>
+          </ul></dd>
+<dt><a name="builtinNormalImage" href="#builtinNormalImage"><span>builtinNormalImage:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="stream_deck_page: proc builtinNormalImage(number: int): string" href="knobby/stream_deck_page.html#builtinNormalImage%2Cint">stream_deck_page: proc builtinNormalImage(number: int): string</a></li>
+          </ul></dd>
+<dt><a name="builtinPageReader" href="#builtinPageReader"><span>builtinPageReader:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="stream_deck_player: proc builtinPageReader(): proc (previousGeneration: int64): JsonNode" href="knobby/stream_deck_player.html#builtinPageReader">stream_deck_player: proc builtinPageReader(): proc (previousGeneration: int64): JsonNode</a></li>
+          </ul></dd>
+<dt><a name="builtinPressedImage" href="#builtinPressedImage"><span>builtinPressedImage:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="stream_deck_page: proc builtinPressedImage(number: int): string" href="knobby/stream_deck_page.html#builtinPressedImage%2Cint">stream_deck_page: proc builtinPressedImage(number: int): string</a></li>
           </ul></dd>
 <dt><a name="BusctlRunner" href="#BusctlRunner"><span>BusctlRunner:</span></a></dt><dd><ul class="simple">
 <li><a class="reference external"
@@ -93,6 +147,10 @@
 <dt><a name="ButtonAction" href="#ButtonAction"><span>ButtonAction:</span></a></dt><dd><ul class="simple">
 <li><a class="reference external"
           data-doc-search-tag="bindings: enum ButtonAction" href="knobby/bindings.html#ButtonAction">bindings: enum ButtonAction</a></li>
+          </ul></dd>
+<dt><a name="buttonAt" href="#buttonAt"><span>buttonAt:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_config: proc buttonAt(config: JsonNode; menu: string; device: string; key: int): JsonNode" href="knobby/button_config.html#buttonAt%2CJsonNode%2Cstring%2Cstring%2Cint">button_config: proc buttonAt(config: JsonNode; menu: string; device: string; key: int): JsonNode</a></li>
           </ul></dd>
 <dt><a name="ButtonBinding" href="#ButtonBinding"><span>ButtonBinding:</span></a></dt><dd><ul class="simple">
 <li><a class="reference external"
@@ -106,6 +164,26 @@
 <li><a class="reference external"
           data-doc-search-tag="bindings: const ButtonBindings" href="knobby/bindings.html#ButtonBindings">bindings: const ButtonBindings</a></li>
           </ul></dd>
+<dt><a name="buttonConfigDirectory" href="#buttonConfigDirectory"><span>buttonConfigDirectory:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_config: proc buttonConfigDirectory(): string" href="knobby/button_config.html#buttonConfigDirectory">button_config: proc buttonConfigDirectory(): string</a></li>
+          </ul></dd>
+<dt><a name="ButtonConfigError" href="#ButtonConfigError"><span>ButtonConfigError:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_config: object ButtonConfigError" href="knobby/button_config.html#ButtonConfigError">button_config: object ButtonConfigError</a></li>
+          </ul></dd>
+<dt><a name="buttonConfigPath" href="#buttonConfigPath"><span>buttonConfigPath:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_config: proc buttonConfigPath(): string" href="knobby/button_config.html#buttonConfigPath">button_config: proc buttonConfigPath(): string</a></li>
+          </ul></dd>
+<dt><a name="ButtonConfigVersion" href="#ButtonConfigVersion"><span>ButtonConfigVersion:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_config: const ButtonConfigVersion" href="knobby/button_config.html#ButtonConfigVersion">button_config: const ButtonConfigVersion</a></li>
+          </ul></dd>
+<dt><a name="ButtonDevice" href="#ButtonDevice"><span>ButtonDevice:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_config: enum ButtonDevice" href="knobby/button_config.html#ButtonDevice">button_config: enum ButtonDevice</a></li>
+          </ul></dd>
 <dt><a name="ButtonGrid" href="#ButtonGrid"><span>ButtonGrid:</span></a></dt><dd><ul class="simple">
 <li><a class="reference external"
           data-doc-search-tag="bindings: const ButtonGrid" href="knobby/bindings.html#ButtonGrid">bindings: const ButtonGrid</a></li>
@@ -114,9 +192,61 @@
 <li><a class="reference external"
           data-doc-search-tag="status: proc buttonLit(held: bool; pressedMs, timeMs: int64): bool" href="knobby/status.html#buttonLit%2Cbool%2Cint64%2Cint64">status: proc buttonLit(held: bool; pressedMs, timeMs: int64): bool</a></li>
           </ul></dd>
+<dt><a name="buttonOperation" href="#buttonOperation"><span>buttonOperation:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_runtime: proc buttonOperation(id: string): JsonNode" href="knobby/button_runtime.html#buttonOperation%2Cstring">button_runtime: proc buttonOperation(id: string): JsonNode</a></li>
+          </ul></dd>
+<dt><a name="ButtonPaths" href="#ButtonPaths"><span>ButtonPaths:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_config: object ButtonPaths" href="knobby/button_config.html#ButtonPaths">button_config: object ButtonPaths</a></li>
+          </ul></dd>
+<dt><a name="buttonRuntimeStatus" href="#buttonRuntimeStatus"><span>buttonRuntimeStatus:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_runtime: proc buttonRuntimeStatus(): JsonNode" href="knobby/button_runtime.html#buttonRuntimeStatus">button_runtime: proc buttonRuntimeStatus(): JsonNode</a></li>
+          </ul></dd>
+<dt><a name="ButtonServices" href="#ButtonServices"><span>ButtonServices:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_runtime: object ButtonServices" href="knobby/button_runtime.html#ButtonServices">button_runtime: object ButtonServices</a></li>
+          </ul></dd>
+<dt><a name="ButtonSet" href="#ButtonSet"><span>ButtonSet:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_config: object ButtonSet" href="knobby/button_config.html#ButtonSet">button_config: object ButtonSet</a></li>
+          </ul></dd>
+<dt><a name="buttonStateDirectory" href="#buttonStateDirectory"><span>buttonStateDirectory:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_config: proc buttonStateDirectory(): string" href="knobby/button_config.html#buttonStateDirectory">button_config: proc buttonStateDirectory(): string</a></li>
+          </ul></dd>
+<dt><a name="ButtonTarget" href="#ButtonTarget"><span>ButtonTarget:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_config: enum ButtonTarget" href="knobby/button_config.html#ButtonTarget">button_config: enum ButtonTarget</a></li>
+          </ul></dd>
+<dt><a name="canonicalButtonConfig" href="#canonicalButtonConfig"><span>canonicalButtonConfig:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_config: proc canonicalButtonConfig(config: JsonNode): JsonNode" href="knobby/button_config.html#canonicalButtonConfig%2CJsonNode">button_config: proc canonicalButtonConfig(config: JsonNode): JsonNode</a></li>
+          </ul></dd>
+<dt><a name="checkOperationDeadline" href="#checkOperationDeadline"><span>checkOperationDeadline:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_media: proc checkOperationDeadline()" href="knobby/button_media.html#checkOperationDeadline">button_media: proc checkOperationDeadline()</a></li>
+          </ul></dd>
+<dt><a name="ChildTimeoutMs" href="#ChildTimeoutMs"><span>ChildTimeoutMs:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_media: const ChildTimeoutMs" href="knobby/button_media.html#ChildTimeoutMs">button_media: const ChildTimeoutMs</a></li>
+          </ul></dd>
+<dt><a name="ClaudeAction" href="#ClaudeAction"><span>ClaudeAction:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_config: ConfigActionKind.ClaudeAction" href="knobby/button_config.html#ClaudeAction">button_config: ConfigActionKind.ClaudeAction</a></li>
+          </ul></dd>
 <dt><a name="ClaudeCommand" href="#ClaudeCommand"><span>ClaudeCommand:</span></a></dt><dd><ul class="simple">
 <li><a class="reference external"
           data-doc-search-tag="bindings: const ClaudeCommand" href="knobby/bindings.html#ClaudeCommand">bindings: const ClaudeCommand</a></li>
+          </ul></dd>
+<dt><a name="cleanPreparedCache" href="#cleanPreparedCache"><span>cleanPreparedCache:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_media: proc cleanPreparedCache(cacheDir, manifestDir: string): PreparedCleanup" href="knobby/button_media.html#cleanPreparedCache%2Cstring%2Cstring">button_media: proc cleanPreparedCache(cacheDir, manifestDir: string): PreparedCleanup</a></li>
+          </ul></dd>
+<dt><a name="cleanTitle" href="#cleanTitle"><span>cleanTitle:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_media: proc cleanTitle(title: string): string" href="knobby/button_media.html#cleanTitle%2Cstring">button_media: proc cleanTitle(title: string): string</a></li>
           </ul></dd>
 <dt><a name="close" href="#close"><span>close:</span></a></dt><dd><ul class="simple">
 <li><a class="reference external"
@@ -134,6 +264,46 @@
 <li><a class="reference external"
           data-doc-search-tag="discord_rpc: const CloseOp" href="knobby/discord_rpc.html#CloseOp">discord_rpc: const CloseOp</a></li>
           </ul></dd>
+<dt><a name="CommandAction" href="#CommandAction"><span>CommandAction:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_config: ConfigActionKind.CommandAction" href="knobby/button_config.html#CommandAction">button_config: ConfigActionKind.CommandAction</a></li>
+          </ul></dd>
+<dt><a name="ConfigActionKind" href="#ConfigActionKind"><span>ConfigActionKind:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_config: enum ConfigActionKind" href="knobby/button_config.html#ConfigActionKind">button_config: enum ConfigActionKind</a></li>
+          </ul></dd>
+<dt><a name="configEnvelope" href="#configEnvelope"><span>configEnvelope:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_config: proc configEnvelope(config: JsonNode): JsonNode" href="knobby/button_config.html#configEnvelope%2CJsonNode">button_config: proc configEnvelope(config: JsonNode): JsonNode</a></li>
+          </ul></dd>
+<dt><a name="configPath" href="#configPath"><span>configPath:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_config: proc configPath(paths: ButtonPaths): string" href="knobby/button_config.html#configPath%2CButtonPaths">button_config: proc configPath(paths: ButtonPaths): string</a></li>
+          </ul></dd>
+<dt><a name="ConfigRequestError" href="#ConfigRequestError"><span>ConfigRequestError:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_client: object ConfigRequestError" href="knobby/button_client.html#ConfigRequestError">button_client: object ConfigRequestError</a></li>
+          </ul></dd>
+<dt><a name="configRevision" href="#configRevision"><span>configRevision:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_config: proc configRevision(config: JsonNode): string" href="knobby/button_config.html#configRevision%2CJsonNode">button_config: proc configRevision(config: JsonNode): string</a></li>
+          </ul></dd>
+<dt><a name="ConfiguredAction" href="#ConfiguredAction"><span>ConfiguredAction:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_config: object ConfiguredAction" href="knobby/button_config.html#ConfiguredAction">button_config: object ConfiguredAction</a></li>
+          </ul></dd>
+<dt><a name="ConfiguredButton" href="#ConfiguredButton"><span>ConfiguredButton:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_config: object ConfiguredButton" href="knobby/button_config.html#ConfiguredButton">button_config: object ConfiguredButton</a></li>
+          </ul></dd>
+<dt><a name="ConfiguredMenu" href="#ConfiguredMenu"><span>ConfiguredMenu:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_config: object ConfiguredMenu" href="knobby/button_config.html#ConfiguredMenu">button_config: object ConfiguredMenu</a></li>
+          </ul></dd>
+<dt><a name="configUsage" href="#configUsage"><span>configUsage:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_cli: proc configUsage(): string" href="knobby/button_cli.html#configUsage">button_cli: proc configUsage(): string</a></li>
+          </ul></dd>
 <dt><a name="connectDiscordRpc" href="#connectDiscordRpc"><span>connectDiscordRpc:</span></a></dt><dd><ul class="simple">
 <li><a class="reference external"
           data-doc-search-tag="discord_rpc: proc connectDiscordRpc(): DiscordRpcClient" href="knobby/discord_rpc.html#connectDiscordRpc">discord_rpc: proc connectDiscordRpc(): DiscordRpcClient</a></li>
@@ -141,6 +311,14 @@
 <dt><a name="connectLocal" href="#connectLocal"><span>connectLocal:</span></a></dt><dd><ul class="simple">
 <li><a class="reference external"
           data-doc-search-tag="ipc: proc connectLocal(path: string): Peer" href="knobby/ipc.html#connectLocal%2Cstring">ipc: proc connectLocal(path: string): Peer</a></li>
+          </ul></dd>
+<dt><a name="containSize" href="#containSize"><span>containSize:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_media: proc containSize(width, height: int): tuple[width, height: int]" href="knobby/button_media.html#containSize%2Cint%2Cint">button_media: proc containSize(width, height: int): tuple[width, height: int]</a></li>
+          </ul></dd>
+<dt><a name="contentKey" href="#contentKey"><span>contentKey:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_media: proc contentKey(data: string): string" href="knobby/button_media.html#contentKey%2Cstring">button_media: proc contentKey(data: string): string</a></li>
           </ul></dd>
 <dt><a name="ControlChange" href="#ControlChange"><span>ControlChange:</span></a></dt><dd><ul class="simple">
 <li><a class="reference external"
@@ -150,13 +328,35 @@
 <li><a class="reference external"
           data-doc-search-tag="knobby: proc daemonDescription(): string" href="knobby.html#daemonDescription">knobby: proc daemonDescription(): string</a></li>
           </ul></dd>
+<dt><a name="daemonSocketPath" href="#daemonSocketPath"><span>daemonSocketPath:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_client: proc daemonSocketPath(): string" href="knobby/button_client.html#daemonSocketPath">button_client: proc daemonSocketPath(): string</a></li>
+          </ul></dd>
 <dt><a name="DarkGrey" href="#DarkGrey"><span>DarkGrey:</span></a></dt><dd><ul class="simple">
 <li><a class="reference external"
           data-doc-search-tag="bindings: const DarkGrey" href="knobby/bindings.html#DarkGrey">bindings: const DarkGrey</a></li>
           </ul></dd>
+<dt><a name="DeckDevice" href="#DeckDevice"><span>DeckDevice:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_config: ButtonDevice.DeckDevice" href="knobby/button_config.html#DeckDevice">button_config: ButtonDevice.DeckDevice</a></li>
+          </ul></dd>
+<dt><a name="DeckKeyCount" href="#DeckKeyCount"><span>DeckKeyCount:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_config: const DeckKeyCount" href="knobby/button_config.html#DeckKeyCount">button_config: const DeckKeyCount</a></li>
+          <li><a class="reference external"
+          data-doc-search-tag="button_media: const DeckKeyCount" href="knobby/button_media.html#DeckKeyCount">button_media: const DeckKeyCount</a></li>
+          </ul></dd>
+<dt><a name="deckPageReady" href="#deckPageReady"><span>deckPageReady:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_runtime: proc deckPageReady()" href="knobby/button_runtime.html#deckPageReady">button_runtime: proc deckPageReady()</a></li>
+          </ul></dd>
 <dt><a name="decodeFaderCache" href="#decodeFaderCache"><span>decodeFaderCache:</span></a></dt><dd><ul class="simple">
 <li><a class="reference external"
           data-doc-search-tag="fader_cache: proc decodeFaderCache(data: string): FaderPositions" href="knobby/fader_cache.html#decodeFaderCache%2Cstring">fader_cache: proc decodeFaderCache(data: string): FaderPositions</a></li>
+          </ul></dd>
+<dt><a name="decodeLastApplied" href="#decodeLastApplied"><span>decodeLastApplied:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_config: proc decodeLastApplied(text: string): JsonNode" href="knobby/button_config.html#decodeLastApplied%2Cstring">button_config: proc decodeLastApplied(text: string): JsonNode</a></li>
           </ul></dd>
 <dt><a name="decodeSnapshot" href="#decodeSnapshot"><span>decodeSnapshot:</span></a></dt><dd><ul class="simple">
 <li><a class="reference external"
@@ -166,9 +366,21 @@
 <li><a class="reference external"
           data-doc-search-tag="discord_rpc: proc decodeUint32Le(data: string; offset: int): int" href="knobby/discord_rpc.html#decodeUint32Le%2Cstring%2Cint">discord_rpc: proc decodeUint32Le(data: string; offset: int): int</a></li>
           </ul></dd>
+<dt><a name="defaultButtonConfig" href="#defaultButtonConfig"><span>defaultButtonConfig:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_config: proc defaultButtonConfig(): JsonNode" href="knobby/button_config.html#defaultButtonConfig">button_config: proc defaultButtonConfig(): JsonNode</a></li>
+          </ul></dd>
+<dt><a name="defaultButtonServices" href="#defaultButtonServices"><span>defaultButtonServices:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_runtime: proc defaultButtonServices(): ButtonServices" href="knobby/button_runtime.html#defaultButtonServices">button_runtime: proc defaultButtonServices(): ButtonServices</a></li>
+          </ul></dd>
 <dt><a name="DefaultMidiPort" href="#DefaultMidiPort"><span>DefaultMidiPort:</span></a></dt><dd><ul class="simple">
 <li><a class="reference external"
           data-doc-search-tag="midi_monitor: const DefaultMidiPort" href="knobby/midi_monitor.html#DefaultMidiPort">midi_monitor: const DefaultMidiPort</a></li>
+          </ul></dd>
+<dt><a name="defaultPlayerOptions" href="#defaultPlayerOptions"><span>defaultPlayerOptions:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="stream_deck_player: proc defaultPlayerOptions(): PlayerOptions" href="knobby/stream_deck_player.html#defaultPlayerOptions">stream_deck_player: proc defaultPlayerOptions(): PlayerOptions</a></li>
           </ul></dd>
 <dt><a name="detectArduinoAmidiPort" href="#detectArduinoAmidiPort"><span>detectArduinoAmidiPort:</span></a></dt><dd><ul class="simple">
 <li><a class="reference external"
@@ -177,6 +389,10 @@
 <dt><a name="detectArduinoSeqPort" href="#detectArduinoSeqPort"><span>detectArduinoSeqPort:</span></a></dt><dd><ul class="simple">
 <li><a class="reference external"
           data-doc-search-tag="midi_monitor: proc detectArduinoSeqPort(): string" href="knobby/midi_monitor.html#detectArduinoSeqPort">midi_monitor: proc detectArduinoSeqPort(): string</a></li>
+          </ul></dd>
+<dt><a name="DiscordAction" href="#DiscordAction"><span>DiscordAction:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_config: ConfigActionKind.DiscordAction" href="knobby/button_config.html#DiscordAction">button_config: ConfigActionKind.DiscordAction</a></li>
           </ul></dd>
 <dt><a name="DiscordCreds" href="#DiscordCreds"><span>DiscordCreds:</span></a></dt><dd><ul class="simple">
 <li><a class="reference external"
@@ -218,6 +434,10 @@
 <li><a class="reference external"
           data-doc-search-tag="stream_deck: proc encodeBrightnessReport(percent: int): string" href="knobby/stream_deck.html#encodeBrightnessReport%2Cint">stream_deck: proc encodeBrightnessReport(percent: int): string</a></li>
           </ul></dd>
+<dt><a name="encodeConfigFile" href="#encodeConfigFile"><span>encodeConfigFile:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_config: proc encodeConfigFile(config: JsonNode): string" href="knobby/button_config.html#encodeConfigFile%2CJsonNode">button_config: proc encodeConfigFile(config: JsonNode): string</a></li>
+          </ul></dd>
 <dt><a name="encodeFrame" href="#encodeFrame"><span>encodeFrame:</span></a></dt><dd><ul class="simple">
 <li><a class="reference external"
           data-doc-search-tag="discord_rpc: proc encodeFrame(op: int; payload: string): string" href="knobby/discord_rpc.html#encodeFrame%2Cint%2Cstring">discord_rpc: proc encodeFrame(op: int; payload: string): string</a></li>
@@ -225,6 +445,10 @@
 <dt><a name="encodeKeyImageReports" href="#encodeKeyImageReports"><span>encodeKeyImageReports:</span></a></dt><dd><ul class="simple">
 <li><a class="reference external"
           data-doc-search-tag="stream_deck: proc encodeKeyImageReports(keyIndex: int; jpeg: string): seq[string]" href="knobby/stream_deck.html#encodeKeyImageReports%2Cint%2Cstring">stream_deck: proc encodeKeyImageReports(keyIndex: int; jpeg: string): seq[string]</a></li>
+          </ul></dd>
+<dt><a name="encodeLastApplied" href="#encodeLastApplied"><span>encodeLastApplied:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_config: proc encodeLastApplied(config: JsonNode): string" href="knobby/button_config.html#encodeLastApplied%2CJsonNode">button_config: proc encodeLastApplied(config: JsonNode): string</a></li>
           </ul></dd>
 <dt><a name="encodeMessage" href="#encodeMessage"><span>encodeMessage:</span></a></dt><dd><ul class="simple">
 <li><a class="reference external"
@@ -246,9 +470,17 @@
 <li><a class="reference external"
           data-doc-search-tag="daemon_workers: proc enqueue(queue: var PendingActions; events: openArray[MidiEvent])" href="knobby/daemon_workers.html#enqueue%2CPendingActions%2CopenArray%5BMidiEvent%5D">daemon_workers: proc enqueue(queue: var PendingActions; events: openArray[MidiEvent])</a></li>
           </ul></dd>
+<dt><a name="escapeFilterValue" href="#escapeFilterValue"><span>escapeFilterValue:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_media: proc escapeFilterValue(value: string): string" href="knobby/button_media.html#escapeFilterValue%2Cstring">button_media: proc escapeFilterValue(value: string): string</a></li>
+          </ul></dd>
 <dt><a name="exchangeAuthCode" href="#exchangeAuthCode"><span>exchangeAuthCode:</span></a></dt><dd><ul class="simple">
 <li><a class="reference external"
           data-doc-search-tag="discord_rpc: proc exchangeAuthCode(creds: var DiscordCreds; code: string)" href="knobby/discord_rpc.html#exchangeAuthCode%2CDiscordCreds%2Cstring">discord_rpc: proc exchangeAuthCode(creds: var DiscordCreds; code: string)</a></li>
+          </ul></dd>
+<dt><a name="executeButtonAction" href="#executeButtonAction"><span>executeButtonAction:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="actions: proc executeButtonAction(action: JsonNode)" href="knobby/actions.html#executeButtonAction%2CJsonNode">actions: proc executeButtonAction(action: JsonNode)</a></li>
           </ul></dd>
 <dt><a name="faderCachePath" href="#faderCachePath"><span>faderCachePath:</span></a></dt><dd><ul class="simple">
 <li><a class="reference external"
@@ -270,6 +502,10 @@
 <li><a class="reference external"
           data-doc-search-tag="fader_cache: const FaderSaveIntervalMs" href="knobby/fader_cache.html#FaderSaveIntervalMs">fader_cache: const FaderSaveIntervalMs</a></li>
           </ul></dd>
+<dt><a name="FfxivAction" href="#FfxivAction"><span>FfxivAction:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_config: ConfigActionKind.FfxivAction" href="knobby/button_config.html#FfxivAction">button_config: ConfigActionKind.FfxivAction</a></li>
+          </ul></dd>
 <dt><a name="FfxivLaunchCommand" href="#FfxivLaunchCommand"><span>FfxivLaunchCommand:</span></a></dt><dd><ul class="simple">
 <li><a class="reference external"
           data-doc-search-tag="bindings: const FfxivLaunchCommand" href="knobby/bindings.html#FfxivLaunchCommand">bindings: const FfxivLaunchCommand</a></li>
@@ -288,25 +524,49 @@
       force = false)" href="knobby/fader_cache.html#flush%2CFaderCacheWriter%2CFaderPositions%2Cint64">fader_cache: proc flush(writer: var FaderCacheWriter; positions: FaderPositions; timeMs: int64;
       force = false)</a></li>
           </ul></dd>
+<dt><a name="frameEnds" href="#frameEnds"><span>frameEnds:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="stream_deck_player: proc frameEnds(durations: openArray[int]): seq[int]" href="knobby/stream_deck_player.html#frameEnds%2CopenArray%5Bint%5D">stream_deck_player: proc frameEnds(durations: openArray[int]): seq[int]</a></li>
+          </ul></dd>
 <dt><a name="FrameHeaderLen" href="#FrameHeaderLen"><span>FrameHeaderLen:</span></a></dt><dd><ul class="simple">
 <li><a class="reference external"
           data-doc-search-tag="discord_rpc: const FrameHeaderLen" href="knobby/discord_rpc.html#FrameHeaderLen">discord_rpc: const FrameHeaderLen</a></li>
+          </ul></dd>
+<dt><a name="frameIndexAt" href="#frameIndexAt"><span>frameIndexAt:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="stream_deck_player: proc frameIndexAt(ends: openArray[int]; elapsedMs: int64): int" href="knobby/stream_deck_player.html#frameIndexAt%2CopenArray%5Bint%5D%2Cint64">stream_deck_player: proc frameIndexAt(ends: openArray[int]; elapsedMs: int64): int</a></li>
           </ul></dd>
 <dt><a name="FrameOp" href="#FrameOp"><span>FrameOp:</span></a></dt><dd><ul class="simple">
 <li><a class="reference external"
           data-doc-search-tag="discord_rpc: const FrameOp" href="knobby/discord_rpc.html#FrameOp">discord_rpc: const FrameOp</a></li>
           </ul></dd>
+<dt><a name="FrameTiming" href="#FrameTiming"><span>FrameTiming:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_media: object FrameTiming" href="knobby/button_media.html#FrameTiming">button_media: object FrameTiming</a></li>
+          </ul></dd>
 <dt><a name="getVoiceMute" href="#getVoiceMute"><span>getVoiceMute:</span></a></dt><dd><ul class="simple">
 <li><a class="reference external"
           data-doc-search-tag="discord_rpc: proc getVoiceMute(client: DiscordRpcClient): bool" href="knobby/discord_rpc.html#getVoiceMute%2CDiscordRpcClient">discord_rpc: proc getVoiceMute(client: DiscordRpcClient): bool</a></li>
+          </ul></dd>
+<dt><a name="GifSource" href="#GifSource"><span>GifSource:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_media: SourceKind.GifSource" href="knobby/button_media.html#GifSource">button_media: SourceKind.GifSource</a></li>
           </ul></dd>
 <dt><a name="GreyBrightness" href="#GreyBrightness"><span>GreyBrightness:</span></a></dt><dd><ul class="simple">
 <li><a class="reference external"
           data-doc-search-tag="bindings: const GreyBrightness" href="knobby/bindings.html#GreyBrightness">bindings: const GreyBrightness</a></li>
           </ul></dd>
+<dt><a name="GrokAction" href="#GrokAction"><span>GrokAction:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_config: ConfigActionKind.GrokAction" href="knobby/button_config.html#GrokAction">button_config: ConfigActionKind.GrokAction</a></li>
+          </ul></dd>
 <dt><a name="GrokCommand" href="#GrokCommand"><span>GrokCommand:</span></a></dt><dd><ul class="simple">
 <li><a class="reference external"
           data-doc-search-tag="bindings: const GrokCommand" href="knobby/bindings.html#GrokCommand">bindings: const GrokCommand</a></li>
+          </ul></dd>
+<dt><a name="guiDraftPath" href="#guiDraftPath"><span>guiDraftPath:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_config: proc guiDraftPath(paths: ButtonPaths): string" href="knobby/button_config.html#guiDraftPath%2CButtonPaths">button_config: proc guiDraftPath(paths: ButtonPaths): string</a></li>
           </ul></dd>
 <dt><a name="handleBatch" href="#handleBatch"><span>handleBatch:</span></a></dt><dd><ul class="simple">
 <li><a class="reference external"
@@ -324,6 +584,14 @@
 <li><a class="reference external"
           data-doc-search-tag="discord_rpc: const HandshakeOp" href="knobby/discord_rpc.html#HandshakeOp">discord_rpc: const HandshakeOp</a></li>
           </ul></dd>
+<dt><a name="hasOperationDeadline" href="#hasOperationDeadline"><span>hasOperationDeadline:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_media: proc hasOperationDeadline(): bool" href="knobby/button_media.html#hasOperationDeadline">button_media: proc hasOperationDeadline(): bool</a></li>
+          </ul></dd>
+<dt><a name="HomeAction" href="#HomeAction"><span>HomeAction:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_config: ConfigActionKind.HomeAction" href="knobby/button_config.html#HomeAction">button_config: ConfigActionKind.HomeAction</a></li>
+          </ul></dd>
 <dt><a name="ImagePayloadBytes" href="#ImagePayloadBytes"><span>ImagePayloadBytes:</span></a></dt><dd><ul class="simple">
 <li><a class="reference external"
           data-doc-search-tag="stream_deck: const ImagePayloadBytes" href="knobby/stream_deck.html#ImagePayloadBytes">stream_deck: const ImagePayloadBytes</a></li>
@@ -331,6 +599,16 @@
 <dt><a name="ImageReportBytes" href="#ImageReportBytes"><span>ImageReportBytes:</span></a></dt><dd><ul class="simple">
 <li><a class="reference external"
           data-doc-search-tag="stream_deck: const ImageReportBytes" href="knobby/stream_deck.html#ImageReportBytes">stream_deck: const ImageReportBytes</a></li>
+          </ul></dd>
+<dt><a name="importButtonAsset" href="#importButtonAsset"><span>importButtonAsset:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_media: proc importButtonAsset(source, configDir: string; timeoutMs = OperationTimeoutMs): string" href="knobby/button_media.html#importButtonAsset%2Cstring%2Cstring">button_media: proc importButtonAsset(source, configDir: string; timeoutMs = OperationTimeoutMs): string</a></li>
+          </ul></dd>
+<dt><a name="initializeButtons" href="#initializeButtons"><span>initializeButtons:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_runtime: proc initializeButtons(paths = newButtonPaths();
+                  buttonServices = defaultButtonServices())" href="knobby/button_runtime.html#initializeButtons">button_runtime: proc initializeButtons(paths = newButtonPaths();
+                  buttonServices = defaultButtonServices())</a></li>
           </ul></dd>
 <dt><a name="initializeState" href="#initializeState"><span>initializeState:</span></a></dt><dd><ul class="simple">
 <li><a class="reference external"
@@ -340,9 +618,25 @@
 <li><a class="reference external"
           data-doc-search-tag="runtime: proc installStopHooks()" href="knobby/runtime.html#installStopHooks">runtime: proc installStopHooks()</a></li>
           </ul></dd>
+<dt><a name="invalidBackupPath" href="#invalidBackupPath"><span>invalidBackupPath:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_config: proc invalidBackupPath(paths: ButtonPaths): string" href="knobby/button_config.html#invalidBackupPath%2CButtonPaths">button_config: proc invalidBackupPath(paths: ButtonPaths): string</a></li>
+          </ul></dd>
+<dt><a name="isContentKeyName" href="#isContentKeyName"><span>isContentKeyName:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_media: proc isContentKeyName(name: string): bool" href="knobby/button_media.html#isContentKeyName%2Cstring">button_media: proc isContentKeyName(name: string): bool</a></li>
+          </ul></dd>
 <dt><a name="isFresh" href="#isFresh"><span>isFresh:</span></a></dt><dd><ul class="simple">
 <li><a class="reference external"
           data-doc-search-tag="status: proc isFresh(receivedMs, timeMs: int64): bool" href="knobby/status.html#isFresh%2Cint64%2Cint64">status: proc isFresh(receivedMs, timeMs: int64): bool</a></li>
+          </ul></dd>
+<dt><a name="isManagedAsset" href="#isManagedAsset"><span>isManagedAsset:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_media: proc isManagedAsset(path: string): bool" href="knobby/button_media.html#isManagedAsset%2Cstring">button_media: proc isManagedAsset(path: string): bool</a></li>
+          </ul></dd>
+<dt><a name="isManagedAssetPath" href="#isManagedAssetPath"><span>isManagedAssetPath:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_config: proc isManagedAssetPath(path: string): bool" href="knobby/button_config.html#isManagedAssetPath%2Cstring">button_config: proc isManagedAssetPath(path: string): bool</a></li>
           </ul></dd>
 <dt><a name="isMuteReported" href="#isMuteReported"><span>isMuteReported:</span></a></dt><dd><ul class="simple">
 <li><a class="reference external"
@@ -352,9 +646,17 @@
 <li><a class="reference external"
           data-doc-search-tag="actions: proc isNewSinkInputEvent(line: string): bool" href="knobby/actions.html#isNewSinkInputEvent%2Cstring">actions: proc isNewSinkInputEvent(line: string): bool</a></li>
           </ul></dd>
+<dt><a name="isQueuedAction" href="#isQueuedAction"><span>isQueuedAction:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_config: proc isQueuedAction(kind: ConfigActionKind): bool" href="knobby/button_config.html#isQueuedAction%2CConfigActionKind">button_config: proc isQueuedAction(kind: ConfigActionKind): bool</a></li>
+          </ul></dd>
 <dt><a name="isSteamGame" href="#isSteamGame"><span>isSteamGame:</span></a></dt><dd><ul class="simple">
 <li><a class="reference external"
           data-doc-search-tag="bindings: proc isSteamGame(processId: string): bool" href="knobby/bindings.html#isSteamGame%2Cstring">bindings: proc isSteamGame(processId: string): bool</a></li>
+          </ul></dd>
+<dt><a name="JpegSource" href="#JpegSource"><span>JpegSource:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_media: SourceKind.JpegSource" href="knobby/button_media.html#JpegSource">button_media: SourceKind.JpegSource</a></li>
           </ul></dd>
 <dt><a name="keyChanges" href="#keyChanges"><span>keyChanges:</span></a></dt><dd><ul class="simple">
 <li><a class="reference external"
@@ -362,9 +664,35 @@
     StreamDeckKeyEvent]" href="knobby/stream_deck.html#keyChanges%2CStreamDeckKeys%2CStreamDeckKeys">stream_deck: proc keyChanges(previous: var StreamDeckKeys; current: StreamDeckKeys): seq[
     StreamDeckKeyEvent]</a></li>
           </ul></dd>
+<dt><a name="KeyPlan" href="#KeyPlan"><span>KeyPlan:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_media: object KeyPlan" href="knobby/button_media.html#KeyPlan">button_media: object KeyPlan</a></li>
+          </ul></dd>
+<dt><a name="KeyPlanKind" href="#KeyPlanKind"><span>KeyPlanKind:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_media: enum KeyPlanKind" href="knobby/button_media.html#KeyPlanKind">button_media: enum KeyPlanKind</a></li>
+          </ul></dd>
+<dt><a name="KeySize" href="#KeySize"><span>KeySize:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_media: const KeySize" href="knobby/button_media.html#KeySize">button_media: const KeySize</a></li>
+          </ul></dd>
+<dt><a name="knobbyFontPath" href="#knobbyFontPath"><span>knobbyFontPath:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="common: proc knobbyFontPath(): string" href="knobby/common.html#knobbyFontPath">common: proc knobbyFontPath(): string</a></li>
+          </ul></dd>
+<dt><a name="lastAppliedPath" href="#lastAppliedPath"><span>lastAppliedPath:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_config: proc lastAppliedPath(paths: ButtonPaths): string" href="knobby/button_config.html#lastAppliedPath%2CButtonPaths">button_config: proc lastAppliedPath(paths: ButtonPaths): string</a></li>
+          </ul></dd>
 <dt><a name="LaunchFfxiv" href="#LaunchFfxiv"><span>LaunchFfxiv:</span></a></dt><dd><ul class="simple">
 <li><a class="reference external"
           data-doc-search-tag="bindings: ButtonAction.LaunchFfxiv" href="knobby/bindings.html#LaunchFfxiv">bindings: ButtonAction.LaunchFfxiv</a></li>
+          </ul></dd>
+<dt><a name="layoutTitle" href="#layoutTitle"><span>layoutTitle:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_media: proc layoutTitle(title: string; sizes: openArray[int];
+            maxWidth, maxHeight, maxLines: int): TitleLayout" href="knobby/button_media.html#layoutTitle%2Cstring%2CopenArray%5Bint%5D%2Cint%2Cint%2Cint">button_media: proc layoutTitle(title: string; sizes: openArray[int];
+            maxWidth, maxHeight, maxLines: int): TitleLayout</a></li>
           </ul></dd>
 <dt><a name="levelText" href="#levelText"><span>levelText:</span></a></dt><dd><ul class="simple">
 <li><a class="reference external"
@@ -394,6 +722,18 @@
 <li><a class="reference external"
           data-doc-search-tag="ipc: type LocalServer" href="knobby/ipc.html#LocalServer">ipc: type LocalServer</a></li>
           </ul></dd>
+<dt><a name="manifestContentKeys" href="#manifestContentKeys"><span>manifestContentKeys:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_media: proc manifestContentKeys(manifest: JsonNode): HashSet[string]" href="knobby/button_media.html#manifestContentKeys%2CJsonNode">button_media: proc manifestContentKeys(manifest: JsonNode): HashSet[string]</a></li>
+          </ul></dd>
+<dt><a name="manifestDirectory" href="#manifestDirectory"><span>manifestDirectory:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_config: proc manifestDirectory(paths: ButtonPaths): string" href="knobby/button_config.html#manifestDirectory%2CButtonPaths">button_config: proc manifestDirectory(paths: ButtonPaths): string</a></li>
+          </ul></dd>
+<dt><a name="ManifestVersion" href="#ManifestVersion"><span>ManifestVersion:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_media: const ManifestVersion" href="knobby/button_media.html#ManifestVersion">button_media: const ManifestVersion</a></li>
+          </ul></dd>
 <dt><a name="markProgress" href="#markProgress"><span>markProgress:</span></a></dt><dd><ul class="simple">
 <li><a class="reference external"
           data-doc-search-tag="common: proc markProgress()" href="knobby/common.html#markProgress">common: proc markProgress()</a></li>
@@ -416,13 +756,125 @@
 <li><a class="reference external"
           data-doc-search-tag="stream_deck: proc matchesStreamDeckIdentity(uevent: string): bool" href="knobby/stream_deck.html#matchesStreamDeckIdentity%2Cstring">stream_deck: proc matchesStreamDeckIdentity(uevent: string): bool</a></li>
           </ul></dd>
+<dt><a name="MaxAnimationMs" href="#MaxAnimationMs"><span>MaxAnimationMs:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_media: const MaxAnimationMs" href="knobby/button_media.html#MaxAnimationMs">button_media: const MaxAnimationMs</a></li>
+          </ul></dd>
+<dt><a name="MaxButtonActions" href="#MaxButtonActions"><span>MaxButtonActions:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_runtime: const MaxButtonActions" href="knobby/button_runtime.html#MaxButtonActions">button_runtime: const MaxButtonActions</a></li>
+          </ul></dd>
+<dt><a name="MaxChildStderrBytes" href="#MaxChildStderrBytes"><span>MaxChildStderrBytes:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_media: const MaxChildStderrBytes" href="knobby/button_media.html#MaxChildStderrBytes">button_media: const MaxChildStderrBytes</a></li>
+          </ul></dd>
+<dt><a name="MaxChildStdoutBytes" href="#MaxChildStdoutBytes"><span>MaxChildStdoutBytes:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_media: const MaxChildStdoutBytes" href="knobby/button_media.html#MaxChildStdoutBytes">button_media: const MaxChildStdoutBytes</a></li>
+          </ul></dd>
+<dt><a name="MaxCommandBytes" href="#MaxCommandBytes"><span>MaxCommandBytes:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_config: const MaxCommandBytes" href="knobby/button_config.html#MaxCommandBytes">button_config: const MaxCommandBytes</a></li>
+          </ul></dd>
+<dt><a name="MaxConfigBytes" href="#MaxConfigBytes"><span>MaxConfigBytes:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_config: const MaxConfigBytes" href="knobby/button_config.html#MaxConfigBytes">button_config: const MaxConfigBytes</a></li>
+          </ul></dd>
 <dt><a name="MaxFrameBytes" href="#MaxFrameBytes"><span>MaxFrameBytes:</span></a></dt><dd><ul class="simple">
 <li><a class="reference external"
           data-doc-search-tag="ipc: const MaxFrameBytes" href="knobby/ipc.html#MaxFrameBytes">ipc: const MaxFrameBytes</a></li>
           </ul></dd>
+<dt><a name="MaxFrameDurationMs" href="#MaxFrameDurationMs"><span>MaxFrameDurationMs:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="stream_deck_player: const MaxFrameDurationMs" href="knobby/stream_deck_player.html#MaxFrameDurationMs">stream_deck_player: const MaxFrameDurationMs</a></li>
+          </ul></dd>
+<dt><a name="MaxFramesPerKey" href="#MaxFramesPerKey"><span>MaxFramesPerKey:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="stream_deck_player: const MaxFramesPerKey" href="knobby/stream_deck_player.html#MaxFramesPerKey">stream_deck_player: const MaxFramesPerKey</a></li>
+          </ul></dd>
+<dt><a name="MaxFramesPerSecond" href="#MaxFramesPerSecond"><span>MaxFramesPerSecond:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_media: const MaxFramesPerSecond" href="knobby/button_media.html#MaxFramesPerSecond">button_media: const MaxFramesPerSecond</a></li>
+          </ul></dd>
+<dt><a name="MaxIdBytes" href="#MaxIdBytes"><span>MaxIdBytes:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_config: const MaxIdBytes" href="knobby/button_config.html#MaxIdBytes">button_config: const MaxIdBytes</a></li>
+          </ul></dd>
+<dt><a name="MaxMenus" href="#MaxMenus"><span>MaxMenus:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_config: const MaxMenus" href="knobby/button_config.html#MaxMenus">button_config: const MaxMenus</a></li>
+          </ul></dd>
+<dt><a name="MaxNavigationHistory" href="#MaxNavigationHistory"><span>MaxNavigationHistory:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_runtime: const MaxNavigationHistory" href="knobby/button_runtime.html#MaxNavigationHistory">button_runtime: const MaxNavigationHistory</a></li>
+          </ul></dd>
+<dt><a name="MaxPageImageBytes" href="#MaxPageImageBytes"><span>MaxPageImageBytes:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="stream_deck_player: const MaxPageImageBytes" href="knobby/stream_deck_player.html#MaxPageImageBytes">stream_deck_player: const MaxPageImageBytes</a></li>
+          </ul></dd>
 <dt><a name="MaxPendingButtons" href="#MaxPendingButtons"><span>MaxPendingButtons:</span></a></dt><dd><ul class="simple">
 <li><a class="reference external"
           data-doc-search-tag="daemon_workers: const MaxPendingButtons" href="knobby/daemon_workers.html#MaxPendingButtons">daemon_workers: const MaxPendingButtons</a></li>
+          </ul></dd>
+<dt><a name="MaxPreparedBytes" href="#MaxPreparedBytes"><span>MaxPreparedBytes:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_media: const MaxPreparedBytes" href="knobby/button_media.html#MaxPreparedBytes">button_media: const MaxPreparedBytes</a></li>
+          </ul></dd>
+<dt><a name="MaxPreparedJpegBytes" href="#MaxPreparedJpegBytes"><span>MaxPreparedJpegBytes:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="stream_deck_player: const MaxPreparedJpegBytes" href="knobby/stream_deck_player.html#MaxPreparedJpegBytes">stream_deck_player: const MaxPreparedJpegBytes</a></li>
+          </ul></dd>
+<dt><a name="MaxRecentOperations" href="#MaxRecentOperations"><span>MaxRecentOperations:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_runtime: const MaxRecentOperations" href="knobby/button_runtime.html#MaxRecentOperations">button_runtime: const MaxRecentOperations</a></li>
+          </ul></dd>
+<dt><a name="MaxRetainedManifests" href="#MaxRetainedManifests"><span>MaxRetainedManifests:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_runtime: const MaxRetainedManifests" href="knobby/button_runtime.html#MaxRetainedManifests">button_runtime: const MaxRetainedManifests</a></li>
+          </ul></dd>
+<dt><a name="MaxSourceBytes" href="#MaxSourceBytes"><span>MaxSourceBytes:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_media: const MaxSourceBytes" href="knobby/button_media.html#MaxSourceBytes">button_media: const MaxSourceBytes</a></li>
+          </ul></dd>
+<dt><a name="MaxSourceDimension" href="#MaxSourceDimension"><span>MaxSourceDimension:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_media: const MaxSourceDimension" href="knobby/button_media.html#MaxSourceDimension">button_media: const MaxSourceDimension</a></li>
+          </ul></dd>
+<dt><a name="MaxSourceFrames" href="#MaxSourceFrames"><span>MaxSourceFrames:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_media: const MaxSourceFrames" href="knobby/button_media.html#MaxSourceFrames">button_media: const MaxSourceFrames</a></li>
+          </ul></dd>
+<dt><a name="MaxTitleRunes" href="#MaxTitleRunes"><span>MaxTitleRunes:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_config: const MaxTitleRunes" href="knobby/button_config.html#MaxTitleRunes">button_config: const MaxTitleRunes</a></li>
+          </ul></dd>
+<dt><a name="MediaError" href="#MediaError"><span>MediaError:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_media: object MediaError" href="knobby/button_media.html#MediaError">button_media: object MediaError</a></li>
+          </ul></dd>
+<dt><a name="MediaHelperVersion" href="#MediaHelperVersion"><span>MediaHelperVersion:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_media: const MediaHelperVersion" href="knobby/button_media.html#MediaHelperVersion">button_media: const MediaHelperVersion</a></li>
+          </ul></dd>
+<dt><a name="MediaTimeoutError" href="#MediaTimeoutError"><span>MediaTimeoutError:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_media: object MediaTimeoutError" href="knobby/button_media.html#MediaTimeoutError">button_media: object MediaTimeoutError</a></li>
+          </ul></dd>
+<dt><a name="MenuAction" href="#MenuAction"><span>MenuAction:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_config: ConfigActionKind.MenuAction" href="knobby/button_config.html#MenuAction">button_config: ConfigActionKind.MenuAction</a></li>
+          </ul></dd>
+<dt><a name="menuAt" href="#menuAt"><span>menuAt:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_config: proc menuAt(config: JsonNode; id: string): JsonNode" href="knobby/button_config.html#menuAt%2CJsonNode%2Cstring">button_config: proc menuAt(config: JsonNode; id: string): JsonNode</a></li>
+          </ul></dd>
+<dt><a name="MenuPlan" href="#MenuPlan"><span>MenuPlan:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_media: object MenuPlan" href="knobby/button_media.html#MenuPlan">button_media: object MenuPlan</a></li>
+          </ul></dd>
+<dt><a name="MicrophonesAction" href="#MicrophonesAction"><span>MicrophonesAction:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_config: ConfigActionKind.MicrophonesAction" href="knobby/button_config.html#MicrophonesAction">button_config: ConfigActionKind.MicrophonesAction</a></li>
           </ul></dd>
 <dt><a name="MidiEvent" href="#MidiEvent"><span>MidiEvent:</span></a></dt><dd><ul class="simple">
 <li><a class="reference external"
@@ -436,6 +888,18 @@
 <li><a class="reference external"
           data-doc-search-tag="midi_monitor: proc midiMonitorUsage(): string" href="knobby/midi_monitor.html#midiMonitorUsage">midi_monitor: proc midiMonitorUsage(): string</a></li>
           </ul></dd>
+<dt><a name="missingKeyImage" href="#missingKeyImage"><span>missingKeyImage:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="stream_deck_page: proc missingKeyImage(): string" href="knobby/stream_deck_page.html#missingKeyImage">stream_deck_page: proc missingKeyImage(): string</a></li>
+          </ul></dd>
+<dt><a name="MixerDevice" href="#MixerDevice"><span>MixerDevice:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_config: ButtonDevice.MixerDevice" href="knobby/button_config.html#MixerDevice">button_config: ButtonDevice.MixerDevice</a></li>
+          </ul></dd>
+<dt><a name="MixerKeyCount" href="#MixerKeyCount"><span>MixerKeyCount:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_config: const MixerKeyCount" href="knobby/button_config.html#MixerKeyCount">button_config: const MixerKeyCount</a></li>
+          </ul></dd>
 <dt><a name="MixerStatus" href="#MixerStatus"><span>MixerStatus:</span></a></dt><dd><ul class="simple">
 <li><a class="reference external"
           data-doc-search-tag="status: object MixerStatus" href="knobby/status.html#MixerStatus">status: object MixerStatus</a></li>
@@ -443,10 +907,22 @@
 <dt><a name="monotonicMs" href="#monotonicMs"><span>monotonicMs:</span></a></dt><dd><ul class="simple">
 <li><a class="reference external"
           data-doc-search-tag="ipc: proc monotonicMs(): int64" href="knobby/ipc.html#monotonicMs">ipc: proc monotonicMs(): int64</a></li>
+          <li><a class="reference external"
+          data-doc-search-tag="stream_deck_player: proc monotonicMs(): int64" href="knobby/stream_deck_player.html#monotonicMs">stream_deck_player: proc monotonicMs(): int64</a></li>
           </ul></dd>
 <dt><a name="MousepadLightingState" href="#MousepadLightingState"><span>MousepadLightingState:</span></a></dt><dd><ul class="simple">
 <li><a class="reference external"
           data-doc-search-tag="razer_lighting: object MousepadLightingState" href="knobby/razer_lighting.html#MousepadLightingState">razer_lighting: object MousepadLightingState</a></li>
+          </ul></dd>
+<dt><a name="msUntilNextFrame" href="#msUntilNextFrame"><span>msUntilNextFrame:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="stream_deck_player: proc msUntilNextFrame(ends: openArray[int]; elapsedMs: int64): int64" href="knobby/stream_deck_player.html#msUntilNextFrame%2CopenArray%5Bint%5D%2Cint64">stream_deck_player: proc msUntilNextFrame(ends: openArray[int]; elapsedMs: int64): int64</a></li>
+          </ul></dd>
+<dt><a name="newButtonPaths" href="#newButtonPaths"><span>newButtonPaths:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_config: proc newButtonPaths(configDir = buttonConfigDirectory();
+               stateDir = buttonStateDirectory()): ButtonPaths" href="knobby/button_config.html#newButtonPaths">button_config: proc newButtonPaths(configDir = buttonConfigDirectory();
+               stateDir = buttonStateDirectory()): ButtonPaths</a></li>
           </ul></dd>
 <dt><a name="newDiscordRpcClient" href="#newDiscordRpcClient"><span>newDiscordRpcClient:</span></a></dt><dd><ul class="simple">
 <li><a class="reference external"
@@ -473,6 +949,10 @@
           data-doc-search-tag="stream_deck: proc newStreamDeckMonitor(readReport: proc (timeoutMs: int): string {.gcsafe.};
                      closeTransport: proc () {.gcsafe.}): StreamDeckMonitor" href="knobby/stream_deck.html#newStreamDeckMonitor%2Cproc%28int%29%2Cproc%29">stream_deck: proc newStreamDeckMonitor(readReport: proc (timeoutMs: int): string {.gcsafe.};
                      closeTransport: proc () {.gcsafe.}): StreamDeckMonitor</a></li>
+          </ul></dd>
+<dt><a name="NoAction" href="#NoAction"><span>NoAction:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_config: ConfigActionKind.NoAction" href="knobby/button_config.html#NoAction">button_config: ConfigActionKind.NoAction</a></li>
           </ul></dd>
 <dt><a name="NoteOff" href="#NoteOff"><span>NoteOff:</span></a></dt><dd><ul class="simple">
 <li><a class="reference external"
@@ -514,6 +994,12 @@
 <li><a class="reference external"
           data-doc-search-tag="stream_deck: proc openStreamDeckMonitor(path: string): StreamDeckMonitor" href="knobby/stream_deck.html#openStreamDeckMonitor%2Cstring">stream_deck: proc openStreamDeckMonitor(path: string): StreamDeckMonitor</a></li>
           </ul></dd>
+<dt><a name="OperationTimeoutMs" href="#OperationTimeoutMs"><span>OperationTimeoutMs:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_client: const OperationTimeoutMs" href="knobby/button_client.html#OperationTimeoutMs">button_client: const OperationTimeoutMs</a></li>
+          <li><a class="reference external"
+          data-doc-search-tag="button_media: const OperationTimeoutMs" href="knobby/button_media.html#OperationTimeoutMs">button_media: const OperationTimeoutMs</a></li>
+          </ul></dd>
 <dt><a name="OtherEvent" href="#OtherEvent"><span>OtherEvent:</span></a></dt><dd><ul class="simple">
 <li><a class="reference external"
           data-doc-search-tag="midi_events: MidiEventKind.OtherEvent" href="knobby/midi_events.html#OtherEvent">midi_events: MidiEventKind.OtherEvent</a></li>
@@ -521,6 +1007,16 @@
 <dt><a name="parseAudioStatus" href="#parseAudioStatus"><span>parseAudioStatus:</span></a></dt><dd><ul class="simple">
 <li><a class="reference external"
           data-doc-search-tag="audio_status: proc parseAudioStatus(data, defaultSink: string): AudioStatus" href="knobby/audio_status.html#parseAudioStatus%2Cstring%2Cstring">audio_status: proc parseAudioStatus(data, defaultSink: string): AudioStatus</a></li>
+          </ul></dd>
+<dt><a name="parseButtonSet" href="#parseButtonSet"><span>parseButtonSet:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_config: proc parseButtonSet(config: JsonNode): ButtonSet" href="knobby/button_config.html#parseButtonSet%2CJsonNode">button_config: proc parseButtonSet(config: JsonNode): ButtonSet</a></li>
+          </ul></dd>
+<dt><a name="parseConfigEnvelope" href="#parseConfigEnvelope"><span>parseConfigEnvelope:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_config: proc parseConfigEnvelope(node: JsonNode): tuple[baseRevision: string,
+    config: JsonNode]" href="knobby/button_config.html#parseConfigEnvelope%2CJsonNode">button_config: proc parseConfigEnvelope(node: JsonNode): tuple[baseRevision: string,
+    config: JsonNode]</a></li>
           </ul></dd>
 <dt><a name="parseKeyStates" href="#parseKeyStates"><span>parseKeyStates:</span></a></dt><dd><ul class="simple">
 <li><a class="reference external"
@@ -530,9 +1026,17 @@
 <li><a class="reference external"
           data-doc-search-tag="midi_events: proc parseMidiEvent(line: string): MidiEvent" href="knobby/midi_events.html#parseMidiEvent%2Cstring">midi_events: proc parseMidiEvent(line: string): MidiEvent</a></li>
           </ul></dd>
+<dt><a name="parsePacketDurations" href="#parsePacketDurations"><span>parsePacketDurations:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_media: proc parsePacketDurations(text: string; field = &quot;&quot;): seq[int]" href="knobby/button_media.html#parsePacketDurations%2Cstring%2Cstring">button_media: proc parsePacketDurations(text: string; field = &quot;&quot;): seq[int]</a></li>
+          </ul></dd>
 <dt><a name="parseSourceNames" href="#parseSourceNames"><span>parseSourceNames:</span></a></dt><dd><ul class="simple">
 <li><a class="reference external"
           data-doc-search-tag="actions: proc parseSourceNames(output: string): seq[string]" href="knobby/actions.html#parseSourceNames%2Cstring">actions: proc parseSourceNames(output: string): seq[string]</a></li>
+          </ul></dd>
+<dt><a name="parseStreamProbe" href="#parseStreamProbe"><span>parseStreamProbe:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_media: proc parseStreamProbe(kind: SourceKind; text: string; field = &quot;&quot;): SourceInfo" href="knobby/button_media.html#parseStreamProbe%2CSourceKind%2Cstring%2Cstring">button_media: proc parseStreamProbe(kind: SourceKind; text: string; field = &quot;&quot;): SourceInfo</a></li>
           </ul></dd>
 <dt><a name="Peer" href="#Peer"><span>Peer:</span></a></dt><dd><ul class="simple">
 <li><a class="reference external"
@@ -546,6 +1050,22 @@
 <li><a class="reference external"
           data-doc-search-tag="daemon_workers: object PendingActions" href="knobby/daemon_workers.html#PendingActions">daemon_workers: object PendingActions</a></li>
           </ul></dd>
+<dt><a name="planButtonMedia" href="#planButtonMedia"><span>planButtonMedia:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_media: proc planButtonMedia(config: JsonNode): seq[MenuPlan]" href="knobby/button_media.html#planButtonMedia%2CJsonNode">button_media: proc planButtonMedia(config: JsonNode): seq[MenuPlan]</a></li>
+          </ul></dd>
+<dt><a name="PlayerClock" href="#PlayerClock"><span>PlayerClock:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="stream_deck_player: type PlayerClock" href="knobby/stream_deck_player.html#PlayerClock">stream_deck_player: type PlayerClock</a></li>
+          </ul></dd>
+<dt><a name="PlayerOptions" href="#PlayerOptions"><span>PlayerOptions:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="stream_deck_player: object PlayerOptions" href="knobby/stream_deck_player.html#PlayerOptions">stream_deck_player: object PlayerOptions</a></li>
+          </ul></dd>
+<dt><a name="PngSource" href="#PngSource"><span>PngSource:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_media: SourceKind.PngSource" href="knobby/button_media.html#PngSource">button_media: SourceKind.PngSource</a></li>
+          </ul></dd>
 <dt><a name="pollKeys" href="#pollKeys"><span>pollKeys:</span></a></dt><dd><ul class="simple">
 <li><a class="reference external"
           data-doc-search-tag="stream_deck: proc pollKeys(deck: StreamDeck; timeoutMs = DefaultPollMs): seq[StreamDeckKeyEvent]" href="knobby/stream_deck.html#pollKeys%2CStreamDeck">stream_deck: proc pollKeys(deck: StreamDeck; timeoutMs = DefaultPollMs): seq[StreamDeckKeyEvent]</a></li>
@@ -558,6 +1078,24 @@
 <li><a class="reference external"
           data-doc-search-tag="ipc: proc pollRequests(server: LocalServer): seq[Request]" href="knobby/ipc.html#pollRequests%2CLocalServer">ipc: proc pollRequests(server: LocalServer): seq[Request]</a></li>
           </ul></dd>
+<dt><a name="prepareButtonMedia" href="#prepareButtonMedia"><span>prepareButtonMedia:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_media: proc prepareButtonMedia(config: JsonNode; configDir, cacheDir, fontPath: string;
+                   timeoutMs = OperationTimeoutMs): JsonNode" href="knobby/button_media.html#prepareButtonMedia%2CJsonNode%2Cstring%2Cstring%2Cstring">button_media: proc prepareButtonMedia(config: JsonNode; configDir, cacheDir, fontPath: string;
+                   timeoutMs = OperationTimeoutMs): JsonNode</a></li>
+          </ul></dd>
+<dt><a name="PreparedCleanup" href="#PreparedCleanup"><span>PreparedCleanup:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_media: object PreparedCleanup" href="knobby/button_media.html#PreparedCleanup">button_media: object PreparedCleanup</a></li>
+          </ul></dd>
+<dt><a name="preparedDirectory" href="#preparedDirectory"><span>preparedDirectory:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_config: proc preparedDirectory(paths: ButtonPaths): string" href="knobby/button_config.html#preparedDirectory%2CButtonPaths">button_config: proc preparedDirectory(paths: ButtonPaths): string</a></li>
+          </ul></dd>
+<dt><a name="PreparedGraceSeconds" href="#PreparedGraceSeconds"><span>PreparedGraceSeconds:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_media: const PreparedGraceSeconds" href="knobby/button_media.html#PreparedGraceSeconds">button_media: const PreparedGraceSeconds</a></li>
+          </ul></dd>
 <dt><a name="PressFlashMs" href="#PressFlashMs"><span>PressFlashMs:</span></a></dt><dd><ul class="simple">
 <li><a class="reference external"
           data-doc-search-tag="status: const PressFlashMs" href="knobby/status.html#PressFlashMs">status: const PressFlashMs</a></li>
@@ -565,6 +1103,18 @@
 <dt><a name="printAudioOutputStreams" href="#printAudioOutputStreams"><span>printAudioOutputStreams:</span></a></dt><dd><ul class="simple">
 <li><a class="reference external"
           data-doc-search-tag="audio_outputs: proc printAudioOutputStreams()" href="knobby/audio_outputs.html#printAudioOutputStreams">audio_outputs: proc printAudioOutputStreams()</a></li>
+          </ul></dd>
+<dt><a name="probeDurations" href="#probeDurations"><span>probeDurations:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_media: proc probeDurations(path: string; field = &quot;&quot;): seq[int]" href="knobby/button_media.html#probeDurations%2Cstring%2Cstring">button_media: proc probeDurations(path: string; field = &quot;&quot;): seq[int]</a></li>
+          </ul></dd>
+<dt><a name="probeSource" href="#probeSource"><span>probeSource:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_media: proc probeSource(path: string; kind: SourceKind; field = &quot;&quot;): SourceInfo" href="knobby/button_media.html#probeSource%2Cstring%2CSourceKind%2Cstring">button_media: proc probeSource(path: string; kind: SourceKind; field = &quot;&quot;): SourceInfo</a></li>
+          </ul></dd>
+<dt><a name="processConfigRequest" href="#processConfigRequest"><span>processConfigRequest:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_runtime: proc processConfigRequest(message: JsonNode): JsonNode" href="knobby/button_runtime.html#processConfigRequest%2CJsonNode">button_runtime: proc processConfigRequest(message: JsonNode): JsonNode</a></li>
           </ul></dd>
 <dt><a name="ProtocolVersion" href="#ProtocolVersion"><span>ProtocolVersion:</span></a></dt><dd><ul class="simple">
 <li><a class="reference external"
@@ -582,6 +1132,10 @@
 <li><a class="reference external"
           data-doc-search-tag="ipc: proc queueMessage(peer: Peer; message: JsonNode)" href="knobby/ipc.html#queueMessage%2CPeer%2CJsonNode">ipc: proc queueMessage(peer: Peer; message: JsonNode)</a></li>
           </ul></dd>
+<dt><a name="readDeckPage" href="#readDeckPage"><span>readDeckPage:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_runtime: proc readDeckPage(previousGeneration: int64): JsonNode" href="knobby/button_runtime.html#readDeckPage%2Cint64">button_runtime: proc readDeckPage(previousGeneration: int64): JsonNode</a></li>
+          </ul></dd>
 <dt><a name="readFaderPositions" href="#readFaderPositions"><span>readFaderPositions:</span></a></dt><dd><ul class="simple">
 <li><a class="reference external"
           data-doc-search-tag="status: proc readFaderPositions(): FaderPositions" href="knobby/status.html#readFaderPositions">status: proc readFaderPositions(): FaderPositions</a></li>
@@ -598,17 +1152,63 @@
 <li><a class="reference external"
           data-doc-search-tag="discord_rpc: proc refreshTokens(creds: var DiscordCreds)" href="knobby/discord_rpc.html#refreshTokens%2CDiscordCreds">discord_rpc: proc refreshTokens(creds: var DiscordCreds)</a></li>
           </ul></dd>
+<dt><a name="ReportDeferred" href="#ReportDeferred"><span>ReportDeferred:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="stream_deck: ReportWrite.ReportDeferred" href="knobby/stream_deck.html#ReportDeferred">stream_deck: ReportWrite.ReportDeferred</a></li>
+          </ul></dd>
+<dt><a name="ReportSent" href="#ReportSent"><span>ReportSent:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="stream_deck: ReportWrite.ReportSent" href="knobby/stream_deck.html#ReportSent">stream_deck: ReportWrite.ReportSent</a></li>
+          </ul></dd>
+<dt><a name="ReportWrite" href="#ReportWrite"><span>ReportWrite:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="stream_deck: enum ReportWrite" href="knobby/stream_deck.html#ReportWrite">stream_deck: enum ReportWrite</a></li>
+          </ul></dd>
 <dt><a name="Request" href="#Request"><span>Request:</span></a></dt><dd><ul class="simple">
 <li><a class="reference external"
           data-doc-search-tag="ipc: object Request" href="knobby/ipc.html#Request">ipc: object Request</a></li>
+          </ul></dd>
+<dt><a name="requestConfig" href="#requestConfig"><span>requestConfig:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_client: proc requestConfig(kind: string; payload: JsonNode = nil; path = daemonSocketPath();
+              timeoutMs = RequestTimeoutMs): JsonNode" href="knobby/button_client.html#requestConfig%2Cstring%2CJsonNode">button_client: proc requestConfig(kind: string; payload: JsonNode = nil; path = daemonSocketPath();
+              timeoutMs = RequestTimeoutMs): JsonNode</a></li>
           </ul></dd>
 <dt><a name="requestStop" href="#requestStop"><span>requestStop:</span></a></dt><dd><ul class="simple">
 <li><a class="reference external"
           data-doc-search-tag="runtime: proc requestStop()" href="knobby/runtime.html#requestStop">runtime: proc requestStop()</a></li>
           </ul></dd>
+<dt><a name="RequestTimeoutMs" href="#RequestTimeoutMs"><span>RequestTimeoutMs:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_client: const RequestTimeoutMs" href="knobby/button_client.html#RequestTimeoutMs">button_client: const RequestTimeoutMs</a></li>
+          </ul></dd>
+<dt><a name="requireConfigResult" href="#requireConfigResult"><span>requireConfigResult:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_client: proc requireConfigResult(reply: JsonNode): JsonNode" href="knobby/button_client.html#requireConfigResult%2CJsonNode">button_client: proc requireConfigResult(reply: JsonNode): JsonNode</a></li>
+          </ul></dd>
+<dt><a name="resetDeckInput" href="#resetDeckInput"><span>resetDeckInput:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_runtime: proc resetDeckInput()" href="knobby/button_runtime.html#resetDeckInput">button_runtime: proc resetDeckInput()</a></li>
+          </ul></dd>
 <dt><a name="resetMixerConnection" href="#resetMixerConnection"><span>resetMixerConnection:</span></a></dt><dd><ul class="simple">
 <li><a class="reference external"
           data-doc-search-tag="status: proc resetMixerConnection(state: var MixerStatus; port: string)" href="knobby/status.html#resetMixerConnection%2CMixerStatus%2Cstring">status: proc resetMixerConnection(state: var MixerStatus; port: string)</a></li>
+          </ul></dd>
+<dt><a name="resetMixerInput" href="#resetMixerInput"><span>resetMixerInput:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_runtime: proc resetMixerInput()" href="knobby/button_runtime.html#resetMixerInput">button_runtime: proc resetMixerInput()</a></li>
+          </ul></dd>
+<dt><a name="RootMenuId" href="#RootMenuId"><span>RootMenuId:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_config: const RootMenuId" href="knobby/button_config.html#RootMenuId">button_config: const RootMenuId</a></li>
+          </ul></dd>
+<dt><a name="routeDeckButton" href="#routeDeckButton"><span>routeDeckButton:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_runtime: proc routeDeckButton(keyIndex: int; pressed: bool)" href="knobby/button_runtime.html#routeDeckButton%2Cint%2Cbool">button_runtime: proc routeDeckButton(keyIndex: int; pressed: bool)</a></li>
+          </ul></dd>
+<dt><a name="routeMixerButton" href="#routeMixerButton"><span>routeMixerButton:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_runtime: proc routeMixerButton(note: int; pressed: bool)" href="knobby/button_runtime.html#routeMixerButton%2Cint%2Cbool">button_runtime: proc routeMixerButton(note: int; pressed: bool)</a></li>
           </ul></dd>
 <dt><a name="run" href="#run"><span>run:</span></a></dt><dd><ul class="simple">
 <li><a class="reference external"
@@ -618,9 +1218,29 @@
 <li><a class="reference external"
           data-doc-search-tag="common: proc runAudioCommand(command: string; args: seq[string]): string" href="knobby/common.html#runAudioCommand%2Cstring%2Cseq%5Bstring%5D">common: proc runAudioCommand(command: string; args: seq[string]): string</a></li>
           </ul></dd>
+<dt><a name="runButtonConfigCli" href="#runButtonConfigCli"><span>runButtonConfigCli:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_cli: proc runButtonConfigCli(args: seq[string])" href="knobby/button_cli.html#runButtonConfigCli%2Cseq%5Bstring%5D">button_cli: proc runButtonConfigCli(args: seq[string])</a></li>
+          </ul></dd>
 <dt><a name="runCommand" href="#runCommand"><span>runCommand:</span></a></dt><dd><ul class="simple">
 <li><a class="reference external"
           data-doc-search-tag="common: proc runCommand(command: string; args: seq[string]): string" href="knobby/common.html#runCommand%2Cstring%2Cseq%5Bstring%5D">common: proc runCommand(command: string; args: seq[string]): string</a></li>
+          </ul></dd>
+<dt><a name="runConfigOperation" href="#runConfigOperation"><span>runConfigOperation:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_client: proc runConfigOperation(kind: string; payload: JsonNode;
+                   timeoutMs = OperationTimeoutMs; path = daemonSocketPath()): JsonNode" href="knobby/button_client.html#runConfigOperation%2Cstring%2CJsonNode">button_client: proc runConfigOperation(kind: string; payload: JsonNode;
+                   timeoutMs = OperationTimeoutMs; path = daemonSocketPath()): JsonNode</a></li>
+          </ul></dd>
+<dt><a name="runConfiguredSession" href="#runConfiguredSession"><span>runConfiguredSession:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="stream_deck_player: proc runConfiguredSession(deck: StreamDeck; shouldStop: proc (): bool;
+                     onKey: proc (event: StreamDeckKeyEvent);
+                     readPage: proc (previousGeneration: int64): JsonNode;
+                     onReady: proc () = nil; options = defaultPlayerOptions())" href="knobby/stream_deck_player.html#runConfiguredSession%2CStreamDeck%2Cproc%29%2Cproc%28StreamDeckKeyEvent%29%2Cproc%28int64%29%2Cproc%29">stream_deck_player: proc runConfiguredSession(deck: StreamDeck; shouldStop: proc (): bool;
+                     onKey: proc (event: StreamDeckKeyEvent);
+                     readPage: proc (previousGeneration: int64): JsonNode;
+                     onReady: proc () = nil; options = defaultPlayerOptions())</a></li>
           </ul></dd>
 <dt><a name="runDemoSession" href="#runDemoSession"><span>runDemoSession:</span></a></dt><dd><ul class="simple">
 <li><a class="reference external"
@@ -654,9 +1274,19 @@
 <li><a class="reference external"
           data-doc-search-tag="ipc: proc runtimePath(directory, name: string): string" href="knobby/ipc.html#runtimePath%2Cstring%2Cstring">ipc: proc runtimePath(directory, name: string): string</a></li>
           </ul></dd>
+<dt><a name="runTool" href="#runTool"><span>runTool:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_media: proc runTool(args: seq[string]; timeoutMs = ChildTimeoutMs;
+        maxStdout = MaxChildStdoutBytes; maxStderr = MaxChildStderrBytes): string" href="knobby/button_media.html#runTool%2Cseq%5Bstring%5D">button_media: proc runTool(args: seq[string]; timeoutMs = ChildTimeoutMs;
+        maxStdout = MaxChildStdoutBytes; maxStderr = MaxChildStderrBytes): string</a></li>
+          </ul></dd>
 <dt><a name="saveDiscordCreds" href="#saveDiscordCreds"><span>saveDiscordCreds:</span></a></dt><dd><ul class="simple">
 <li><a class="reference external"
           data-doc-search-tag="discord_rpc: proc saveDiscordCreds(creds: DiscordCreds)" href="knobby/discord_rpc.html#saveDiscordCreds%2CDiscordCreds">discord_rpc: proc saveDiscordCreds(creds: DiscordCreds)</a></li>
+          </ul></dd>
+<dt><a name="selectFrames" href="#selectFrames"><span>selectFrames:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_media: proc selectFrames(durationsMs: seq[int]; field = &quot;&quot;): seq[FrameTiming]" href="knobby/button_media.html#selectFrames%2Cseq%5Bint%5D%2Cstring">button_media: proc selectFrames(durationsMs: seq[int]; field = &quot;&quot;): seq[FrameTiming]</a></li>
           </ul></dd>
 <dt><a name="serveState" href="#serveState"><span>serveState:</span></a></dt><dd><ul class="simple">
 <li><a class="reference external"
@@ -694,6 +1324,10 @@
 <li><a class="reference external"
           data-doc-search-tag="discord_rpc: proc setVoiceMute(client: DiscordRpcClient; muted: bool)" href="knobby/discord_rpc.html#setVoiceMute%2CDiscordRpcClient%2Cbool">discord_rpc: proc setVoiceMute(client: DiscordRpcClient; muted: bool)</a></li>
           </ul></dd>
+<dt><a name="sha256Hex" href="#sha256Hex"><span>sha256Hex:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_config: proc sha256Hex(data: string): string" href="knobby/button_config.html#sha256Hex%2Cstring">button_config: proc sha256Hex(data: string): string</a></li>
+          </ul></dd>
 <dt><a name="shouldApplyFader" href="#shouldApplyFader"><span>shouldApplyFader:</span></a></dt><dd><ul class="simple">
 <li><a class="reference external"
           data-doc-search-tag="actions: proc shouldApplyFader(lastValue, newValue: int): bool" href="knobby/actions.html#shouldApplyFader%2Cint%2Cint">actions: proc shouldApplyFader(lastValue, newValue: int): bool</a></li>
@@ -706,11 +1340,27 @@
 <li><a class="reference external"
           data-doc-search-tag="stream_deck: proc showLogo(deck: StreamDeck)" href="knobby/stream_deck.html#showLogo%2CStreamDeck">stream_deck: proc showLogo(deck: StreamDeck)</a></li>
           </ul></dd>
+<dt><a name="SourceInfo" href="#SourceInfo"><span>SourceInfo:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_media: object SourceInfo" href="knobby/button_media.html#SourceInfo">button_media: object SourceInfo</a></li>
+          </ul></dd>
+<dt><a name="SourceKind" href="#SourceKind"><span>SourceKind:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_media: enum SourceKind" href="knobby/button_media.html#SourceKind">button_media: enum SourceKind</a></li>
+          </ul></dd>
+<dt><a name="sourceKindFromBytes" href="#sourceKindFromBytes"><span>sourceKindFromBytes:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_media: proc sourceKindFromBytes(data: string; field = &quot;&quot;): SourceKind" href="knobby/button_media.html#sourceKindFromBytes%2Cstring%2Cstring">button_media: proc sourceKindFromBytes(data: string; field = &quot;&quot;): SourceKind</a></li>
+          </ul></dd>
 <dt><a name="spawnCommand" href="#spawnCommand"><span>spawnCommand:</span></a></dt><dd><ul class="simple">
 <li><a class="reference external"
           data-doc-search-tag="common: proc spawnCommand(command: string; args: seq[string];
              options: set[ProcessOption] = {poUsePath, poStdErrToStdOut}): Process" href="knobby/common.html#spawnCommand%2Cstring%2Cseq%5Bstring%5D%2Cset%5BProcessOption%5D">common: proc spawnCommand(command: string; args: seq[string];
              options: set[ProcessOption] = {poUsePath, poStdErrToStdOut}): Process</a></li>
+          </ul></dd>
+<dt><a name="startButtonWorker" href="#startButtonWorker"><span>startButtonWorker:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_runtime: proc startButtonWorker()" href="knobby/button_runtime.html#startButtonWorker">button_runtime: proc startButtonWorker()</a></li>
           </ul></dd>
 <dt><a name="startDeviceWorkers" href="#startDeviceWorkers"><span>startDeviceWorkers:</span></a></dt><dd><ul class="simple">
 <li><a class="reference external"
@@ -739,6 +1389,10 @@
 <dt><a name="StatusVersion" href="#StatusVersion"><span>StatusVersion:</span></a></dt><dd><ul class="simple">
 <li><a class="reference external"
           data-doc-search-tag="status: const StatusVersion" href="knobby/status.html#StatusVersion">status: const StatusVersion</a></li>
+          </ul></dd>
+<dt><a name="stopButtonWorker" href="#stopButtonWorker"><span>stopButtonWorker:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_runtime: proc stopButtonWorker()" href="knobby/button_runtime.html#stopButtonWorker">button_runtime: proc stopButtonWorker()</a></li>
           </ul></dd>
 <dt><a name="stopDeviceWorkers" href="#stopDeviceWorkers"><span>stopDeviceWorkers:</span></a></dt><dd><ul class="simple">
 <li><a class="reference external"
@@ -782,9 +1436,33 @@
 <li><a class="reference external"
           data-doc-search-tag="razer_lighting: proc syncMousepadLighting(state: var MousepadLightingState; run: BusctlRunner)" href="knobby/razer_lighting.html#syncMousepadLighting%2CMousepadLightingState%2CBusctlRunner">razer_lighting: proc syncMousepadLighting(state: var MousepadLightingState; run: BusctlRunner)</a></li>
           </ul></dd>
+<dt><a name="takeButtonActions" href="#takeButtonActions"><span>takeButtonActions:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_runtime: proc takeButtonActions(): seq[JsonNode]" href="knobby/button_runtime.html#takeButtonActions">button_runtime: proc takeButtonActions(): seq[JsonNode]</a></li>
+          </ul></dd>
 <dt><a name="takeMessage" href="#takeMessage"><span>takeMessage:</span></a></dt><dd><ul class="simple">
 <li><a class="reference external"
           data-doc-search-tag="ipc: proc takeMessage(buffer: var string): Option[JsonNode]" href="knobby/ipc.html#takeMessage%2Cstring">ipc: proc takeMessage(buffer: var string): Option[JsonNode]</a></li>
+          </ul></dd>
+<dt><a name="TargetBoth" href="#TargetBoth"><span>TargetBoth:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_config: ButtonTarget.TargetBoth" href="knobby/button_config.html#TargetBoth">button_config: ButtonTarget.TargetBoth</a></li>
+          </ul></dd>
+<dt><a name="TargetDeck" href="#TargetDeck"><span>TargetDeck:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_config: ButtonTarget.TargetDeck" href="knobby/button_config.html#TargetDeck">button_config: ButtonTarget.TargetDeck</a></li>
+          </ul></dd>
+<dt><a name="TargetMixer" href="#TargetMixer"><span>TargetMixer:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_config: ButtonTarget.TargetMixer" href="knobby/button_config.html#TargetMixer">button_config: ButtonTarget.TargetMixer</a></li>
+          </ul></dd>
+<dt><a name="TitleKey" href="#TitleKey"><span>TitleKey:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_media: KeyPlanKind.TitleKey" href="knobby/button_media.html#TitleKey">button_media: KeyPlanKind.TitleKey</a></li>
+          </ul></dd>
+<dt><a name="TitleLayout" href="#TitleLayout"><span>TitleLayout:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_media: object TitleLayout" href="knobby/button_media.html#TitleLayout">button_media: object TitleLayout</a></li>
           </ul></dd>
 <dt><a name="ToggleDiscord" href="#ToggleDiscord"><span>ToggleDiscord:</span></a></dt><dd><ul class="simple">
 <li><a class="reference external"
@@ -798,23 +1476,49 @@
 <li><a class="reference external"
           data-doc-search-tag="bindings: ButtonAction.ToggleMicrophones" href="knobby/bindings.html#ToggleMicrophones">bindings: ButtonAction.ToggleMicrophones</a></li>
           </ul></dd>
+<dt><a name="trySendReport" href="#trySendReport"><span>trySendReport:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="stream_deck: proc trySendReport(deck: StreamDeck; report: string): ReportWrite" href="knobby/stream_deck.html#trySendReport%2CStreamDeck%2Cstring">stream_deck: proc trySendReport(deck: StreamDeck; report: string): ReportWrite</a></li>
+          </ul></dd>
 <dt><a name="Unassigned" href="#Unassigned"><span>Unassigned:</span></a></dt><dd><ul class="simple">
 <li><a class="reference external"
           data-doc-search-tag="bindings: ButtonAction.Unassigned" href="knobby/bindings.html#Unassigned">bindings: ButtonAction.Unassigned</a></li>
+          </ul></dd>
+<dt><a name="UnassignedTitle" href="#UnassignedTitle"><span>UnassignedTitle:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_config: const UnassignedTitle" href="knobby/button_config.html#UnassignedTitle">button_config: const UnassignedTitle</a></li>
           </ul></dd>
 <dt><a name="UnknownFaders" href="#UnknownFaders"><span>UnknownFaders:</span></a></dt><dd><ul class="simple">
 <li><a class="reference external"
           data-doc-search-tag="fader_cache: const UnknownFaders" href="knobby/fader_cache.html#UnknownFaders">fader_cache: const UnknownFaders</a></li>
           </ul></dd>
+<dt><a name="validateButtonConfig" href="#validateButtonConfig"><span>validateButtonConfig:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_config: proc validateButtonConfig(config: JsonNode)" href="knobby/button_config.html#validateButtonConfig%2CJsonNode">button_config: proc validateButtonConfig(config: JsonNode)</a></li>
+          </ul></dd>
+<dt><a name="waitConfigOperation" href="#waitConfigOperation"><span>waitConfigOperation:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_client: proc waitConfigOperation(id: string; timeoutMs = OperationTimeoutMs;
+                    path = daemonSocketPath()): JsonNode" href="knobby/button_client.html#waitConfigOperation%2Cstring">button_client: proc waitConfigOperation(id: string; timeoutMs = OperationTimeoutMs;
+                    path = daemonSocketPath()): JsonNode</a></li>
+          </ul></dd>
+<dt><a name="withOperationDeadline" href="#withOperationDeadline"><span>withOperationDeadline:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_media: template withOperationDeadline(timeoutMs: int; body: untyped)" href="knobby/button_media.html#withOperationDeadline.t%2Cint%2Cuntyped">button_media: template withOperationDeadline(timeoutMs: int; body: untyped)</a></li>
+          </ul></dd>
 <dt><a name="writeFaderCache" href="#writeFaderCache"><span>writeFaderCache:</span></a></dt><dd><ul class="simple">
 <li><a class="reference external"
           data-doc-search-tag="fader_cache: proc writeFaderCache(path: string; positions: FaderPositions)" href="knobby/fader_cache.html#writeFaderCache%2Cstring%2CFaderPositions">fader_cache: proc writeFaderCache(path: string; positions: FaderPositions)</a></li>
+          </ul></dd>
+<dt><a name="writeFileAtomic" href="#writeFileAtomic"><span>writeFileAtomic:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_config: proc writeFileAtomic(path, content: string)" href="knobby/button_config.html#writeFileAtomic%2Cstring%2Cstring">button_config: proc writeFileAtomic(path, content: string)</a></li>
           </ul></dd>
 </dl>
       <div class="twelve-columns footer">
         <span class="nim-sprite"></span>
         <br>
-        <small style="color: var(--hint);">Made with Nim. Generated: 2026-11-17 06:50:45 UTC</small>
+        <small style="color: var(--hint);">Made with Nim. Generated: 2026-11-17 07:54:14 UTC</small>
       </div>
     </div>
   </div>

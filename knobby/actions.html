@@ -68,7 +68,11 @@
   <details open>
     <summary><a class="reference reference-toplevel" href="#12" id="62">Procs</a></summary>
     <ul class="simple simple-toc-section">
-      <ul class="simple nested-toc-section">faderPercent
+      <ul class="simple nested-toc-section">executeButtonAction
+  <li><a class="reference" href="#executeButtonAction%2CJsonNode" title="executeButtonAction(action: JsonNode)">executeButtonAction(action: JsonNode)</a></li>
+
+</ul>
+<ul class="simple nested-toc-section">faderPercent
   <li><a class="reference" href="#faderPercent%2Cint" title="faderPercent(value: int): int">faderPercent(value: int): int</a></li>
 
 </ul>
@@ -158,7 +162,23 @@
 <div class="section" id="12">
   <h1><a class="toc-backref" href="#12">Procs</a></h1>
   <dl class="item">
-    <div id="faderPercent-procs-all">
+    <div id="executeButtonAction-procs-all">
+  <div id="executeButtonAction,JsonNode">
+  <dt><pre><span class="Keyword">proc</span> <a href="#executeButtonAction%2CJsonNode"><span class="Identifier">executeButtonAction</span></a><span class="Other">(</span><span class="Identifier">action</span><span class="Other">:</span> <span class="Identifier">JsonNode</span><span class="Other">)</span> {.
+    <span><span class="Other pragmadots">...</span></span><span class="pragmawrap"><span class="Identifier">raises</span><span class="Other">:</span> <span class="Other">[</span><span class="Identifier">OSError</span><span class="Other">,</span> <span class="Identifier">IOError</span><span class="Other">,</span> <span class="Identifier">ValueError</span><span class="Other">,</span> <span class="Identifier">KeyError</span><span class="Other">,</span> <span class="Identifier">Exception</span><span class="Other">]</span><span class="Other">,</span> <span class="Identifier">tags</span><span class="Other">:</span> <span class="Other">[</span>
+    <span class="Identifier">ExecIOEffect</span><span class="Other">,</span> <span class="Identifier">ReadEnvEffect</span><span class="Other">,</span> <span class="Identifier">RootEffect</span><span class="Other">,</span> <span class="Identifier">TimeEffect</span><span class="Other">,</span> <span class="Identifier">WriteIOEffect</span><span class="Other">,</span>
+    <span class="Identifier">ReadIOEffect</span><span class="Other">,</span> <span class="Identifier">ReadDirEffect</span><span class="Other">,</span> <span class="Identifier">WriteDirEffect</span><span class="Other">]</span><span class="Other">,</span> <span class="Identifier">forbids</span><span class="Other">:</span> <span class="Other">[</span><span class="Other">]</span></span>.}</pre></dt>
+  <dd>
+    
+    Execute an already-resolved button action without consulting the current menu.
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/actions.nim#L209" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/actions.nim#L209" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+
+  </dd>
+</div>
+
+</div>
+<div id="faderPercent-procs-all">
   <div id="faderPercent,int">
   <dt><pre><span class="Keyword">proc</span> <a href="#faderPercent%2Cint"><span class="Identifier">faderPercent</span></a><span class="Other">(</span><span class="Identifier">value</span><span class="Other">:</span> <span class="Identifier">int</span><span class="Other">)</span><span class="Other">:</span> <span class="Identifier">int</span> {.<span><span class="Other pragmadots">...</span></span><span class="pragmawrap"><span class="Identifier">raises</span><span class="Other">:</span> <span class="Other">[</span><span class="Other">]</span><span class="Other">,</span> <span class="Identifier">tags</span><span class="Other">:</span> <span class="Other">[</span><span class="Other">]</span><span class="Other">,</span> <span class="Identifier">forbids</span><span class="Other">:</span> <span class="Other">[</span><span class="Other">]</span></span>.}</pre></dt>
   <dd>
@@ -178,8 +198,8 @@
   <dd>
     
     Reduce a batch of events to the newest value per fader, so a burst of movement applies the final position instead of replaying the sweep.
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/actions.nim#L233" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/actions.nim#L233" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/actions.nim#L242" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/actions.nim#L242" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -194,8 +214,8 @@
   <dd>
     
     Dispatch a batch of parsed MIDI events, coalescing fader moves.
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/actions.nim#L240" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/actions.nim#L240" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/actions.nim#L249" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/actions.nim#L249" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -210,8 +230,8 @@
   <dd>
     
     Dispatch one parsed MIDI event to its bound action.
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/actions.nim#L248" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/actions.nim#L248" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/actions.nim#L257" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/actions.nim#L257" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -223,8 +243,8 @@
   <dd>
     
     Report whether <tt class="docutils literal"><span class="pre"><span class="Identifier">pactl</span> <span class="Identifier">get</span><span class="Operator">-</span><span class="Identifier">source</span><span class="Operator">-</span><span class="Identifier">mute</span></span></tt> output says the source is muted.
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/actions.nim#L164" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/actions.nim#L164" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/actions.nim#L161" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/actions.nim#L161" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -263,8 +283,8 @@
   <dd>
     
     Parse source names from <tt class="docutils literal"><span class="pre"><span class="Identifier">pactl</span> <span class="Identifier">list</span> <span class="Identifier">short</span> <span class="Identifier">sources</span></span></tt>, skipping the monitor sources that mirror output sinks.
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/actions.nim#L156" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/actions.nim#L156" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/actions.nim#L153" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/actions.nim#L153" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -329,7 +349,7 @@
       <div class="twelve-columns footer">
         <span class="nim-sprite"></span>
         <br>
-        <small style="color: var(--hint);">Made with Nim. Generated: 2026-11-17 06:50:45 UTC</small>
+        <small style="color: var(--hint);">Made with Nim. Generated: 2026-11-17 07:54:14 UTC</small>
       </div>
     </div>
   </div>

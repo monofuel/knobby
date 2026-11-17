@@ -1,0 +1,9 @@
+nimTitle	button_client	knobby/button_client.html	module knobby/button_client		0
+nim	ConfigRequestError	knobby/button_client.html#ConfigRequestError	object ConfigRequestError		6
+nim	RequestTimeoutMs	knobby/button_client.html#RequestTimeoutMs	const RequestTimeoutMs		10
+nim	OperationTimeoutMs	knobby/button_client.html#OperationTimeoutMs	const OperationTimeoutMs		11
+nim	daemonSocketPath	knobby/button_client.html#daemonSocketPath	proc daemonSocketPath(): string		20
+nim	requestConfig	knobby/button_client.html#requestConfig,string,JsonNode	proc requestConfig(kind: string; payload: JsonNode = nil; path = daemonSocketPath();\n              timeoutMs = RequestTimeoutMs): JsonNode		24
+nim	waitConfigOperation	knobby/button_client.html#waitConfigOperation,string	proc waitConfigOperation(id: string; timeoutMs = OperationTimeoutMs;\n                    path = daemonSocketPath()): JsonNode		55
+nim	requireConfigResult	knobby/button_client.html#requireConfigResult,JsonNode	proc requireConfigResult(reply: JsonNode): JsonNode		89
+nim	runConfigOperation	knobby/button_client.html#runConfigOperation,string,JsonNode	proc runConfigOperation(kind: string; payload: JsonNode;\n                   timeoutMs = OperationTimeoutMs; path = daemonSocketPath()): JsonNode		95

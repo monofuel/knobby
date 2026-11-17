@@ -1,25 +1,25 @@
 nimTitle	status	knobby/status.html	module knobby/status		0
 nim	MixerStatus	knobby/status.html#MixerStatus	object MixerStatus		6
 nim	StatusSnapshot	knobby/status.html#StatusSnapshot	object StatusSnapshot		12
-nim	StatusVersion	knobby/status.html#StatusVersion	const StatusVersion		27
-nim	StatusStaleMs	knobby/status.html#StatusStaleMs	const StatusStaleMs		28
-nim	PressFlashMs	knobby/status.html#PressFlashMs	const PressFlashMs		29
-nim	nowMs	knobby/status.html#nowMs	proc nowMs(): int64		37
-nim	emptyMixer	knobby/status.html#emptyMixer	proc emptyMixer(): MixerStatus		41
-nim	initializeState	knobby/status.html#initializeState,string	proc initializeState(session: string; faders = UnknownFaders)		45
-nim	readFaderPositions	knobby/status.html#readFaderPositions	proc readFaderPositions(): FaderPositions		52
-nim	readKnobbyState	knobby/status.html#readKnobbyState	proc readKnobbyState(): StatusSnapshot		57
-nim	applyMidi	knobby/status.html#applyMidi,MixerStatus,MidiEvent,int64	proc applyMidi(state: var MixerStatus; event: MidiEvent; timeMs: int64)		64
-nim	resetMixerConnection	knobby/status.html#resetMixerConnection,MixerStatus,string	proc resetMixerConnection(state: var MixerStatus; port: string)		78
-nim	setMixerPort	knobby/status.html#setMixerPort,string	proc setMixerPort(port: string)		82
-nim	observeMidi	knobby/status.html#observeMidi,openArray[MidiEvent]	proc observeMidi(events: openArray[MidiEvent])		88
-nim	setDeckConnection	knobby/status.html#setDeckConnection,bool,string	proc setDeckConnection(connected: bool; error = "")		94
-nim	observeDeck	knobby/status.html#observeDeck,StreamDeckKeyEvent	proc observeDeck(event: StreamDeckKeyEvent)		104
-nim	setAudioState	knobby/status.html#setAudioState,AudioStatus,array[,seq[AudioLevel]]	proc setAudioState(audio: AudioStatus; targets: array[3, seq[AudioLevel]])		111
-nim	setComponentError	knobby/status.html#setComponentError,string,string	proc setComponentError(component, message: string)		120
-nim	setMousepadPresence	knobby/status.html#setMousepadPresence,bool	proc setMousepadPresence(present: bool)		130
-nim	encodeState	knobby/status.html#encodeState,StatusSnapshot	proc encodeState(state: StatusSnapshot): JsonNode		135
-nim	encodeSnapshot	knobby/status.html#encodeSnapshot,MixerStatus,string,int64	proc encodeSnapshot(state: MixerStatus; session: string; timeMs: int64): string		139
-nim	decodeSnapshot	knobby/status.html#decodeSnapshot,string	proc decodeSnapshot(data: string): StatusSnapshot		144
-nim	isFresh	knobby/status.html#isFresh,int64,int64	proc isFresh(receivedMs, timeMs: int64): bool		169
-nim	buttonLit	knobby/status.html#buttonLit,bool,int64,int64	proc buttonLit(held: bool; pressedMs, timeMs: int64): bool		173
+nim	StatusVersion	knobby/status.html#StatusVersion	const StatusVersion		28
+nim	StatusStaleMs	knobby/status.html#StatusStaleMs	const StatusStaleMs		29
+nim	PressFlashMs	knobby/status.html#PressFlashMs	const PressFlashMs		30
+nim	nowMs	knobby/status.html#nowMs	proc nowMs(): int64		38
+nim	emptyMixer	knobby/status.html#emptyMixer	proc emptyMixer(): MixerStatus		42
+nim	initializeState	knobby/status.html#initializeState,string	proc initializeState(session: string; faders = UnknownFaders)		46
+nim	readFaderPositions	knobby/status.html#readFaderPositions	proc readFaderPositions(): FaderPositions		53
+nim	readKnobbyState	knobby/status.html#readKnobbyState	proc readKnobbyState(): StatusSnapshot		58
+nim	applyMidi	knobby/status.html#applyMidi,MixerStatus,MidiEvent,int64	proc applyMidi(state: var MixerStatus; event: MidiEvent; timeMs: int64)		68
+nim	resetMixerConnection	knobby/status.html#resetMixerConnection,MixerStatus,string	proc resetMixerConnection(state: var MixerStatus; port: string)		82
+nim	setMixerPort	knobby/status.html#setMixerPort,string	proc setMixerPort(port: string)		86
+nim	observeMidi	knobby/status.html#observeMidi,openArray[MidiEvent]	proc observeMidi(events: openArray[MidiEvent])		93
+nim	setDeckConnection	knobby/status.html#setDeckConnection,bool,string	proc setDeckConnection(connected: bool; error = "")		99
+nim	observeDeck	knobby/status.html#observeDeck,StreamDeckKeyEvent	proc observeDeck(event: StreamDeckKeyEvent)		109
+nim	setAudioState	knobby/status.html#setAudioState,AudioStatus,array[,seq[AudioLevel]]	proc setAudioState(audio: AudioStatus; targets: array[3, seq[AudioLevel]])		116
+nim	setComponentError	knobby/status.html#setComponentError,string,string	proc setComponentError(component, message: string)		125
+nim	setMousepadPresence	knobby/status.html#setMousepadPresence,bool	proc setMousepadPresence(present: bool)		135
+nim	encodeState	knobby/status.html#encodeState,StatusSnapshot	proc encodeState(state: StatusSnapshot): JsonNode		140
+nim	encodeSnapshot	knobby/status.html#encodeSnapshot,MixerStatus,string,int64	proc encodeSnapshot(state: MixerStatus; session: string; timeMs: int64): string		147
+nim	decodeSnapshot	knobby/status.html#decodeSnapshot,string	proc decodeSnapshot(data: string): StatusSnapshot		152
+nim	isFresh	knobby/status.html#isFresh,int64,int64	proc isFresh(receivedMs, timeMs: int64): bool		177
+nim	buttonLit	knobby/status.html#buttonLit,bool,int64,int64	proc buttonLit(held: bool; pressedMs, timeMs: int64): bool		181

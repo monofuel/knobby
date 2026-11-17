@@ -58,7 +58,23 @@
   <details open>
     <summary><a class="reference reference-toplevel" href="#12" id="62">Procs</a></summary>
     <ul class="simple simple-toc-section">
-      <ul class="simple nested-toc-section">runDemoSession
+      <ul class="simple nested-toc-section">blankKeyImage
+  <li><a class="reference" href="#blankKeyImage" title="blankKeyImage(): string">blankKeyImage(): string</a></li>
+
+</ul>
+<ul class="simple nested-toc-section">builtinNormalImage
+  <li><a class="reference" href="#builtinNormalImage%2Cint" title="builtinNormalImage(number: int): string">builtinNormalImage(number: int): string</a></li>
+
+</ul>
+<ul class="simple nested-toc-section">builtinPressedImage
+  <li><a class="reference" href="#builtinPressedImage%2Cint" title="builtinPressedImage(number: int): string">builtinPressedImage(number: int): string</a></li>
+
+</ul>
+<ul class="simple nested-toc-section">missingKeyImage
+  <li><a class="reference" href="#missingKeyImage" title="missingKeyImage(): string">missingKeyImage(): string</a></li>
+
+</ul>
+<ul class="simple nested-toc-section">runDemoSession
   <li><a class="reference" href="#runDemoSession%2CStreamDeck%2Cproc%29%2Cproc%28StreamDeckKeyEvent%29%2Cproc%29" title="runDemoSession(deck: StreamDeck; shouldStop: proc (): bool;
                onKey: proc (event: StreamDeckKeyEvent); onReady: proc () = nil)">runDemoSession(deck: StreamDeck; shouldStop: proc (): bool;
                onKey: proc (event: StreamDeckKeyEvent); onReady: proc () = nil)</a></li>
@@ -88,18 +104,72 @@
 <div class="section" id="12">
   <h1><a class="toc-backref" href="#12">Procs</a></h1>
   <dl class="item">
-    <div id="runDemoSession-procs-all">
+    <div id="blankKeyImage-procs-all">
+  <div id="blankKeyImage">
+  <dt><pre><span class="Keyword">proc</span> <a href="#blankKeyImage"><span class="Identifier">blankKeyImage</span></a><span class="Other">(</span><span class="Other">)</span><span class="Other">:</span> <span class="Identifier">string</span> {.<span><span class="Other pragmadots">...</span></span><span class="pragmawrap"><span class="Identifier">raises</span><span class="Other">:</span> <span class="Other">[</span><span class="Other">]</span><span class="Other">,</span> <span class="Identifier">tags</span><span class="Other">:</span> <span class="Other">[</span><span class="Other">]</span><span class="Other">,</span> <span class="Identifier">forbids</span><span class="Other">:</span> <span class="Other">[</span><span class="Other">]</span></span>.}</pre></dt>
+  <dd>
+    
+    Return the embedded black JPEG shown on unassigned keys.
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/stream_deck_page.nim#L32" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/stream_deck_page.nim#L32" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+
+  </dd>
+</div>
+
+</div>
+<div id="builtinNormalImage-procs-all">
+  <div id="builtinNormalImage,int">
+  <dt><pre><span class="Keyword">proc</span> <a href="#builtinNormalImage%2Cint"><span class="Identifier">builtinNormalImage</span></a><span class="Other">(</span><span class="Identifier">number</span><span class="Other">:</span> <span class="Identifier">int</span><span class="Other">)</span><span class="Other">:</span> <span class="Identifier">string</span> {.<span><span class="Other pragmadots">...</span></span><span class="pragmawrap"><span class="Identifier">raises</span><span class="Other">:</span> <span class="Other">[</span><span class="Identifier">ValueError</span><span class="Other">]</span><span class="Other">,</span> <span class="Identifier">tags</span><span class="Other">:</span> <span class="Other">[</span><span class="Other">]</span><span class="Other">,</span>
+    <span class="Identifier">forbids</span><span class="Other">:</span> <span class="Other">[</span><span class="Other">]</span></span>.}</pre></dt>
+  <dd>
+    
+    Return the embedded numbered key JPEG for a one-based key number.
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/stream_deck_page.nim#L20" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/stream_deck_page.nim#L20" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+
+  </dd>
+</div>
+
+</div>
+<div id="builtinPressedImage-procs-all">
+  <div id="builtinPressedImage,int">
+  <dt><pre><span class="Keyword">proc</span> <a href="#builtinPressedImage%2Cint"><span class="Identifier">builtinPressedImage</span></a><span class="Other">(</span><span class="Identifier">number</span><span class="Other">:</span> <span class="Identifier">int</span><span class="Other">)</span><span class="Other">:</span> <span class="Identifier">string</span> {.<span><span class="Other pragmadots">...</span></span><span class="pragmawrap"><span class="Identifier">raises</span><span class="Other">:</span> <span class="Other">[</span><span class="Identifier">ValueError</span><span class="Other">]</span><span class="Other">,</span> <span class="Identifier">tags</span><span class="Other">:</span> <span class="Other">[</span><span class="Other">]</span><span class="Other">,</span>
+    <span class="Identifier">forbids</span><span class="Other">:</span> <span class="Other">[</span><span class="Other">]</span></span>.}</pre></dt>
+  <dd>
+    
+    Return the embedded pressed numbered key JPEG for a one-based key number.
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/stream_deck_page.nim#L26" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/stream_deck_page.nim#L26" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+
+  </dd>
+</div>
+
+</div>
+<div id="missingKeyImage-procs-all">
+  <div id="missingKeyImage">
+  <dt><pre><span class="Keyword">proc</span> <a href="#missingKeyImage"><span class="Identifier">missingKeyImage</span></a><span class="Other">(</span><span class="Other">)</span><span class="Other">:</span> <span class="Identifier">string</span> {.<span><span class="Other pragmadots">...</span></span><span class="pragmawrap"><span class="Identifier">raises</span><span class="Other">:</span> <span class="Other">[</span><span class="Other">]</span><span class="Other">,</span> <span class="Identifier">tags</span><span class="Other">:</span> <span class="Other">[</span><span class="Other">]</span><span class="Other">,</span> <span class="Identifier">forbids</span><span class="Other">:</span> <span class="Other">[</span><span class="Other">]</span></span>.}</pre></dt>
+  <dd>
+    
+    Return the embedded JPEG shown when a key's prepared media cannot be used.
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/stream_deck_page.nim#L36" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/stream_deck_page.nim#L36" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+
+  </dd>
+</div>
+
+</div>
+<div id="runDemoSession-procs-all">
   <div id="runDemoSession,StreamDeck,proc),proc(StreamDeckKeyEvent),proc)">
   <dt><pre><span class="Keyword">proc</span> <a href="#runDemoSession%2CStreamDeck%2Cproc%29%2Cproc%28StreamDeckKeyEvent%29%2Cproc%29"><span class="Identifier">runDemoSession</span></a><span class="Other">(</span><span class="Identifier">deck</span><span class="Other">:</span> <a href="stream_deck.html#StreamDeck"><span class="Identifier">StreamDeck</span></a><span class="Other">;</span> <span class="Identifier">shouldStop</span><span class="Other">:</span> <span class="Keyword">proc</span> <span class="Other">(</span><span class="Other">)</span><span class="Other">:</span> <span class="Identifier">bool</span><span class="Other">;</span>
                     <span class="Identifier">onKey</span><span class="Other">:</span> <span class="Keyword">proc</span> <span class="Other">(</span><span class="Identifier">event</span><span class="Other">:</span> <a href="stream_deck.html#StreamDeckKeyEvent"><span class="Identifier">StreamDeckKeyEvent</span></a><span class="Other">)</span><span class="Other">;</span>
                     <span class="Identifier">onReady</span><span class="Other">:</span> <span class="Keyword">proc</span> <span class="Other">(</span><span class="Other">)</span> <span class="Other">=</span> <span class="Keyword">nil</span><span class="Other">)</span> {.
-    <span><span class="Other pragmadots">...</span></span><span class="pragmawrap"><span class="Identifier">raises</span><span class="Other">:</span> <span class="Other">[</span><span class="Identifier">Exception</span><span class="Other">,</span> <span class="Identifier">IOError</span><span class="Other">,</span> <span class="Identifier">ValueError</span><span class="Other">]</span><span class="Other">,</span> <span class="Identifier">tags</span><span class="Other">:</span> <span class="Other">[</span><span class="Identifier">RootEffect</span><span class="Other">,</span> <span class="Identifier">WriteIOEffect</span><span class="Other">]</span><span class="Other">,</span>
-    <span class="Identifier">forbids</span><span class="Other">:</span> <span class="Other">[</span><span class="Other">]</span></span>.}</pre></dt>
+    <span><span class="Other pragmadots">...</span></span><span class="pragmawrap"><span class="Identifier">raises</span><span class="Other">:</span> <span class="Other">[</span><span class="Identifier">Exception</span><span class="Other">,</span> <span class="Identifier">IOError</span><span class="Other">,</span> <span class="Identifier">ValueError</span><span class="Other">]</span><span class="Other">,</span>
+    <span class="Identifier">tags</span><span class="Other">:</span> <span class="Other">[</span><span class="Identifier">RootEffect</span><span class="Other">,</span> <span class="Identifier">WriteIOEffect</span><span class="Other">,</span> <span class="Identifier">TimeEffect</span><span class="Other">]</span><span class="Other">,</span> <span class="Identifier">forbids</span><span class="Other">:</span> <span class="Other">[</span><span class="Other">]</span></span>.}</pre></dt>
   <dd>
     
     Own the numbered page until stopped; close without masking an earlier failure.
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/stream_deck_page.nim#L18" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/stream_deck_page.nim#L18" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/stream_deck_page.nim#L40" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/stream_deck_page.nim#L40" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -115,7 +185,7 @@
       <div class="twelve-columns footer">
         <span class="nim-sprite"></span>
         <br>
-        <small style="color: var(--hint);">Made with Nim. Generated: 2026-11-17 06:50:45 UTC</small>
+        <small style="color: var(--hint);">Made with Nim. Generated: 2026-11-17 07:54:14 UTC</small>
       </div>
     </div>
   </div>
