@@ -395,6 +395,76 @@ suite "button media FFmpeg integration":
       discard runTool(@["sleep", "10"], timeoutMs = 300)
     check epochTime() - started < 5
 
+  test "one operation deadline spans multiple child processes":
+    let started = epochTime()
+    withOperationDeadline(1000):
+      discard runTool(@["sleep", "0.4"])
+      discard runTool(@["sleep", "0.4"])
+      try:
+        # The child's own 90 s cap is clamped to the ~200 ms left.
+        discard runTool(@["sleep", "5"])
+        check false
+      except MediaTimeoutError as error:
+        check "1000 ms deadline" in error.msg
+    let elapsed = epochTime() - started
+    check elapsed >= 0.95
+    check elapsed < 2.0
+    check not hasOperationDeadline()
+    discard runTool(@["sleep", "0.4"])
+
+  test "preparation and import share one bounded deadline":
+    let image = importButtonAsset(FixtureDirectory / "disposal.gif", configDir)
+    var deck = newJArray()
+    for key in 2..DeckKeyCount:
+      deck.add(artKey(key, image, "Deadline ü " & $key, showTitle = true))
+    let
+      config = menuConfig(deck)
+      started = epochTime()
+    expect MediaTimeoutError:
+      discard prepareButtonMedia(config, configDir, cacheDir, FontPath, timeoutMs = 300)
+    check epochTime() - started < 2.0
+    check workEntries(cacheDir) == 0
+    check not hasOperationDeadline()
+    expect MediaTimeoutError:
+      discard importButtonAsset(FixtureDirectory / "disposal.gif", work / "other",
+        timeoutMs = 1)
+    check workEntries(work / "other" / "assets") == 0
+    let manifest = prepareButtonMedia(config, configDir, cacheDir, FontPath)
+    check manifest["menus"]["root"]["15"]["normal"].len == 4
+
+  test "cache cleanup keeps active and recently used entries":
+    let
+      image = importButtonAsset(FixtureDirectory / "disposal.gif", configDir)
+      manifests = work / "manifests"
+      active = prepare(menuConfig(%*[artKey(2, image, "Active ü", showTitle = true)]))
+      old = prepare(menuConfig(%*[{"key": 2, "title": "Old",
+        "action": {"kind": "none"}}]))
+      reused = menuConfig(%*[{"key": 2, "title": "Reused [a],b",
+        "action": {"kind": "none"}}])
+      recent = prepare(reused)
+      activePath = active["menus"]["root"]["2"]["pressed"].getStr()
+      oldDir = old["menus"]["root"]["2"]["pressed"].getStr().parentDir
+      recentDir = recent["menus"]["root"]["2"]["pressed"].getStr().parentDir
+      aged = getTime() - initDuration(hours = 2)
+    createDir(manifests)
+    writeFile(manifests / "last-applied.json", $active)
+    for kind, path in walkDir(cacheDir):
+      setLastModificationTime(path, aged)
+    check prepare(reused) == recent
+    let report = cleanPreparedCache(cacheDir, manifests)
+    check report.errors.len == 0
+    check report.removed == @[oldDir]
+    check not dirExists(oldDir)
+    check dirExists(recentDir)
+    for frame in active["menus"]["root"]["2"]["normal"]:
+      checkEncoding(frame["path"].getStr())
+    checkEncoding(activePath)
+    check readFile(configDir / image) == readFile(FixtureDirectory / "disposal.gif")
+    check parseJson(readFile(manifests / "last-applied.json")) == active
+    check workEntries(cacheDir) == 0
+    check prepare(menuConfig(%*[{"key": 2, "title": "Old",
+      "action": {"kind": "none"}}])) == old
+
   test "helper CLI prints only structured output on stdout":
     let helper = work / "prepare_button_media"
     let (buildOutput, buildCode) = execCmdEx(quoteShellCommand(["nim", "c",

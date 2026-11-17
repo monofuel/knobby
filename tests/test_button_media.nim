@@ -1,5 +1,5 @@
 import
-  std/[json, os, strutils, unittest],
+  std/[json, os, posix, sets, strutils, times, unittest],
   knobby/button_media
 
 const
@@ -27,6 +27,18 @@ proc builtinMenu(id: string): JsonNode =
   for key in 1..DeckKeyCount:
     deck.add(deckKey(key, $key, %*{"builtinNumber": key, "showTitle": false}))
   result = %*{"id": id, "title": id, "mixer": [], "deck": deck}
+
+proc cleanupWork(): string =
+  ## Return a fresh private directory for cache cleanup tests.
+  result = getTempDir() / "knobby-media-cleanup [ü] %d " & $getCurrentProcessId()
+  removeDir(result)
+  createDir(result)
+
+proc makeEntry(directory: string, ageSeconds: int) =
+  ## Create a cache entry directory whose modification time is ageSeconds old.
+  createDir(directory)
+  writeFile(directory / "pressed.jpg", "jpeg")
+  setLastModificationTime(directory, getTime() - initDuration(seconds = ageSeconds))
 
 proc planFor(plans: seq[MenuPlan], menu: string, key: int): KeyPlan =
   ## Find the plan of one key.
@@ -238,3 +250,164 @@ suite "button media plan":
       for key in 1..DeckKeyCount:
         check manifest["menus"][menu][$key] == %*{"builtinNumber": key}
     check not dirExists(cache)
+
+suite "button media operation deadline":
+  test "no deadline is active outside a scope":
+    check not hasOperationDeadline()
+    checkOperationDeadline()
+
+  test "an expired scope raises and resets afterwards":
+    withOperationDeadline(1):
+      check hasOperationDeadline()
+      sleep(5)
+      expect MediaTimeoutError:
+        checkOperationDeadline()
+    check not hasOperationDeadline()
+    checkOperationDeadline()
+
+  test "the deadline resets when the scope raises":
+    expect KeyError:
+      withOperationDeadline(60_000):
+        raise newException(KeyError, "boom")
+    check not hasOperationDeadline()
+
+  test "nested scopes only shorten the deadline":
+    withOperationDeadline(1):
+      sleep(5)
+      withOperationDeadline(60_000):
+        expect MediaTimeoutError:
+          checkOperationDeadline()
+      check hasOperationDeadline()
+    withOperationDeadline(60_000):
+      withOperationDeadline(1):
+        sleep(5)
+        expect MediaTimeoutError:
+          checkOperationDeadline()
+      checkOperationDeadline()
+    check not hasOperationDeadline()
+
+  test "non-positive timeouts are rejected":
+    expect ValueError:
+      withOperationDeadline(0):
+        discard
+    check not hasOperationDeadline()
+
+  test "an expired operation never spawns another child":
+    # Spawning this command would raise OSError instead of a timeout.
+    withOperationDeadline(1):
+      sleep(5)
+      try:
+        discard runTool(@["/nonexistent/knobby-tool"])
+        check false
+      except MediaTimeoutError as error:
+        check "1 ms deadline" in error.msg
+
+  test "an expired operation stops preparation before rendering":
+    let cache = getTempDir() / "knobby-media-deadline-" & $getCurrentProcessId()
+    removeDir(cache)
+    withOperationDeadline(1):
+      sleep(5)
+      expect MediaTimeoutError:
+        discard prepareButtonMedia(buttonConfig(%*[{"id": "root", "title": "root",
+          "mixer": [], "deck": [deckKey(2, "Title")]}]), "/nonexistent", cache,
+          FixtureDirectory / "disposal.gif", timeoutMs = 60_000)
+    check not dirExists(cache)
+    check not hasOperationDeadline()
+
+suite "button media prepared cache cleanup":
+  setup:
+    let
+      work = cleanupWork()
+      cache = work / "prepared"
+      manifests = work / "manifests"
+      keep = "a".repeat(40)
+      wrapped = "b".repeat(40)
+      stale = "c".repeat(40)
+      recent = "d".repeat(40)
+    createDir(cache)
+    createDir(manifests)
+
+  teardown:
+    discard chmod(cache.cstring, 0o755)
+    removeDir(work)
+
+  test "content key names are lowercase 40-hex":
+    check isContentKeyName(keep)
+    check isContentKeyName("0123456789abcdef0123456789abcdef01234567")
+    check not isContentKeyName("A".repeat(40))
+    check not isContentKeyName("a".repeat(39))
+    check not isContentKeyName("g".repeat(40))
+    check not isContentKeyName(".tmp-" & keep)
+
+  test "manifest keys come from any path component":
+    let keys = manifestContentKeys(%*{"version": 1, "menus": {"root": {
+      "1": {"builtinNumber": 1},
+      "2": {"normal": [{"path": cache / keep / "normal-0001.jpg", "durationMs": 0}],
+        "pressed": cache / keep / "pressed.jpg"}}},
+      "wrapped": {"manifest": [cache / wrapped / "pressed.jpg"]},
+      "asset": "assets/" & stale & ".png"})
+    check keys == toHashSet([keep, wrapped])
+
+  test "only old unreferenced content directories are removed":
+    let outside = work / "outside" / stale
+    makeEntry(cache / keep, 7200)
+    makeEntry(cache / wrapped, 7200)
+    makeEntry(cache / stale, 7200)
+    makeEntry(cache / recent, 60)
+    makeEntry(cache / "E".repeat(40), 7200)
+    makeEntry(cache / ".tmp-" & stale, 7200)
+    makeEntry(cache / "assets", 7200)
+    makeEntry(outside, 7200)
+    createSymlink(outside, cache / "f".repeat(40))
+    writeFile(cache / "9".repeat(40), "not a directory")
+    let
+      active = $(%*{"version": 1, "menus": {"root": {"2": {
+        "normal": [{"path": cache / keep / "normal-0001.jpg", "durationMs": 0}],
+        "pressed": cache / keep / "pressed.jpg"}}}})
+      preview = $(%*{"id": "op-1", "manifest": {"menus": {"root": {"2": {
+        "pressed": cache / wrapped / "pressed.jpg"}}}}})
+    writeFile(manifests / "last-applied.json", active)
+    writeFile(manifests / "preview.json", preview)
+    writeFile(manifests / "notes.txt", "ignored")
+    let report = cleanPreparedCache(cache, manifests)
+    check report.manifests == 2
+    check report.protectedKeys == 2
+    check report.removed == @[cache / stale]
+    check report.errors.len == 0
+    check not dirExists(cache / stale)
+    for name in [keep, wrapped, recent, "E".repeat(40), ".tmp-" & stale, "assets"]:
+      check fileExists(cache / name / "pressed.jpg")
+    check fileExists(outside / "pressed.jpg")
+    check symlinkExists(cache / "f".repeat(40))
+    check fileExists(cache / "9".repeat(40))
+    check readFile(manifests / "last-applied.json") == active
+    check readFile(manifests / "preview.json") == preview
+    for kind, path in walkDir(cache):
+      check not path.extractFilename.startsWith(".tmp-delete-")
+
+  test "missing, empty or invalid manifests delete nothing":
+    makeEntry(cache / stale, 7200)
+    expect IOError:
+      discard cleanPreparedCache(cache, work / "missing")
+    expect IOError:
+      discard cleanPreparedCache(cache, manifests)
+    writeFile(manifests / "last-applied.json", "{\"menus\":")
+    expect JsonParsingError:
+      discard cleanPreparedCache(cache, manifests)
+    check dirExists(cache / stale)
+
+  test "a missing cache directory is not an error":
+    writeFile(manifests / "last-applied.json", "{}")
+    let report = cleanPreparedCache(work / "absent", manifests)
+    check report.manifests == 1
+    check report.removed.len == 0
+
+  test "removal failures are reported":
+    makeEntry(cache / stale, 7200)
+    writeFile(manifests / "last-applied.json", "{}")
+    check chmod(cache.cstring, 0o555) == 0
+    let report = cleanPreparedCache(cache, manifests)
+    check report.removed.len == 0
+    check report.errors.len == 1
+    check (cache / stale) in report.errors[0]
+    check dirExists(cache / stale)

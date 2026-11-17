@@ -11,6 +11,17 @@ type
   MediaError* = object of ValueError
     field*: string
 
+  MediaTimeoutError* = object of IOError
+    ## Raised when a child process or the whole media operation runs out of time.
+
+  PreparedCleanup* = object
+    manifests*: int
+    protectedKeys*: int
+    removed*: seq[string]
+    errors*: seq[string]
+
+  OperationScope = tuple[deadline: MonoTime, timeoutMs: int]
+
   SourceKind* = enum
     PngSource = "png"
     JpegSource = "jpg"
@@ -67,7 +78,10 @@ const
   MaxSourceFrames* = 900
   MaxFramesPerSecond* = 30
   MaxPreparedBytes* = 128 * 1024 * 1024
+  OperationTimeoutMs* = 90_000
   ChildTimeoutMs* = 90_000
+  PreparedGraceSeconds* = 3600
+  ContentKeyLength = 40
   MaxChildStdoutBytes* = 1024 * 1024
   MaxChildStderrBytes* = 64 * 1024
   ChildPollMs = 50
@@ -104,6 +118,11 @@ const
     "rotate180;yuvj420p;huffman-optimal;q2;title-white-on-black;" &
     "pressed-black-on-c0c0c0;pressed-art-white35;overlay-box-black60"
 
+var
+  # A zero timeout means no media operation is active on this thread.
+  operationDeadline {.threadvar.}: MonoTime
+  operationTimeoutMs {.threadvar.}: int
+
 proc renameFile(source, destination: cstring): cint {.importc: "rename",
     header: "<stdio.h>".}
   ## Rename a path atomically, failing instead of replacing a non-empty directory.
@@ -114,6 +133,48 @@ proc raiseMedia(field, message: string) {.noreturn.} =
     if field.len > 0: field & ": " & message else: message)
   error.field = field
   raise error
+
+proc enterOperationDeadline(timeoutMs: int): OperationScope =
+  ## Start or narrow this thread's operation deadline and return the previous
+  ## scope. A nested scope can only shorten the deadline, never extend it.
+  if timeoutMs <= 0:
+    raise newException(ValueError, "Media operation timeout must be positive: " &
+      $timeoutMs & " ms.")
+  result = (operationDeadline, operationTimeoutMs)
+  let deadline = getMonoTime() + initDuration(milliseconds = timeoutMs)
+  if operationTimeoutMs == 0 or deadline < operationDeadline:
+    operationDeadline = deadline
+    operationTimeoutMs = timeoutMs
+
+proc restoreOperationDeadline(scope: OperationScope) =
+  ## Restore the deadline that was active before a scope started.
+  operationDeadline = scope.deadline
+  operationTimeoutMs = scope.timeoutMs
+
+template withOperationDeadline*(timeoutMs: int, body: untyped) =
+  ## Run body with one overall deadline shared by every media check and child
+  ## process on this thread. The previous deadline is restored afterwards,
+  ## including when body raises.
+  bind enterOperationDeadline, restoreOperationDeadline
+  let previousScope = enterOperationDeadline(timeoutMs)
+  try:
+    body
+  finally:
+    restoreOperationDeadline(previousScope)
+
+proc hasOperationDeadline*(): bool =
+  ## Report whether a media operation deadline is active on this thread.
+  result = operationTimeoutMs > 0
+
+proc raiseOperationTimeout(context: string) {.noreturn.} =
+  ## Raise the error reported when the overall operation runs out of time.
+  raise newException(MediaTimeoutError, context &
+    "The button media operation exceeded its " & $operationTimeoutMs & " ms deadline.")
+
+proc checkOperationDeadline*() =
+  ## Raise MediaTimeoutError when this thread's operation deadline has passed.
+  if hasOperationDeadline() and getMonoTime() >= operationDeadline:
+    raiseOperationTimeout("")
 
 proc contentKey*(data: string): string =
   ## Return the lowercase SHA-1 hex digest used for content addressing.
@@ -359,12 +420,17 @@ proc runTool*(args: seq[string], timeoutMs = ChildTimeoutMs,
     maxStdout = MaxChildStdoutBytes, maxStderr = MaxChildStderrBytes): string =
   ## Run a command without a shell and return its stdout. Stderr is kept
   ## separately for the error message. The child is killed when it exceeds
-  ## the deadline or either output cap. Completion is decided by process exit
+  ## timeoutMs, the remaining operation deadline or either output cap; both
+  ## timeouts raise MediaTimeoutError. Completion is decided by process exit
   ## rather than pipe EOF, because pipes may be inherited by unrelated
   ## children spawned on other daemon threads.
+  checkOperationDeadline()
   let
+    started = getMonoTime()
+    childDeadline = started + initDuration(milliseconds = timeoutMs)
+    operationBound = hasOperationDeadline() and operationDeadline < childDeadline
+    deadline = if operationBound: operationDeadline else: childDeadline
     process = spawnCommand(args[0], args[1..^1], options = {poUsePath})
-    deadline = getMonoTime() + initDuration(milliseconds = timeoutMs)
     handles = [process.outputHandle.cint, process.errorHandle.cint]
     limits = [maxStdout, maxStderr]
   var
@@ -372,13 +438,14 @@ proc runTool*(args: seq[string], timeoutMs = ChildTimeoutMs,
     buffer: array[8192, char]
     exitCode = -1
     failure = ""
+    timedOut = false
   process.inputStream.close()
   try:
     for handle in handles:
       let flags = fcntl(handle, F_GETFL, 0)
       if flags < 0 or fcntl(handle, F_SETFL, flags or O_NONBLOCK) < 0:
         raiseOSError(osLastError())
-    while failure.len == 0:
+    while failure.len == 0 and not timedOut:
       let exited = peekExitCode(process)
       for pipe, handle in handles:
         while failure.len == 0:
@@ -397,11 +464,12 @@ proc runTool*(args: seq[string], timeoutMs = ChildTimeoutMs,
         exitCode = exited
         break
       if getMonoTime() >= deadline:
-        failure = args[0] & ": timed out after " & $timeoutMs & " ms."
+        timedOut = true
       else:
+        let waitMs = min(ChildPollMs, max(1, inMilliseconds(deadline - getMonoTime()).int))
         var pollers = [TPollfd(fd: handles[0], events: POLLIN),
           TPollfd(fd: handles[1], events: POLLIN)]
-        discard posix.poll(addr pollers[0], 2, ChildPollMs)
+        discard posix.poll(addr pollers[0], 2, waitMs.cint)
   finally:
     if peekExitCode(process) == -1:
       kill(process)
@@ -409,6 +477,11 @@ proc runTool*(args: seq[string], timeoutMs = ChildTimeoutMs,
     close(process)
   if failure.len > 0:
     raise newException(IOError, failure)
+  if timedOut:
+    if operationBound:
+      raiseOperationTimeout(args[0] & ": ")
+    raise newException(MediaTimeoutError, args[0] & ": timed out after " &
+      $timeoutMs & " ms.")
   if exitCode != 0:
     raise newException(OSError, args[0] & " exited with " & $exitCode & ": " &
       captured[1].strip())
@@ -469,12 +542,14 @@ proc removeStaleWork(directory: string) =
     return
   let cutoff = getTime() - initDuration(seconds = StaleWorkSeconds)
   for kind, path in walkDir(directory):
+    checkOperationDeadline()
     if kind == pcDir and path.extractFilename.startsWith(WorkPrefix) and
         getLastModificationTime(path) < cutoff:
       removeDir(path)
 
 proc readSource(path, field: string): string =
   ## Read a bounded regular source file.
+  checkOperationDeadline()
   if not fileExists(path):
     raiseMedia(field, "Image file does not exist: " & path)
   let size = getFileSize(path)
@@ -485,27 +560,31 @@ proc readSource(path, field: string): string =
   if result.len > MaxSourceBytes:
     raiseMedia(field, "The image exceeds " & $MaxSourceBytes & " bytes.")
 
-proc importButtonAsset*(source, configDir: string): string =
+proc importButtonAsset*(source, configDir: string,
+    timeoutMs = OperationTimeoutMs): string =
   ## Validate a PNG, JPEG or GIF and copy it to configDir/assets/<sha1>.<ext>.
   ## Returns the managed relative path. Existing identical assets are reused.
+  ## The whole import, including every child process, shares one timeoutMs
+  ## deadline and raises MediaTimeoutError when it runs out.
   const Field = "source"
-  let
-    data = readSource(source, Field)
-    kind = sourceKindFromBytes(data, Field)
-    name = contentKey(data) & "." & $kind
-    assetDir = configDir / "assets"
-    destination = assetDir / name
-  result = AssetPrefix & name
-  if fileExists(destination) and contentKey(readFile(destination)) == contentKey(data):
-    return
-  let work = newWorkDirectory(assetDir, "import")
-  try:
-    let copy = work / SourceStem & $kind
-    writeFile(copy, data)
-    discard validateSource(copy, kind, Field)
-    moveFile(copy, destination)
-  finally:
-    removeDir(work)
+  withOperationDeadline(timeoutMs):
+    let
+      data = readSource(source, Field)
+      kind = sourceKindFromBytes(data, Field)
+      name = contentKey(data) & "." & $kind
+      assetDir = configDir / "assets"
+      destination = assetDir / name
+    result = AssetPrefix & name
+    if not fileExists(destination) or contentKey(readFile(destination)) != contentKey(data):
+      let work = newWorkDirectory(assetDir, "import")
+      try:
+        let copy = work / SourceStem & $kind
+        writeFile(copy, data)
+        discard validateSource(copy, kind, Field)
+        checkOperationDeadline()
+        moveFile(copy, destination)
+      finally:
+        removeDir(work)
 
 proc titleFilter(layout: TitleLayout, titlePath, fontPath, color: string,
     overlay: bool): string =
@@ -660,6 +739,9 @@ proc renderKey(plan: KeyPlan, work, fontPath, sourceData: string) =
 proc prepareKey(plan: KeyPlan, configDir, cacheDir, fontPath,
     fontKey: string): PreparedKey =
   ## Return a cached rendering of a key, rendering and publishing it if needed.
+  ## Reused entries get a fresh modification time so cache cleanup treats them
+  ## as recently used.
+  checkOperationDeadline()
   var
     sourceData = ""
     sourceKey = ""
@@ -679,45 +761,118 @@ proc prepareKey(plan: KeyPlan, configDir, cacheDir, fontPath,
       # The unpublished work directory must not survive a failed render.
       removeDir(work)
       raise
+  else:
+    setLastModificationTime(destination, getTime())
   result = loadPrepared(destination)
 
 proc prepareButtonMedia*(config: JsonNode, configDir, cacheDir,
-    fontPath: string): JsonNode =
+    fontPath: string, timeoutMs = OperationTimeoutMs): JsonNode =
   ## Render every non-builtin Deck key of every menu and return the manifest
   ## {"version":1,"menus":{id:{"1".."15": entry}}}. Entries are either
   ## {"builtinNumber":n} or {"normal":[{"path","durationMs"}],"pressed":path}
-  ## with absolute JPEG paths under cacheDir. Published cache entries are
-  ## never deleted, so files referenced by the running config stay valid.
-  let
-    plans = planButtonMedia(config)
-    cache = absolutePath(cacheDir)
-  var
-    fontKey = ""
-    menus = newJObject()
-    counted = initHashSet[string]()
-    totalBytes = 0
-  removeStaleWork(cache)
-  for plan in plans:
-    var keys = newJObject()
-    for keyPlan in plan.keys:
-      if keyPlan.kind == BuiltinKey:
-        keys[$keyPlan.key] = %*{"builtinNumber": keyPlan.builtinNumber}
-        continue
-      if fontKey.len == 0:
-        if not fileExists(fontPath):
-          raise newException(IOError, "Title font does not exist: " & fontPath)
-        fontKey = contentKey(readFile(fontPath))
-      let prepared = prepareKey(keyPlan, configDir, cache, fontPath, fontKey)
-      var normal = newJArray()
-      for frame in prepared.normal:
-        normal.add(%*{"path": frame.path, "durationMs": frame.durationMs})
-      for path in prepared.normal.mapIt(it.path) & @[prepared.pressed]:
-        if path notin counted:
-          counted.incl(path)
-          totalBytes += getFileSize(path).int
-      if totalBytes > MaxPreparedBytes:
-        raiseMedia(keyPlan.field, "Prepared media exceeds " & $MaxPreparedBytes &
-          " bytes in total.")
-      keys[$keyPlan.key] = %*{"normal": normal, "pressed": prepared.pressed}
-    menus[plan.id] = keys
-  result = %*{"version": ManifestVersion, "menus": menus}
+  ## with absolute JPEG paths under cacheDir. The whole preparation, including
+  ## every child process, shares one timeoutMs deadline and raises
+  ## MediaTimeoutError when it runs out. Preparation never deletes published
+  ## cache entries, so files referenced by the running config stay valid.
+  withOperationDeadline(timeoutMs):
+    let
+      plans = planButtonMedia(config)
+      cache = absolutePath(cacheDir)
+    var
+      fontKey = ""
+      menus = newJObject()
+      counted = initHashSet[string]()
+      totalBytes = 0
+    removeStaleWork(cache)
+    for plan in plans:
+      var keys = newJObject()
+      for keyPlan in plan.keys:
+        if keyPlan.kind == BuiltinKey:
+          keys[$keyPlan.key] = %*{"builtinNumber": keyPlan.builtinNumber}
+          continue
+        if fontKey.len == 0:
+          if not fileExists(fontPath):
+            raise newException(IOError, "Title font does not exist: " & fontPath)
+          fontKey = contentKey(readFile(fontPath))
+        let prepared = prepareKey(keyPlan, configDir, cache, fontPath, fontKey)
+        var normal = newJArray()
+        for frame in prepared.normal:
+          normal.add(%*{"path": frame.path, "durationMs": frame.durationMs})
+        for path in prepared.normal.mapIt(it.path) & @[prepared.pressed]:
+          if path notin counted:
+            counted.incl(path)
+            totalBytes += getFileSize(path).int
+        if totalBytes > MaxPreparedBytes:
+          raiseMedia(keyPlan.field, "Prepared media exceeds " & $MaxPreparedBytes &
+            " bytes in total.")
+        keys[$keyPlan.key] = %*{"normal": normal, "pressed": prepared.pressed}
+      menus[plan.id] = keys
+    result = %*{"version": ManifestVersion, "menus": menus}
+
+proc isContentKeyName*(name: string): bool =
+  ## Report whether a name is a 40-character lowercase hex content key.
+  result = name.len == ContentKeyLength and name.allIt(it in HexDigits - {'A'..'F'})
+
+proc collectContentKeys(node: JsonNode, keys: var HashSet[string]) =
+  ## Add every content key appearing as a path component of any string.
+  case node.kind
+  of JString:
+    for component in node.getStr().split('/'):
+      if isContentKeyName(component):
+        keys.incl(component)
+  of JArray:
+    for item in node.getElems():
+      collectContentKeys(item, keys)
+  of JObject:
+    for name, item in node.pairs:
+      collectContentKeys(item, keys)
+  else:
+    discard
+
+proc manifestContentKeys*(manifest: JsonNode): HashSet[string] =
+  ## Return the prepared cache keys referenced anywhere in a JSON document.
+  ## Any string path component that is a content key counts, so manifests
+  ## wrapped in other JSON objects are protected too.
+  result = initHashSet[string]()
+  collectContentKeys(manifest, result)
+
+proc cleanPreparedCache*(cacheDir, manifestDir: string): PreparedCleanup =
+  ## Delete unreferenced prepared entries after a successful apply or preview.
+  ## Every *.json file directly in manifestDir is a retained manifest; all
+  ## content keys they reference are kept. Only real directories in cacheDir
+  ## named by a content key, unreferenced and unmodified for
+  ## PreparedGraceSeconds are removed; symlinks, files, work directories and
+  ## other names are ignored. Raises before deleting anything when manifestDir
+  ## is missing, holds no manifest or holds unreadable JSON. Failures removing
+  ## individual entries are collected in errors while the rest continue. Call
+  ## it from the worker that serializes preparations.
+  if not dirExists(manifestDir):
+    raise newException(IOError, "Manifest directory does not exist: " & manifestDir)
+  var keys = initHashSet[string]()
+  for kind, path in walkDir(manifestDir):
+    if kind in {pcFile, pcLinkToFile} and path.endsWith(".json"):
+      collectContentKeys(parseFile(path), keys)
+      inc result.manifests
+  if result.manifests == 0:
+    raise newException(IOError, "No retained manifests in " & manifestDir &
+      "; refusing to clean the prepared cache.")
+  result.protectedKeys = keys.len
+  if not dirExists(cacheDir):
+    return
+  let cutoff = getTime() - initDuration(seconds = PreparedGraceSeconds)
+  for kind, path in walkDir(cacheDir):
+    let name = path.extractFilename
+    if kind != pcDir or not isContentKeyName(name) or name in keys:
+      continue
+    try:
+      if getLastModificationTime(path) < cutoff:
+        # Renaming first means readers never see a half-deleted entry; a
+        # leftover work directory is removed by a later preparation.
+        let doomed = cacheDir / WorkPrefix & "delete-" & name & "-" &
+          $getCurrentProcessId() & "-" & $getMonoTime().ticks
+        if renameFile(path.cstring, doomed.cstring) != 0:
+          raiseOSError(osLastError(), path)
+        result.removed.add(path)
+        removeDir(doomed)
+    except OSError as error:
+      result.errors.add(path & ": " & error.msg)
