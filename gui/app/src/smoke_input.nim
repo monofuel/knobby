@@ -5,6 +5,11 @@ type
   Motion = proc (display: pointer, screen, x, y: cint, delay: culong): cint {.cdecl.}
   Button = proc (display: pointer, button: cuint, down: cint, delay: culong): cint {.cdecl.}
 
+const
+  ApplyGateName* = "fixture-apply-gate"
+  ApplyBlockedName* = "fixture-apply-blocked"
+  FailReloadName* = "fixture-fail-reload"
+
 proc openDisplay(name: cstring): pointer {.cdecl, importc: "XOpenDisplay", dynlib: "libX11.so.6".}
   ## Open the isolated smoke display's input connection.
 proc closeDisplay(display: pointer): cint {.cdecl, importc: "XCloseDisplay", dynlib: "libX11.so.6".}
@@ -32,3 +37,8 @@ proc pointerEvent*(x, y: int, action: int) =
   else:
     doAssert button(display, 1, cint(action == 1), 0) != 0
   discard flush(display)
+
+proc smokeControlPath*(name: string): string =
+  ## Locate a control file shared by the isolated editor script and its fixture daemon.
+  doAssert getEnv("KNOBBY_GUI_SMOKE") == "1"
+  getEnv("XDG_STATE_HOME") / name

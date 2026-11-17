@@ -34,4 +34,4 @@ fi
 XDG_RUNTIME_DIR="$smoke_dir/runtime" DISPLAY=":$(cat "$smoke_dir/display")" LIBGL_ALWAYS_SOFTWARE=1 KNOBBY_GUI_SMOKE=1 \
   dbus-run-session --config-file="$dbus_config" -- \
   gui/app/dist/test_button_editor gui/app/dist/knobby_gui "$smoke_dir/editor"
-printf 'Editor screenshots: %s/editor/{edit,recover,live}\n' "$smoke_dir"
+printf 'Editor screenshots: %s/editor/{edit,recover,live,pending,reload}\n' "$smoke_dir"

@@ -25,6 +25,9 @@ const
   WindowHeight = 820
   Names = ["Arduino mixer", "Stream Deck", "Mousepad", "Button editor"]
   SmokeStepFrames = 1500
+  SubmittedTitle = "Submitted ✓"
+  LateTitle = "Late ✓"
+  LateCommand = "notify-send late"
   DarkValue = parseInt(DarkGrey).uint8
   LightValue = parseInt(LightGrey).uint8
   DarkHex = "#" & repeat(toHex(DarkValue, 2), 3)
@@ -369,6 +372,20 @@ proc editorScript(phase, directory, fixtureImage: string, window: Window, sk: Si
     ## Focus a field, clear it, and type replacement text.
     @[click(name), key(KeyEnd), key(KeyBackspace, 24), typeText(value)]
   proc selectedTitle(): string = model().selected(){"title"}.getStr()
+  proc createFile(path: string): SmokeStep =
+    ## Create a fixture control file.
+    SmokeStep(name: "create " & path.extractFilename(), run: proc (frame: int): bool =
+      writeFile(path, "")
+      true)
+  proc deleteFile(path: string): SmokeStep =
+    ## Remove a fixture control file.
+    SmokeStep(name: "remove " & path.extractFilename(), run: proc (frame: int): bool =
+      removeFile(path)
+      true)
+  proc mixerSlot(config: JsonNode, key: int): JsonNode =
+    ## Read one root-menu mixer slot.
+    config.entryAt(config.rootMenu(), MixerDevice, key)
+  proc applying(): bool = editor.busy and editor.busyKind == ApplyJob
   let openEditor = @[click("page:EditorPage"),
     waitFor("configuration loaded", proc (): bool = model().loaded and not editor.busy)]
   case phase
@@ -508,6 +525,58 @@ proc editorScript(phase, directory, fixtureImage: string, window: Window, sk: Si
       waitFor("live key 2 again", proc (): bool = viewer.selected == 1 and liveArt()),
       settle(20),
       capture("live-after-draft")]
+  of "pending":
+    result = openEditor & @[
+      waitFor("clean root mixer", proc (): bool =
+        not model().dirty and model().device == MixerDevice and model().menu == model().draft.rootMenu()),
+      click("key:2"),
+      waitFor("key 2", proc (): bool = model().key == 2)] &
+      replaceField("title", SubmittedTitle) & @[
+      waitFor("submitted title", proc (): bool = selectedTitle() == SubmittedTitle and not editor.busy),
+      createFile(smokeControlPath(ApplyGateName)),
+      click("save"),
+      waitFor("apply held by the daemon", proc (): bool =
+        applying() and fileExists(smokeControlPath(ApplyBlockedName)))] &
+      replaceField("title", LateTitle) & @[
+      waitFor("late title", proc (): bool = selectedTitle() == LateTitle),
+      click("key:3"),
+      waitFor("key 3", proc (): bool = model().key == 3),
+      click("action:command")] &
+      replaceField("command", LateCommand) & @[
+      waitFor("late edits autosaved while applying", proc (): bool =
+        applying() and fileExists(draftPath()) and LateCommand in readFile(draftPath()) and
+          LateTitle in readFile(draftPath())),
+      settle(4),
+      capture("pending"),
+      deleteFile(smokeControlPath(ApplyGateName)),
+      waitFor("applied with late edits kept", proc (): bool =
+        editor.applied == 1 and not editor.busy and model().dirty and
+          model().conflict == NoConflict and model().error == "" and
+          model().live.mixerSlot(2)["title"].getStr() == SubmittedTitle and
+          model().draft.mixerSlot(2)["title"].getStr() == LateTitle and
+          model().draft.mixerSlot(3)["action"]{"command"}.getStr() == LateCommand),
+      waitFor("late draft autosaved against the applied revision", proc (): bool =
+        let draft = readDraft(draftPath())
+        not draft.isNil and draft["baseRevision"].getStr() == model().liveRevision and
+          draft["config"] == model().draft),
+      settle(10),
+      capture("pending-applied")]
+  of "reload":
+    result = openEditor & @[
+      waitFor("late draft recovered", proc (): bool =
+        model().notice.startsWith("Recovered") and model().conflict == NoConflict and
+          model().canApply() and model().draft.mixerSlot(2)["title"].getStr() == LateTitle),
+      createFile(smokeControlPath(FailReloadName)),
+      click("save"),
+      waitFor("applied with a failed reload", proc (): bool =
+        editor.applied == 1 and not editor.busy and not fileExists(smokeControlPath(FailReloadName))),
+      settle(30),
+      waitFor("reported as applied", proc (): bool =
+        not model().dirty and model().conflict == NoConflict and model().error == "" and
+          model().notice.startsWith("Applied revision") and
+          model().liveRevision == editor.status{"revision"}.getStr() and
+          model().live.mixerSlot(2)["title"].getStr() == LateTitle and not fileExists(draftPath())),
+      capture("reload-failed")]
   else:
     raise newException(ValueError, "Unknown editor smoke phase: " & phase)
 

@@ -169,7 +169,7 @@ proc decodePreview(path: string): seq[ColorRGBX] =
       let index = parseInt(parts[0]) - 1
       if parts[1] == "pressed": BuiltinPressed[index] else: BuiltinNormal[index]
     else:
-      readFile(path)
+      readPreparedFrame(path)
   let image = decodeImage(data)
   if image.width != PreviewSize or image.height != PreviewSize:
     raise newException(ValueError, "Prepared key image is " & $image.width & "x" &
@@ -329,8 +329,13 @@ proc runJob(job: ConfigJob): ConfigReply =
       result.payload = $payload
     of ApplyJob:
       let record = runConfigOperation("config.apply", %*{"envelope": parseJson(job.payload)})
-      let reply = requireConfigResult(requestConfig("config.get"))
-      result.payload = $(%*{"record": record, "envelope": reply["envelope"]})
+      var payload = %*{"record": record}
+      try:
+        payload["envelope"] = requireConfigResult(requestConfig("config.get"))["envelope"]
+      except CatchableError as failure:
+        # The apply already succeeded, so the editor adopts the submitted configuration instead.
+        stderr.writeLine("Reloading the applied button configuration failed: " & failure.msg)
+      result.payload = $payload
     of PreviewJob:
       let record = runConfigOperation("config.preview", %*{"config": parseJson(job.payload)})
       result.payload = $parseFile(record["manifestPath"].getStr())
@@ -1171,10 +1176,13 @@ proc handleReply(editor: ButtonEditor, reply: ConfigReply) =
       model[].applyFailed(reply.error, reply.code, reply.field)
       if reply.code == StaleCode: editor.request(LoadJob)
       return
-    let payload = parseJson(reply.payload)
-    model[].applySucceeded(payload["record"]{"revision"}.getStr())
-    model[].loadLive(payload["envelope"])
-    model[].notice = "Applied revision " & shortRevision(model.liveRevision) & "."
+    let
+      payload = parseJson(reply.payload)
+      revision = payload["record"]{"revision"}.getStr()
+    model[].applySucceeded(revision)
+    if payload.hasKey("envelope"):
+      model[].loadLive(payload["envelope"])
+    model[].notice = "Applied revision " & shortRevision(revision) & "."
     editor.statusRevision = model.liveRevision
     inc editor.applied
     editor.saver.markDraftStale()
@@ -1238,6 +1246,7 @@ proc schedule(editor: ButtonEditor, view: PreviewView) =
       else: ""
     if editor.submit(kind, payload):
       editor.queued.excl(kind)
+      if kind == ApplyJob: editor.model.applySubmitted()
       return
   let model = editor.model
   if view != DraftPreview or not model.loaded or model.device != DeckDevice or

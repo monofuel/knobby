@@ -21,6 +21,8 @@ type
     conflict*: ConflictState
     edits*: int
     loaded*: bool
+    submitted*: JsonNode
+    submittedEdits*: int
   DraftSaver* = object
     ## Autosave bookkeeping; edits count as saved only after the file write or removal succeeds.
     path*: string
@@ -37,6 +39,7 @@ const
   StaleCode* = "stale"
   DraftFileName = "gui-draft.json"
   DraftSaveDelayMs* = 700
+  MaxPreparedBytes* = 64 * 1024
 
 proc keyCount*(device: ButtonDevice): int =
   ## Return the number of editable physical keys on a device.
@@ -469,20 +472,33 @@ proc menuHasProblem*(model: EditorModel, menu: string): bool =
   ## Report whether the shown failure points into a menu.
   model.problemField().fieldWithin(model.menuField(menu))
 
+proc applySubmitted*(model: var EditorModel) =
+  ## Record the draft just sent to the daemon, so edits made while it applies stay separate.
+  model.submitted = model.draft.copy()
+  model.submittedEdits = model.edits
+
 proc applySucceeded*(model: var EditorModel, revision: string) =
-  ## Adopt the applied draft as the new live baseline.
-  model.live = model.draft.copy()
+  ## Adopt the submitted configuration as live; edits made while applying remain a dirty draft.
+  if model.submitted.isNil:
+    raise newException(ValueError, "No configuration was submitted for apply.")
+  let applied = canonicalButtonConfig(model.submitted)
+  model.live = applied.copy()
   model.liveRevision = revision
-  model.base = model.draft.copy()
+  model.base = applied.copy()
   model.baseRevision = revision
+  if model.edits == model.submittedEdits:
+    model.draft = applied.copy()
+  model.submitted = nil
   model.conflict = NoConflict
   model.error = ""
   model.errorField = ""
   model.notice = "Applied."
+  model.ensureSelection()
   model.refresh()
 
 proc applyFailed*(model: var EditorModel, message, code, field: string) =
-  ## Keep the draft after a failed apply, marking revision conflicts for explicit resolution.
+  ## Keep the draft, including edits made while applying, and mark revision conflicts.
+  model.submitted = nil
   model.setError(message, field)
   if code == StaleCode: model.conflict = StaleRevision
 
@@ -501,6 +517,17 @@ proc readDraft*(path: string): JsonNode =
   result = parseFile(path)
   if result.kind != JObject or result{"config"}.isNil or result["config"].kind != JObject:
     raise newException(ValueError, "Draft file is not a configuration envelope: " & path)
+
+proc readPreparedFrame*(path: string): string =
+  ## Read one prepared key JPEG, refusing files larger than MaxPreparedBytes instead of loading them.
+  let file = open(path)
+  defer: file.close()
+  result = newString(MaxPreparedBytes + 1)
+  let count = file.readBuffer(addr result[0], result.len)
+  if count > MaxPreparedBytes:
+    raise newException(ValueError, "Prepared key image exceeds " & $MaxPreparedBytes &
+      " bytes: " & path)
+  result.setLen(count)
 
 proc removeDraft*(path: string) =
   ## Delete an autosaved draft after it was applied or discarded.

@@ -131,8 +131,10 @@ suite "Button editor model":
     model.rebaseDraft()
     check model.conflict == NoConflict and model.baseRevision == configRevision(external)
     check model.canApply()
+    expect ValueError: model.applySucceeded(configRevision(model.draft))
+    model.applySubmitted()
     model.applySucceeded(configRevision(model.draft))
-    check not model.isDirty() and model.live == model.draft
+    check not model.isDirty() and model.live == model.draft and model.submitted.isNil
 
   test "external live changes mark dirty drafts stale and leave clean drafts current":
     var model = liveModel()
@@ -257,3 +259,110 @@ suite "Button editor model":
     check saver.draftPending(model)
     saver.autosaveDraft(model, 6_000 + DraftSaveDelayMs)
     check not saver.draftPending(model) and not fileExists(path) and model.error == ""
+
+  test "edits made while an apply is pending survive success and are autosaved against it":
+    let
+      directory = getTempDir() / "knobby-editor-pending-apply-test"
+      path = directory / "knobby" / "gui-draft.json"
+    removeDir(directory)
+    defer: removeDir(directory)
+    var
+      model = liveModel()
+      saver = newDraftSaver(path)
+    saver.markDraftSaved(model)
+    model.selectKey(2)
+    model.setTitle("Submitted ✓")
+    let submitted = model.draftEnvelope().copy()
+    model.applySubmitted()
+    model.setTitle("Late 🎵")
+    model.selectKey(3)
+    model.setActionKind(CommandAction)
+    model.setCommand("notify-send late")
+    let late = model.draft.copy()
+    saver.autosaveDraft(model, 1_000, force = true)
+    check readDraft(path)["config"] == late
+    let revision = configRevision(submitted["config"])
+    model.applySucceeded(revision)
+    model.loadLive(configEnvelope(submitted["config"]))
+    check model.live == canonicalButtonConfig(submitted["config"])
+    check model.live.entryAt(RootMenuId, MixerDevice, 2)["title"].getStr() == "Submitted ✓"
+    check model.draft == late and model.isDirty() and model.canApply()
+    check model.baseRevision == revision and model.liveRevision == revision
+    check model.conflict == NoConflict and model.submitted.isNil
+    saver.markDraftStale()
+    saver.autosaveDraft(model, 2_000, force = true)
+    let saved = readDraft(path)
+    check saved["config"] == late and saved["baseRevision"].getStr() == revision
+    var recovered = liveModel(submitted["config"])
+    recovered.recoverDraft(saved)
+    check recovered.draft == late and recovered.conflict == NoConflict and recovered.canApply()
+
+  test "an apply without later edits leaves a clean draft and removes the draft file":
+    let
+      directory = getTempDir() / "knobby-editor-clean-apply-test"
+      path = directory / "knobby" / "gui-draft.json"
+    removeDir(directory)
+    defer: removeDir(directory)
+    var
+      model = liveModel()
+      saver = newDraftSaver(path)
+    model.selectKey(5)
+    model.setTitle("Only edit")
+    saver.autosaveDraft(model, 0, force = true)
+    check fileExists(path)
+    model.applySubmitted()
+    model.applySucceeded(configRevision(model.draft))
+    check not model.isDirty() and model.draft == model.live
+    saver.markDraftStale()
+    saver.autosaveDraft(model, 1_000, force = true)
+    check not fileExists(path)
+
+  test "a successful apply whose reload failed adopts the submitted revision without conflict":
+    var model = liveModel()
+    model.selectKey(4)
+    model.setTitle("Applied")
+    let submitted = model.draft.copy()
+    model.applySubmitted()
+    model.setTitle("Later")
+    let revision = configRevision(submitted)
+    model.applySucceeded(revision)
+    check model.live == canonicalButtonConfig(submitted)
+    check model.liveRevision == revision and model.baseRevision == revision
+    check model.conflict == NoConflict and model.error == ""
+    check model.isDirty() and model.selected()["title"].getStr() == "Later"
+    model.loadLive(configEnvelope(submitted))
+    check model.conflict == NoConflict and model.canApply()
+    model.discardDraft()
+    check model.selected()["title"].getStr() == "Applied" and not model.isDirty()
+
+  test "a failed apply keeps both submitted and later edits":
+    var model = liveModel()
+    let original = model.base.copy()
+    model.selectKey(6)
+    model.setTitle("Submitted")
+    model.applySubmitted()
+    model.selectKey(7)
+    model.setTitle("Later")
+    let draft = model.draft.copy()
+    model.applyFailed("Media preparation failed.", "prepare", "")
+    check model.draft == draft and model.isDirty() and model.submitted.isNil
+    check model.base == original and model.conflict == NoConflict
+    model.applySubmitted()
+    model.applyFailed("Configuration changed.", StaleCode, "baseRevision")
+    check model.draft == draft and model.conflict == StaleRevision
+
+  test "prepared frames are read only up to the size bound":
+    let directory = getTempDir() / "knobby-editor-prepared-test"
+    removeDir(directory)
+    createDir(directory)
+    defer: removeDir(directory)
+    let
+      fits = directory / "fits.jpg"
+      large = directory / "large.jpg"
+    writeFile(fits, "x".repeat(MaxPreparedBytes))
+    writeFile(large, "x".repeat(MaxPreparedBytes + 1))
+    check readPreparedFrame(fits).len == MaxPreparedBytes
+    expect ValueError: discard readPreparedFrame(large)
+    expect IOError: discard readPreparedFrame(directory / "missing.jpg")
+    writeFile(fits, "")
+    check readPreparedFrame(fits) == ""

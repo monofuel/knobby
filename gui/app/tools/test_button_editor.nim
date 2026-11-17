@@ -2,7 +2,7 @@ import
   std/[atomics, json, locks, os, osproc, strutils],
   pixie,
   knobby/[button_client, button_config, button_runtime, ipc, status],
-  ../src/button_editor_model
+  ../src/[button_editor_model, smoke_input]
 
 const
   DeckAssets = currentSourcePath().parentDir().parentDir().parentDir().parentDir() /
@@ -19,17 +19,33 @@ const
   MixerTitle = "Música ✓"
   AudioName = "Écouteurs"
   LiveDeckTitle = "Grüße"
+  SubmittedTitle = "Submitted ✓"
+  LateTitle = "Late ✓"
+  LateCommand = "notify-send late"
+  GateTimeoutMs = 120_000
+  GatePollMs = 10
 
 var
   serverThread: Thread[void]
   serverStopping: Atomic[bool]
   requestLock: Lock
   requestKinds: seq[string]
+  failedReloads: Atomic[int]
 
 initLock(requestLock)
 
 proc fixturePrepare(config: JsonNode): JsonNode {.gcsafe.} =
   ## Describe fixture media for a candidate: built-in numbers, animated images, and a forced failure.
+  let gate = smokeControlPath(ApplyGateName)
+  if fileExists(gate):
+    let blocked = smokeControlPath(ApplyBlockedName)
+    writeFile(blocked, "")
+    let deadline = monotonicMs() + GateTimeoutMs
+    while fileExists(gate):
+      if monotonicMs() > deadline:
+        raise newException(IOError, "The fixture apply gate was never released.")
+      sleep(GatePollMs)
+    removeFile(blocked)
   let canonical = canonicalButtonConfig(config)
   result = %*{"version": 1, "menus": {}}
   for menu in canonical["menus"]:
@@ -72,12 +88,22 @@ proc serveLoop() {.thread.} =
   {.cast(gcsafe).}:
     let server = newLocalServer(daemonSocketPath())
     defer: server.close()
-    var lastBroadcast = 0'i64
+    var
+      lastBroadcast = 0'i64
+      reloadArmed = false
     while not serverStopping.load():
       for request in server.pollRequests():
         let kind = request.message{"type"}.getStr()
         withLock requestLock: requestKinds.add(kind)
-        if kind == "subscribe":
+        if kind == "config.apply" and fileExists(smokeControlPath(FailReloadName)):
+          reloadArmed = true
+        if kind == "config.get" and reloadArmed:
+          # Drop the reload that follows an armed apply, as a daemon disconnect would.
+          reloadArmed = false
+          removeFile(smokeControlPath(FailReloadName))
+          failedReloads.atomicInc()
+          request.peer.close()
+        elif kind == "subscribe":
           request.peer.subscribed = true
         elif kind.startsWith("config."):
           request.peer.queueMessage(processConfigRequest(request.message))
@@ -172,6 +198,10 @@ proc putEntry(menu: JsonNode, device: string, entry: JsonNode) =
     if existing["key"] != entry["key"]: entries.add(existing)
   entries.add(entry)
   menu[device] = entries
+
+proc mixerSlot(config: JsonNode, key: int): JsonNode =
+  ## Read one root-menu mixer slot from a configuration.
+  config.entryAt(config.rootMenu(), MixerDevice, key)
 
 proc main() =
   ## Exercise the editor end to end against the real core runtime with fixture media.
@@ -271,6 +301,35 @@ proc main() =
   checkPreview(liveDirectory, "live-after-draft", "liveArt:2", FramePaths)
   checkPreview(liveDirectory, "live-after-draft", "liveDetail:Normal", FramePaths)
   checkPreview(liveDirectory, "live-after-draft", "liveDetail:Pressed", [PressedPath])
+
+  removeDraft(draftPath())
+  let appliesBeforePending = requestCount("config.apply")
+  runPhase(binary, "pending", directory, fixture)
+  let
+    firstApply = requireConfigResult(requestConfig("config.get"))["envelope"]
+    pendingDraft = readDraft(draftPath())
+  doAssert requestCount("config.apply") == appliesBeforePending + 1
+  doAssert parseFile(paths.configPath()) == firstApply["config"]
+  doAssert firstApply["config"].mixerSlot(2)["title"].getStr() == SubmittedTitle,
+    "The daemon must apply the configuration submitted before the late edits."
+  doAssert firstApply["config"].mixerSlot(3)["action"]{"command"}.getStr() != LateCommand
+  doAssert not pendingDraft.isNil, "Edits made while applying were not kept on disk."
+  doAssert pendingDraft["baseRevision"] == firstApply["baseRevision"]
+  doAssert pendingDraft["config"].mixerSlot(2)["title"].getStr() == LateTitle
+  doAssert pendingDraft["config"].mixerSlot(3)["action"] ==
+    %*{"kind": "command", "command": LateCommand}
+  var recovered = newEditorModel()
+  recovered.loadLive(firstApply)
+  recovered.recoverDraft(pendingDraft)
+  doAssert recovered.conflict == NoConflict and recovered.canApply()
+
+  runPhase(binary, "reload", directory, fixture)
+  let reapplied = parseFile(paths.configPath())
+  doAssert failedReloads.load() == 1, "The reload after apply was not made to fail."
+  doAssert reapplied.mixerSlot(2)["title"].getStr() == LateTitle
+  doAssert reapplied.mixerSlot(3)["action"]["command"].getStr() == LateCommand
+  doAssert buttonRuntimeStatus()["revision"].getStr() == configRevision(reapplied)
+  doAssert not fileExists(draftPath()), "A successful apply must remove the draft."
   withLock requestLock:
     for kind in requestKinds:
       doAssert kind in AllowedRequests, "Editor sent an unexpected request: " & kind
