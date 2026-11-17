@@ -19,7 +19,7 @@ hardcoded intentionally; there is no configuration system.
 The [controller](docs/hardware.md) has four faders and twelve buttons.
 See the [desktop setup](docs/high-steel.md) for bindings and Discord
 authorization. Adapting Knobby to another desktop means editing the bindings
-in [actions.nim](src/knobby/actions.nim) and the service paths.
+in [bindings.nim](src/knobby/bindings.nim) and the service paths.
 
 ## Try it
 
@@ -34,7 +34,7 @@ The shell supplies Nim and the command-line tools Knobby needs. Without Nix,
 use Nim 2.0 or newer, Nimble, `alsa-utils`, `pactl`, `wmctrl`, `curl`, and
 `pgrep` (from `procps`). Mousepad lighting also uses `busctl` (from `systemd`)
 and the OpenRazer driver and user daemon; MIDI and audio work without OpenRazer.
-Knobby uses only Nim's standard library. Tests need neither the controller
+The daemon uses only Nim's standard library. Tests need neither the controller
 nor a running audio server.
 
 To watch the controller's events without changing volumes or launching apps:
@@ -57,6 +57,26 @@ nim r examples/midi_monitor.nim -- --list
 nim r examples/audio_outputs.nim
 ```
 
+## Device viewer
+
+The optional read-only GUI shows the mixer and Stream Deck layouts, highlights
+button activity, and explains each binding. Fader positions appear alongside
+the actual audio output and application-stream levels. It also shows microphone
+mute state and the mousepad's intended lighting preset.
+
+The viewer uses Windy and Silky and can stay in the system tray. See
+[GUI setup](docs/gui.md) for installing its separate dependencies and launching it.
+The background daemon continues independently when the viewer exits.
+
+Install the verified daemon and tray viewer with:
+
+```sh
+nix develop --command nim r tools/install.nim
+```
+
+The viewer starts hidden at graphical login. Run `~/.local/bin/knobby-gui`
+to show its window; repeated launches reuse the same process.
+
 ## Stream Deck demo
 
 The Stream Deck MK.2 demo displays numbered keys and highlights each one
@@ -68,20 +88,20 @@ nim r examples/stream_deck.nim
 
 It reconnects after unplugging. Ctrl+C restores the Elgato logo and exits.
 See the [Stream Deck notes](docs/stream-deck.md) for hardware details. This
-demo runs separately from the MIDI daemon; its keys have no desktop actions.
+page is also run by the daemon; its keys have no desktop actions. Stop the
+daemon before running the standalone display demo so only one writer owns it.
 
 ## Background service
 
-On high-steel, install the checked-in [systemd user service](docs/knobby.service):
+On high-steel, the installer deploys the checked-in
+[daemon](docs/knobby.service) and [GUI](docs/knobby-gui.service) user services.
+Control their lifecycle with:
 
 ```sh
-mkdir -p ~/.config/systemd/user
-cp docs/knobby.service ~/.config/systemd/user/knobby.service
-systemctl --user daemon-reload
-systemctl --user enable --now knobby
+systemctl --user status knobby knobby-gui
+systemctl --user restart knobby
 ```
 
-The service compiles the daemon on startup. After code changes, restart it
-with `systemctl --user restart knobby`. View logs with
-`journalctl --user -u knobby -f`. Edit the repository's service file and copy
-it again when changing the service.
+Services execute prebuilt binaries with their runtime dependencies. After code
+changes, rerun the installer to build and test before replacing the installed
+version. View logs with `journalctl --user -u knobby -u knobby-gui -f`.

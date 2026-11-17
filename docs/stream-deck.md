@@ -1,8 +1,8 @@
 # Elgato Stream Deck
 
 Hardware notes for monofuel's Stream Deck and its possible use with Knobby.
-The standalone demo controls its numbered key images and brightness directly
-through Linux hidraw. Its buttons remain separate from the Arduino bindings.
+The daemon controls its numbered key images and brightness directly through
+Linux hidraw. Its buttons remain separate from the Arduino bindings.
 
 ## Our Device
 
@@ -55,6 +55,7 @@ daemon are not required.
 From the checkout:
 
 ```sh
+systemctl --user stop knobby
 nix develop --command nim r examples/stream_deck.nim
 ```
 
@@ -74,8 +75,9 @@ The 30 prepared JPEGs are embedded into the demo. To regenerate them, use
 `fc-match`, and DejaVu Sans Bold installed. These are asset-generation tools,
 not runtime dependencies.
 
-The daemon does not start this demo or assign actions to its keys. Future
-bindings and animations can be chosen after validating the hardware demo.
+The daemon runs the same numbered page automatically. Standalone display tools
+reject a second writer. Restart `knobby.service` after diagnostics to restore
+normal device handling. Future bindings and animations remain unassigned.
 
 ## JPEG Compatibility Checks
 

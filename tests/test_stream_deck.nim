@@ -171,6 +171,22 @@ suite "Stream Deck output protocol":
       deck.showLogo()
 
 suite "Stream Deck discovery and session ownership":
+  test "input-only monitors read and close without any output callbacks":
+    let fake = FakeDeck(reports: @[keyReport([0, 14]), keyReport([])])
+    let io = fake.transport()
+    let monitor = newStreamDeckMonitor(io.readReport, io.close)
+    check monitor.pollKeys(0).len == 2
+    check monitor.pollKeys(0).len == 2
+    monitor.close()
+    monitor.close()
+    check fake.closes == 1
+    check fake.writes.len == 0
+    check fake.features.len == 0
+    expect IOError: discard monitor.pollKeys(0)
+    static:
+      doAssert not compiles(monitor.showLogo())
+      doAssert not compiles(monitor.setBrightness(30))
+
   test "match only the USB MK.2 identity":
     check matchesStreamDeckIdentity(TestIdentity)
     check not matchesStreamDeckIdentity("HID_ID=0003:00001532:00000C02")

@@ -1,6 +1,6 @@
 import
   std/[json, os, osproc, streams, strutils],
-  ./common
+  ./[bindings, common, runtime, status]
 
 type
   BusctlRunner* = proc (args: seq[string]): JsonNode {.gcsafe.}
@@ -14,9 +14,6 @@ const
   RazerDevicePath = "/org/razer/device/"
   RazerVendorId = 0x1532
   GoliathusExtendedId = 0x0c02
-  GreyBrightness = "25"
-  DarkGrey = "72"
-  LightGrey = "96"
   LightingPollMs = 5000
 
 var lightingThread: Thread[void]
@@ -69,11 +66,13 @@ proc watchMousepadLighting() {.thread.} =
   var
     state: MousepadLightingState
     lastError = ""
-  while true:
+  while not shouldStop():
     try:
       state.syncMousepadLighting(runBusctl)
+      setComponentError("lighting", "")
       lastError.setLen(0)
     except CatchableError as error:
+      setComponentError("lighting", error.msg)
       if error.msg != lastError:
         stderr.writeLine("Mousepad lighting unavailable: " & error.msg)
         lastError = error.msg

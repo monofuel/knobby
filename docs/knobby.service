@@ -10,11 +10,12 @@ Description=Knobby MIDI controller daemon
 After=graphical-session.target pipewire.service
 
 [Service]
-WorkingDirectory=/home/monofuel/Documents/Projects/Monolab/knobby
-Environment=DISPLAY=:0
-ExecStart=/run/current-system/sw/bin/nix develop /home/monofuel/Documents/Projects/Monolab/knobby --command nim r --forceBuild:on src/knobby.nim
+RuntimeDirectory=knobby
+RuntimeDirectoryMode=0700
+ExecStart=%h/.local/share/knobby/current/bin/knobby
 Restart=always
 RestartSec=1
+TimeoutStopSec=10
 
 [Install]
 WantedBy=graphical-session.target

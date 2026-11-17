@@ -1,50 +1,16 @@
 import
   std/[atomics, os, posix],
-  knobby/stream_deck
+  knobby/[stream_deck, stream_deck_page]
 
-const
-  AssetDirectory = currentSourcePath().parentDir().parentDir() / "assets" / "stream_deck"
-  DemoBrightness = 30
-  ReconnectMs = 1000
-  NormalImages = static:
-    var images: array[StreamDeckKeyCount, string]
-    for index in 0..<StreamDeckKeyCount:
-      images[index] = staticRead(AssetDirectory / ($(index + 1) & "-normal.jpg"))
-    images
-  PressedImages = static:
-    var images: array[StreamDeckKeyCount, string]
-    for index in 0..<StreamDeckKeyCount:
-      images[index] = staticRead(AssetDirectory / ($(index + 1) & "-pressed.jpg"))
-    images
+export stream_deck_page
+
+const ReconnectMs = 1000
 
 var stopping: Atomic[bool]
 
 proc requestStop() {.noconv.} =
   ## Ask the polling loop to stop without performing I/O in a signal handler.
   stopping.store(true)
-
-proc runDemoSession*(deck: StreamDeck, shouldStop: proc (): bool,
-    onKey: proc (event: StreamDeckKeyEvent), onReady: proc () = nil) =
-  ## Own one session, display numbered keys, and highlight changes until stopped.
-  defer:
-    try:
-      deck.close()
-    except OSError as error:
-      stderr.writeLine("Closing Stream Deck failed: " & error.msg)
-  deck.setBrightness(DemoBrightness)
-  for index in 0..<StreamDeckKeyCount:
-    if shouldStop():
-      deck.showLogo()
-      return
-    deck.setKeyImage(index, NormalImages[index])
-  if not onReady.isNil:
-    onReady()
-  while not shouldStop():
-    for event in deck.pollKeys():
-      let image = if event.pressed: PressedImages[event.keyIndex] else: NormalImages[event.keyIndex]
-      deck.setKeyImage(event.keyIndex, image)
-      onKey(event)
-  deck.showLogo()
 
 proc printKey(event: StreamDeckKeyEvent) =
   ## Print human-facing key numbers in the same order as their displayed labels.

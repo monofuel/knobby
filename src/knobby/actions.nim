@@ -1,29 +1,19 @@
 import
   std/[locks, os, osproc, streams, strformat, strutils, tables],
-  ./[audio_outputs, common, discord_rpc, midi_events]
+  ./[audio_outputs, bindings, common, discord_rpc, midi_events, runtime]
+
+export bindings.isSteamGame
 
 const
   MaxMidiValue = 127
   FaderSnapLow = 2
   FaderSnapHigh = 125
   FaderDeadband = 1
-  MasterFaderController = 16
-  AppFaderBindings = [
-    (17, "Firefox", @["Firefox"], false),
-    (18, "Spotify", @["Spotify"], false),
-    (19, "games", @["FINAL FANTASY XIV", "World of Warcraft"], true),
-  ]
-  SteamAppIdVariable = "SteamAppId="
-  GameMediaRole = "game"
   NewSinkInputEvent = "Event 'new' on sink-input"
   NewStreamSettleMs = 100
   StreamWatcherRetryMs = 1000
-  GrokCommand = "firefox --new-window https://grok.com/"
-  ClaudeCommand = "firefox --new-window https://claude.ai/"
-  FfxivLaunchCommand = "steam steam://rungameid/9332724227821797376"
   FfxivProcessPattern = "ffxiv_dx11.exe"
   FfxivWindowTitle = "FINAL FANTASY XIV"
-  BenqMicSource = "alsa_input.usb-Generic_BenQ_EX3210U-00.iec958-stereo"
   MonitorSourceSuffix = ".monitor"
   MutedReport = "Mute: yes"
 
@@ -68,30 +58,15 @@ proc setMasterVolume(percent: int) =
     @["set-sink-volume", "@DEFAULT_SINK@", fmt"{percent}%"]
   )
 
-proc isSteamGame*(processId: string): bool =
-  ## Report whether the process was launched by Steam, which injects a
-  ## SteamAppId variable into the environment of every game it starts.
-  if processId.len == 0:
-    return false
-  let environPath = fmt"/proc/{processId}/environ"
-  if not fileExists(environPath):
-    return false
-  let environ = readFile(environPath)
-  result = environ.startsWith(SteamAppIdVariable) or
-    ("\0" & SteamAppIdVariable) in environ
-
 proc streamMatches*(stream: AudioOutputStream, appNames: openArray[string],
     includeGames: bool): bool =
   ## Report whether a stream is targeted by an app fader binding: by app name,
   ## by being a Steam-launched game, or by declaring the game media role
   ## (OpenAL Soft apps like decompbound's player set it).
-  for appName in appNames:
-    if stream.appName.toLowerAscii().contains(appName.toLowerAscii()):
-      return true
-  if not includeGames:
-    return false
-  result = stream.mediaRole.toLowerAscii() == GameMediaRole or
-    isSteamGame(stream.processId)
+  result = matchesAudioTarget(stream.appName, stream.mediaRole,
+    false, appNames, includeGames)
+  if not result and includeGames:
+    result = isSteamGame(stream.processId)
 
 proc setAppVolume(appNames: openArray[string], includeGames: bool,
     percent: int) =
@@ -117,7 +92,7 @@ proc applyRememberedFaderLevels() =
 
 proc watchForNewStreams() {.thread.} =
   ## Restore current fader levels when new streams appear.
-  while true:
+  while not shouldStop():
     let subscriber = spawnCommand("pactl", @["subscribe"])
     var line: string
     while subscriber.outputStream.readLine(line):
@@ -236,23 +211,23 @@ proc pressDiscordMute() =
 
 proc pressButton(note: int) =
   ## Run the action bound to a button, if any.
-  case note
-  of 12:
+  case buttonBinding(note).action
+  of OpenGrok:
     echo fmt"Button 12: {GrokCommand}"
     launchDetached(GrokCommand)
-  of 9:
+  of OpenClaude:
     echo fmt"Button 9: {ClaudeCommand}"
     launchDetached(ClaudeCommand)
-  of 10:
+  of LaunchFfxiv:
     launchFfxiv()
-  of 11:
+  of ToggleMicrophones:
     try:
       toggleMicMute()
     except OSError as error:
       echo "Microphone mute failed: " & error.msg
-  of 8:
+  of ToggleDiscord:
     pressDiscordMute()
-  else:
+  of Unassigned:
     discard
 
 proc finalFaderValues*(events: seq[MidiEvent]): OrderedTable[int, int] =

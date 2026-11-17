@@ -124,7 +124,7 @@ matches (Firefox opens several).
 
 - Config files or any user-facing configuration.
 - Windows or macOS support.
-- A GUI.
+- Editing bindings from the GUI. The read-only viewer is described in [gui.md](gui.md).
 - Multiple controllers at once. Several mixers exist (see Board Variants in
   `docs/hardware.md`) but only one is plugged into high-steel.
 
@@ -158,7 +158,7 @@ have a total deadline, a frame-count limit, and a maximum frame size; token
 requests also have network timeouts. Microphone commands use the same
 one-second timeout as volume commands.
 
-Service startup forces Nim to rebuild rather than relying on its cached
-executable. Inspect recovery messages with
+Services use verified prebuilt executables; rebuild/install after source changes.
+Inspect recovery messages with
 `journalctl --user -u knobby --since today`. A watchdog restart is recovery
 from a stall, not evidence that its original cause has been identified.

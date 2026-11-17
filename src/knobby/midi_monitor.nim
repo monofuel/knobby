@@ -70,7 +70,8 @@ proc detectArduinoAmidiPort*(): string =
     if result.len > 0:
       break
 
-proc runSeqBatchSession*(port: string, onBatch: proc (lines: seq[string])): int =
+proc runSeqBatchSession*(port: string, onBatch: proc (lines: seq[string]),
+    shouldStop: proc (): bool = nil): int =
   ## Poll MIDI output in bounded batches with session-local buffering.
   let monitor = spawnCommand("aseqdump", @["-p", port])
   defer:
@@ -86,7 +87,7 @@ proc runSeqBatchSession*(port: string, onBatch: proc (lines: seq[string])): int 
     pending = ""
     buffer: array[ReadBufferSize, char]
     finished = false
-  while not finished:
+  while not finished and (shouldStop.isNil or not shouldStop()):
     markProgress()
     var descriptor = TPollfd(fd: handle, events: POLLIN)
     let ready = poll(addr descriptor, Tnfds(1), MidiPollMs)

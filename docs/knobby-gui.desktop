@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Knobby
+Comment=Inspect Knobby controls and audio
+Exec=/home/monofuel/.local/bin/knobby-gui
+Icon=audio-card
+Terminal=false
+Categories=AudioVideo;Audio;

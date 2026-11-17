@@ -1,5 +1,6 @@
 import
-  std/[options, os, posix, strutils]
+  std/[options, os, posix, strutils],
+  ./ipc
 
 type
   StreamDeckKeys* = array[15, bool]
@@ -7,12 +8,17 @@ type
     keyIndex*: int
     pressed*: bool
   StreamDeckIo* = object
-    readReport*: proc (timeoutMs: int): string
-    writeReport*: proc (report: string): int
-    sendFeature*: proc (report: string): int
-    close*: proc ()
+    readReport*: proc (timeoutMs: int): string {.gcsafe.}
+    writeReport*: proc (report: string): int {.gcsafe.}
+    sendFeature*: proc (report: string): int {.gcsafe.}
+    close*: proc () {.gcsafe.}
   StreamDeck* = ref object
     io: StreamDeckIo
+    keys: StreamDeckKeys
+    closed: bool
+  StreamDeckMonitor* = ref object
+    readReport: proc (timeoutMs: int): string {.gcsafe.}
+    closeTransport: proc () {.gcsafe.}
     keys: StreamDeckKeys
     closed: bool
   HidDeviceInfo {.importc: "struct hidraw_devinfo", header: "<linux/hidraw.h>", bycopy.} = object
@@ -209,9 +215,9 @@ proc readNativeReport(handle: cint, timeoutMs: int): string =
   result = newString(size)
   copyMem(addr result[0], addr buffer[0], size)
 
-proc openStreamDeck*(path: string): StreamDeck =
+proc openNativeStreamDeck(path: string, flags: cint): StreamDeck =
   ## Open and revalidate a Linux USB MK.2 before issuing device commands.
-  let handle = posix.open(path.cstring, O_RDWR or O_NONBLOCK or O_CLOEXEC)
+  let handle = posix.open(path.cstring, flags or O_NONBLOCK or O_CLOEXEC)
   if handle < 0:
     raiseOSError(osLastError(), path)
   try:
@@ -243,3 +249,49 @@ proc openStreamDeck*(path: string): StreamDeck =
     if posix.close(handle) < 0:
       stderr.writeLine("Closing Stream Deck failed: " & osErrorMsg(osLastError()))
     raise
+
+proc openStreamDeck*(path: string): StreamDeck =
+  ## Open the MK.2 for the existing display-control demo.
+  let ownership = acquireOwnership(runtimePath("knobby-devices", "stream-deck.lock"))
+  try:
+    result = openNativeStreamDeck(path, O_RDWR)
+    let closeNative = result.io.close
+    result.io.close = proc () =
+      ## Release both the display descriptor and its cross-process ownership lock.
+      defer: discard posix.close(ownership)
+      closeNative()
+  except:
+    discard posix.close(ownership)
+    raise
+
+proc newStreamDeckMonitor*(readReport: proc (timeoutMs: int): string {.gcsafe.},
+    closeTransport: proc () {.gcsafe.}): StreamDeckMonitor =
+  ## Own an input-only transport without exposing any display-setting methods.
+  if readReport.isNil or closeTransport.isNil:
+    raise newException(ValueError, "Monitor callbacks must be supplied.")
+  StreamDeckMonitor(readReport: readReport, closeTransport: closeTransport)
+
+proc openStreamDeckMonitor*(path: string): StreamDeckMonitor =
+  ## Open a separate O_RDONLY descriptor; never send output or feature reports.
+  let deck = openNativeStreamDeck(path, O_RDONLY)
+  newStreamDeckMonitor(deck.io.readReport, proc () =
+    ## Close the owned native descriptor without restoring or changing its display.
+    deck.close())
+
+proc pollKeys*(monitor: StreamDeckMonitor, timeoutMs = DefaultPollMs): seq[StreamDeckKeyEvent] =
+  ## Observe edges from this reader's independent kernel input queue.
+  if monitor.closed:
+    raise newException(IOError, "Stream Deck monitor is closed.")
+  if timeoutMs < 0:
+    raise newException(ValueError, "Polling needs a finite nonnegative timeout.")
+  let states = parseKeyStates(monitor.readReport(timeoutMs))
+  if states.isSome:
+    result = keyChanges(monitor.keys, states.get())
+
+proc close*(monitor: StreamDeckMonitor) =
+  ## Release an input observer exactly once without issuing a device command.
+  if monitor.closed:
+    return
+  monitor.closed = true
+  monitor.keys = default(StreamDeckKeys)
+  monitor.closeTransport()

@@ -7,8 +7,8 @@
   systems.
 - Hardware is an Arduino Micro MIDI mixer documented in docs/hardware.md:
   12 buttons (notes 1-12) and 4 faders (CC 16-19).
-- Faders drive PipeWire volumes through pactl; buttons launch apps. All
-  bindings are consts in src/knobby/actions.nim.
+- Faders drive PipeWire volumes through pactl; buttons launch apps. Shared
+  bindings are consts in src/knobby/bindings.nim; actions.nim dispatches them.
 
 ## Layout
 
@@ -17,18 +17,28 @@
 - `src/knobby/midi_monitor.nim` - aseqdump wrappers: port detection, per-line
   and batched sessions. Batches coalesce fader bursts so the last value wins.
 - `src/knobby/midi_events.nim` - parse aseqdump output lines into MidiEvent.
-- `src/knobby/actions.nim` - bindings, fader endpoint snap and deadband,
+- `src/knobby/actions.nim` - action dispatch, fader endpoint snap and deadband,
   pactl volume calls, detached app launchers.
 - `src/knobby/audio_outputs.nim` - pactl sink-input listing.
 - `src/knobby/razer_lighting.nim` - optional OpenRazer mousepad lighting through D-Bus.
 - `src/knobby/stream_deck.nim` - Linux hidraw transport and MK.2 report codecs for the standalone demo.
+- `src/knobby/status.nim` - locked authoritative state shared by daemon workers.
+- `src/knobby/fader_cache.nim` - atomic, rate-limited last-known fader display cache.
+- `src/knobby/ipc.nim` - bounded nonblocking local sockets and versioned framing.
+- `src/knobby/daemon_workers.nim` - independent action, Stream Deck, audio, IPC, and cache workers.
+- `src/knobby/gui_activation.nim` - activate one GUI instance through its user service.
+- `src/knobby/audio_status.nim` - pure pactl JSON parsing for the viewer.
+- `gui/app/` - read-only Windy/Silky viewer; `gui/` is its isolated Nimby workspace.
 - `examples/` - midi_monitor and audio_outputs demos (see README.md).
 - `docs/example_out.txt` - real capture of every button and fader; the
   reference for parser behavior and test cases.
 
 ## Dependencies
 
-- Nim >= 2.0.0, standard library only (no package dependencies).
+- Daemon: Nim >= 2.0.0, standard library only (no package dependencies).
+- GUI: Nim >= 2.2.4; use Nimby >= 0.2.3 and `gui/app/nimby.lock` inside
+  the isolated `gui/` workspace. Do not install into the shared parent
+  workspace or update global packages. GUI commands are in docs/gui.md.
 - External command-line tools, all provided by the flake dev shell
   (`nix develop`): aseqdump and aconnect (alsa-utils), pactl (pulseaudio),
   wmctrl, curl, busctl (systemd).
@@ -46,23 +56,38 @@
 - Unit tests must not call pactl, launch apps, or need the hardware. Test
   pure logic (parsing, fader math, coalescing) against lines from
   docs/example_out.txt.
+- GUI smoke tests run under a private Xvfb display and D-Bus session. Never
+  open a GUI window on the user's desktop for automated verification.
+
+## Git Publication
+
+- After completing authorized changes and the required checks, commit your
+  changes and push to both `origin` (Gitea) and `github` (GitHub). Monofuel wants
+  both remotes kept current automatically; do not wait for another commit or
+  push request unless he explicitly asks to leave the work unpublished.
+- Review the staged changes and preserve unrelated work in this shared checkout.
+  Never force-push. Verify both remote branch tips match the published commit
+  and report any failure to publish.
 
 ## Systemd User Service
 
 The daemon runs as a systemd user service. The reference copy is
 `docs/knobby.service`; the live copy is `~/.config/systemd/user/knobby.service`.
 
-- After code changes: `systemctl --user restart knobby`. ExecStart runs
-  `nim r` inside `nix develop`, so a restart recompiles automatically.
-- After editing the service file, update the live copy from the repo copy:
+- After code or service changes, build, check, and install the compiled Nix package:
 
 ```
-cp docs/knobby.service ~/.config/systemd/user/knobby.service
-systemctl --user daemon-reload
-systemctl --user restart knobby
+nix develop --command nim r tools/install.nim
 ```
 
 - Logs: `journalctl --user -u knobby -f`
+- The GUI unit is `docs/knobby-gui.service`; it starts hidden at graphical
+  login. Running `knobby-gui` activates that same process. The installer
+  enables it for future logins without opening a desktop window.
+- Services execute verified prebuilt binaries. Restarting does not rebuild;
+  rebuild/install first. The daemon owns all device and audio observations.
+- Stream Deck writers take an exclusive process lock outside service-managed
+  runtime directories. Stop the daemon before running display demos/probes.
 - Never edit the live copy directly; edit docs/knobby.service and copy it, so
   the repo copy stays the source of truth.
 

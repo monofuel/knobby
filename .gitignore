@@ -13,3 +13,8 @@ nimcache
 !.github/
 !.gitignore
 discord_rpc.json
+
+# Isolated GUI workspace dependencies and generated configuration.
+/gui/*
+!/gui/app/
+/gui/app/dist/
