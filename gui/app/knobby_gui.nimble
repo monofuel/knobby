@@ -1,6 +1,6 @@
 version = "0.1.0"
 author = "monofuel"
-description = "Read-only Knobby device viewer."
+description = "Knobby button editor and live device viewer."
 license = "MIT"
 srcDir = "src"
 bin = @["knobby_gui"]

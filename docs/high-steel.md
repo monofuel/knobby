@@ -122,9 +122,9 @@ matches (Firefox opens several).
 
 ## Non-Goals (for now)
 
-- Config files or any user-facing configuration.
+- Configuring fader/audio targets or lighting presets through the GUI.
 - Windows or macOS support.
-- Editing bindings from the GUI. The read-only viewer is described in [gui.md](gui.md).
+- Additional device integrations beyond the current mixer, Stream Deck, and mousepad.
 - Multiple controllers at once. Several mixers exist (see Board Variants in
   `docs/hardware.md`) but only one is plugged into high-steel.
 

@@ -14,12 +14,14 @@ With OpenRazer installed, it also gives the
 
 This is monofuel's personal setup for `high-steel`, a NixOS desktop using
 PipeWire's PulseAudio compatibility layer. Bindings and desktop paths are
-hardcoded intentionally; there is no configuration system.
+specific to this desktop intentionally. Buttons and menus are editable;
+fader/audio targeting and lighting presets remain compiled.
 
 The [controller](docs/hardware.md) has four faders and twelve buttons.
 See the [desktop setup](docs/high-steel.md) for bindings and Discord
 authorization. Adapting Knobby to another desktop means editing the bindings
-in [bindings.nim](src/knobby/bindings.nim) and the service paths.
+through the [button editor](docs/buttons.md), or editing
+[bindings.nim](src/knobby/bindings.nim) for faders and desktop integration.
 
 ## Try it
 
@@ -59,10 +61,12 @@ nim r examples/audio_outputs.nim
 
 ## Device viewer
 
-The optional read-only GUI shows the mixer and Stream Deck layouts, highlights
-button activity, and explains each binding. Fader positions appear alongside
+The optional GUI edits button actions, menus, and Stream Deck artwork while
+showing live device activity. Fader positions appear alongside
 the actual audio output and application-stream levels. It also shows microphone
-mute state and the mousepad's intended lighting preset.
+mute state and the mousepad's intended lighting preset. [Button configuration](docs/buttons.md)
+covers the editor, animated images, linked Back navigation, and the shared JSON
+workflow for text editors and AI tools.
 
 The viewer uses Windy and Silky and can stay in the system tray. See
 [GUI setup](docs/gui.md) for installing its separate dependencies and launching it.

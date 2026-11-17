@@ -232,7 +232,7 @@ proc drawDetails(sk: Silky, viewer: Viewer, x, height: float32) =
     elif not viewer.state.buttons.isNil:
       if editor.model.error.len > 0: text(editor.model.error, "Small", Danger)
       else: text("Loading configuration...", "Small", Muted)
-    text("Demo brightness: " & $StreamDeckDemoBrightness & "%", "Small", Muted)
+    text("Brightness: " & $StreamDeckDemoBrightness & "%", "Small", Muted)
   of MousepadPage:
     text("Grey breathing", "Title")
     text("Intended preset", "Small", Accent)

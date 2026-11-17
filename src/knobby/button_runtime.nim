@@ -6,6 +6,7 @@ type
   ButtonServices* = object
     prepare*: proc (config: JsonNode): JsonNode {.gcsafe.}
     importAsset*: proc (source: string): string {.gcsafe.}
+    maintain*: proc () {.gcsafe.}
   OperationKind = enum
     ApplyOperation = "apply", PreviewOperation = "preview", ImportOperation = "importAsset"
   OperationRecord = object
@@ -612,6 +613,13 @@ proc runWorker() {.thread.} =
       record.error = error.msg
       record.code = error.code
       record.field = error.field
+    {.cast(gcsafe).}:
+      if record.status == SucceededStatus and job.kind != ImportOperation and
+          not services.maintain.isNil:
+        try:
+          services.maintain()
+        except CatchableError as error:
+          stderr.writeLine("Button cache maintenance failed: " & error.msg)
     record.finishedMs = epochMs()
     withState:
       state.hasCurrent = false

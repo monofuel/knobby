@@ -1,5 +1,5 @@
 import
-  std/[locks, os, osproc, streams, strformat, strutils, tables],
+  std/[json, locks, os, osproc, streams, strformat, strutils, tables],
   ./[audio_outputs, bindings, common, discord_rpc, midi_events, runtime]
 
 export bindings.isSteamGame
@@ -112,14 +112,11 @@ proc startStreamWatcher*() =
   createThread(streamWatcherThread, watchForNewStreams)
 
 proc launchDetached(command: string) =
-  ## Launch a command detached from the daemon so it never blocks the event loop.
-  let shell = spawnCommand(
-    "/bin/sh",
-    @["-c", command & " >/dev/null 2>&1 &"],
-    options = {poUsePath}
-  )
-  discard waitForExit(shell)
-  close(shell)
+  ## Launch an independent user service, passing command text as data to its shell.
+  discard runAudioCommand("systemd-run", @["--user", "--collect", "--quiet",
+    "--property=Type=exec", "--property=StandardInput=null",
+    "--property=StandardOutput=null", "--property=StandardError=null",
+    "--", "/bin/sh", "-c", command])
 
 proc applyFader(dispatcher: Dispatcher, controller, value: int) =
   ## Apply a fader movement to its bound volume target.
@@ -208,6 +205,18 @@ proc pressDiscordMute() =
   except CatchableError as error:
     # A Discord hiccup must not take the whole daemon down with it.
     echo fmt"Button 8: Discord mute failed: {error.msg}"
+
+proc executeButtonAction*(action: JsonNode) =
+  ## Execute an already-resolved button action without consulting the current menu.
+  case action{"kind"}.getStr()
+  of "none": discard
+  of "command": launchDetached(action["command"].getStr())
+  of "grok": launchDetached(GrokCommand)
+  of "claude": launchDetached(ClaudeCommand)
+  of "ffxiv": launchFfxiv()
+  of "microphones": toggleMicMute()
+  of "discord": pressDiscordMute()
+  else: raise newException(ValueError, "Unresolved or invalid button action.")
 
 proc pressButton(note: int) =
   ## Run the action bound to a button, if any.

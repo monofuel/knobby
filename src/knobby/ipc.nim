@@ -19,7 +19,7 @@ type
     message*: JsonNode
 
 const
-  ProtocolVersion* = 1
+  ProtocolVersion* = 2
   MaxFrameBytes* = 1024 * 1024
   PeerTimeoutMs* = 2000
   MaxPeers = 8
@@ -75,7 +75,7 @@ proc takeMessage*(buffer: var string): Option[JsonNode] =
     return none(JsonNode)
   let message = parseJson(buffer[4..<size + 4])
   if message.kind != JObject or message{"version"}.getInt(-1) != ProtocolVersion:
-    raise newException(ValueError, "Incompatible Knobby IPC version.")
+    raise newException(ValueError, "Incompatible Knobby IPC version; reopen the viewer after updating Knobby.")
   buffer = buffer[size + 4..^1]
   result = some(message)
 

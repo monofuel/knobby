@@ -35,6 +35,11 @@ suite "Read-only viewer bindings":
     check bindingCatalog()["faders"].len == 4
 
 suite "Daemon viewer status":
+  test "status fixtures encode an empty button configuration as an object":
+    let encoded = encodeSnapshot(emptyMixer(), "fixture", 1000)
+    check parseJson(encoded)["buttonConfig"].kind == JObject
+    check decodeSnapshot(encoded).buttonConfig.kind == JObject
+
   test "positions start unknown and independent held notes are observed":
     var state = emptyMixer()
     check state.faders == [-1, -1, -1, -1]

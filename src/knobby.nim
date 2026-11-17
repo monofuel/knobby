@@ -1,6 +1,6 @@
 import
   std/[os, posix, strformat],
-  knobby/[actions, common, daemon_workers, ipc, midi_events, midi_monitor, razer_lighting, runtime, status]
+  knobby/[actions, button_cli, common, daemon_workers, ipc, midi_events, midi_monitor, razer_lighting, runtime, status]
 
 proc appName*(): string =
   ## Return the application name.
@@ -45,4 +45,13 @@ proc run*() =
       sleep(ReconnectPollIntervalMs)
 
 when isMainModule:
-  run()
+  let args = commandLineParams()
+  if args.len > 0 and args[0] == "config":
+    runButtonConfigCli(args[1..^1])
+  elif args == @["--help"]:
+    echo "Usage: knobby [config COMMAND]"
+    echo configUsage()
+  elif args.len == 0:
+    run()
+  else:
+    raise newException(ValueError, "Usage: knobby [config COMMAND]")

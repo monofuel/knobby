@@ -75,9 +75,11 @@ The 30 prepared JPEGs are embedded into the demo. To regenerate them, use
 `fc-match`, and DejaVu Sans Bold installed. These are asset-generation tools,
 not runtime dependencies.
 
-The daemon runs the same numbered page automatically. Standalone display tools
+The daemon initially runs the same numbered page. Its [button editor](buttons.md)
+supports actions, menus, static images, and GIF animation. FFmpeg is bundled with
+Knobby for runtime artwork preparation. Standalone display tools
 reject a second writer. Restart `knobby.service` after diagnostics to restore
-normal device handling. Future bindings and animations remain unassigned.
+normal device handling.
 
 ## JPEG Compatibility Checks
 

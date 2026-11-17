@@ -27,6 +27,8 @@ jobs:
         ref: a800569be17821574dccb7a18a1fb99f65ff5309
         path: .ci-nimby
     - run: nim c --out:/tmp/nimby .ci-nimby/src/nimby.nim
-    - run: sudo apt-get update && sudo apt-get install -y libgl1-mesa-dev libx11-dev libxcursor-dev libxrandr-dev libxi-dev libxinerama-dev libxtst6 xvfb dbus-x11 systemd openbox
+    - run: sudo apt-get update && sudo apt-get install -y libgl1-mesa-dev libx11-dev libxcursor-dev libxrandr-dev libxi-dev libxinerama-dev libxtst6 xvfb dbus-x11 systemd openbox ffmpeg zenity
     - run: cd gui && /tmp/nimby create && cd app && /tmp/nimby sync nimby.lock
     - run: sh gui/app/tools/smoke.sh
+    - run: nim r gui/app/tools/test_button_media.nim
+    - run: sh gui/app/tools/editor_smoke.sh

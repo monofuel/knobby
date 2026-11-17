@@ -1,7 +1,9 @@
 import
   std/[atomics, json, locks, os, strutils],
-  ./[actions, audio_status, bindings, common, fader_cache, ipc, midi_events, runtime, status,
-    stream_deck, stream_deck_page]
+  ./[actions, audio_status, bindings, button_config, button_media, button_runtime,
+    common, fader_cache, ipc, midi_events, runtime, status, stream_deck]
+
+from ./stream_deck_player import runConfiguredSession
 
 type
   PendingActions* = object
@@ -48,14 +50,32 @@ proc drain*(queue: var PendingActions): seq[MidiEvent] =
   queue = emptyActions()
 
 proc queueActions*(events: openArray[MidiEvent]) =
-  ## Keep ingestion independent of potentially slow desktop and audio actions.
+  ## Resolve button presses immediately and coalesce faders independently of slow actions.
+  var faders: seq[MidiEvent]
+  for event in events:
+    case event.kind
+    of NoteOn, NoteOff:
+      try:
+        routeMixerButton(event.note, event.kind == NoteOn and event.velocity > 0)
+      except IOError as error:
+        setComponentError("actions", error.msg)
+        stderr.writeLine(error.msg)
+    of ControlChange: faders.add(event)
+    of OtherEvent: discard
   {.cast(gcsafe).}:
-    withLock actionLock: pending.enqueue(events)
+    withLock actionLock: pending.enqueue(faders)
 
 proc runActions() {.thread.} =
   ## Own action dispatch and Discord RPC state exclusively on this worker.
   let dispatcher = newDispatcher()
   while not shouldStop():
+    for captured in takeButtonActions():
+      try:
+        {.cast(gcsafe).}: executeButtonAction(captured["action"])
+        setComponentError("actions", "")
+      except CatchableError as error:
+        setComponentError("actions", error.msg)
+        stderr.writeLine("Button action failed: " & error.msg)
     var events: seq[MidiEvent]
     {.cast(gcsafe).}:
       withLock actionLock: events = pending.drain()
@@ -76,15 +96,27 @@ proc runDeck() {.thread.} =
       let path = discoverStreamDeck()
       if path.len == 0:
         setDeckConnection(false, "Disconnected")
+        resetDeckInput()
       else:
         {.cast(gcsafe).}:
-          runDemoSession(openStreamDeck(path), shouldStop, observeDeck,
+          runConfiguredSession(openStreamDeck(path), shouldStop,
+            proc (event: StreamDeckKeyEvent) =
+              ## Observe all edges while routing only eligible fresh presses.
+              observeDeck(event)
+              try: routeDeckButton(event.keyIndex, event.pressed)
+              except IOError as error:
+                setComponentError("actions", error.msg)
+                stderr.writeLine(error.msg),
+            readDeckPage,
             proc () =
               ## Announce a ready page only after all fifteen images are uploaded.
+              deckPageReady()
               setDeckConnection(true))
+        resetDeckInput()
         lastError.setLen(0)
     except CatchableError as error:
       setDeckConnection(false, error.msg)
+      resetDeckInput()
       if error.msg != lastError:
         stderr.writeLine("Stream Deck unavailable: " & error.msg)
         lastError = error.msg
@@ -131,6 +163,8 @@ proc serveState*(server: LocalServer) =
       if request.message{"type"}.getStr() == "subscribe":
         request.peer.subscribed = true
         request.peer.queueMessage(message)
+      elif request.message{"type"}.getStr().startsWith("config."):
+        request.peer.queueMessage(processConfigRequest(request.message))
       else: request.peer.close()
     var comparable = snapshot
     comparable.updatedMs = 0
@@ -176,6 +210,30 @@ proc runPersistence(saved: FaderPositions) {.thread.} =
 
 proc startDeviceWorkers*() =
   ## Start independently owned device, action, observation, and IPC workers.
+  let paths = newButtonPaths()
+  initializeButtons(paths, ButtonServices(
+    prepare: proc (config: JsonNode): JsonNode {.gcsafe.} =
+      ## Prepare all artwork independently of the active input and display loops.
+      try:
+        result = prepareButtonMedia(config, paths.configDir, paths.preparedDirectory(), knobbyFontPath())
+      except MediaError as error:
+        var failure = newException(ButtonConfigError, error.msg)
+        failure.field = error.field
+        raise failure,
+    importAsset: proc (source: string): string {.gcsafe.} =
+      ## Copy source artwork into the shared immutable asset directory.
+      try:
+        result = importButtonAsset(source, paths.configDir)
+      except MediaError as error:
+        var failure = newException(ButtonConfigError, error.msg)
+        failure.field = error.field
+        raise failure,
+    maintain: proc () {.gcsafe.} =
+      ## Reclaim old prepared files only after a successful configuration operation.
+      let report = cleanPreparedCache(paths.preparedDirectory(), paths.manifestDirectory())
+      for message in report.errors:
+        stderr.writeLine("Button cache maintenance failed: " & message)))
+  startButtonWorker()
   var saved = UnknownFaders
   try:
     saved = loadFaderCache(faderCachePath())
@@ -199,3 +257,4 @@ proc stopDeviceWorkers*() =
   joinThread(audioThread)
   joinThread(stateThread)
   joinThread(persistenceThread)
+  stopButtonWorker()

@@ -10,6 +10,7 @@ const
 var
   gateOpen: Atomic[bool]
   prepareCalls: Atomic[int]
+  maintenanceCalls: Atomic[int]
   deckSeen: int64
   directoryCounter: int
 
@@ -42,6 +43,11 @@ proc fakeImport(source: string): string {.gcsafe.} =
 proc fakeServices(): ButtonServices =
   ## Inject hardware-free media services.
   ButtonServices(prepare: fakePrepare, importAsset: fakeImport)
+
+proc failingMaintenance() {.gcsafe.} =
+  ## Simulate a cache cleanup failure after a completed configuration transaction.
+  maintenanceCalls.atomicInc()
+  raise newException(IOError, "Fixture cleanup failure.")
 
 proc navConfig(): JsonNode =
   ## Describe three menus exercising linked, mixer-only, and Deck-only transitions.
@@ -449,6 +455,23 @@ suite "Button runtime":
     check not fileExists(paths.configPath())
     check not fileExists(paths.lastAppliedPath())
     check status()["operation"]["id"] == record["id"]
+
+  test "maintenance failures preserve successful applies and failed prepares skip cleanup":
+    let paths = newPaths()
+    var services = fakeServices()
+    services.maintain = failingMaintenance
+    maintenanceCalls.store(0)
+    start(paths, services)
+    defer: finish(paths)
+    let config = navConfig()
+    check awaitOperation(apply(config))["status"].getStr() == "succeeded"
+    check revision() == configRevision(config)
+    check decodeLastApplied(readFile(paths.lastAppliedPath())) == canonicalButtonConfig(config)
+    check maintenanceCalls.load() == 1
+    var broken = navConfig()
+    broken["menus"][0]["title"] = %FailTitle
+    check awaitOperation(apply(broken))["status"].getStr() == "failed"
+    check maintenanceCalls.load() == 1
 
   test "canonical write failure keeps the active configuration":
     let paths = newPaths()

@@ -25,16 +25,18 @@ proc main() =
   for unit in ["knobby.service", "knobby-gui.service"]:
     copyFile(package / "share/knobby" / unit, unitDir / unit)
   copyFile(package / "share/knobby/knobby-gui.desktop", desktopDir / "knobby.desktop")
-  let launcher = binDir / "knobby-gui"
-  if symlinkExists(launcher):
-    removeFile(launcher)
-  elif fileExists(launcher):
-    raise newException(IOError, "Refusing to replace an unrelated launcher: " & launcher)
-  createSymlink(package / "bin/knobby-gui", launcher)
+  for name in ["knobby", "knobby-gui", "knobby-assets"]:
+    let launcher = binDir / name
+    if symlinkExists(launcher):
+      removeFile(launcher)
+    elif fileExists(launcher):
+      raise newException(IOError, "Refusing to replace an unrelated launcher: " & launcher)
+    createSymlink(package / "bin" / name, launcher)
   run(@["systemctl", "--user", "daemon-reload"])
   run(@["systemctl", "--user", "enable", "knobby.service", "knobby-gui.service"])
   run(@["systemctl", "--user", "restart", "knobby.service"])
-  echo "Installed. Launch knobby-gui to open the tray viewer; future logins start it hidden."
+  echo "Installed. Existing GUI processes and drafts were left running."
+  echo "To load a new editor/protocol: choose Quit viewer from the tray, then run ~/.local/bin/knobby-gui."
 
 when isMainModule:
   main()

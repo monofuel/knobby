@@ -1,8 +1,10 @@
 # Knobby tray viewer
 
 Knobby has two independent user services. The daemon owns the mixer, Stream
-Deck, lighting, actions, and audio observations. The read-only GUI displays
-that state and can be closed or quit without affecting physical controls.
+Deck, lighting, actions, and audio observations. The GUI displays that state
+and edits buttons through daemon transactions. It can close or quit without
+affecting physical controls. See [buttons.md](buttons.md) for menus, artwork,
+draft recovery, and the shared GUI/CLI configuration workflow.
 
 ## Install or update
 
@@ -20,7 +22,9 @@ nor the source checkout. New code takes effect after rebuilding and installing.
 
 The repository copies of both service units remain the source of truth. The
 installer copies them to the user unit directory, enables graphical-login
-startup, and restarts the daemon. It does not open the GUI on the desktop.
+startup, and restarts the daemon. It neither launches nor restarts the desktop
+GUI. For a new editor or IPC version, choose **Quit viewer** from the tray and
+run `~/.local/bin/knobby-gui`; saved configurations and drafts are retained.
 
 Before migrating from the standalone Stream Deck demo, stop that demo with
 Ctrl+C. The daemon now owns the same numbered page at 30% brightness and its
@@ -79,8 +83,9 @@ the latest unsaved readings.
 - **Mousepad:** physical presence and the intended OpenRazer preset. Actual
   RGB values are not queried. Lighting failures are independent of MIDI.
 
-Selecting controls only inspects them. There is no configuration system or
-remote action API.
+Selecting controls in the live browser only inspects them. The button editor
+uses explicit Save & Apply transactions; it never fires an action by selecting
+a tile. The local configuration API does not expose an execute-button command.
 
 ## Local interfaces
 
@@ -120,6 +125,8 @@ checks directly:
 
 ```sh
 nix develop --command sh gui/app/tools/smoke.sh
+nix develop --command sh gui/app/tools/editor_smoke.sh
+nix develop --command nim r gui/app/tools/test_button_media.nim
 ```
 
 These use private Xvfb/Openbox and D-Bus sessions. They verify rendering,

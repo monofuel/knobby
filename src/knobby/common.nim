@@ -5,9 +5,18 @@ const
   AppName* = "Knobby"
   AppDescription* = "MIDI controller daemon."
   ReconnectPollIntervalMs* = 1000
+  DevelopmentFont = currentSourcePath().parentDir().parentDir().parentDir() /
+    "gui/app/assets/DejaVuSans.ttf"
 
 var spawnLock: Lock
 initLock(spawnLock)
+
+proc knobbyFontPath*(): string =
+  ## Locate the same bundled font in an installed package or development checkout.
+  for candidate in [getAppDir() / "../share/knobby/DejaVuSans.ttf", DevelopmentFont]:
+    if fileExists(candidate):
+      return candidate
+  raise newException(IOError, "Knobby's bundled DejaVu Sans font is unavailable.")
 
 proc runCommand*(command: string, args: seq[string]): string =
   ## Run a command and capture its output. Holds the spawn lock so a fork on

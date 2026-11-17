@@ -9,7 +9,7 @@
     let
       system = "x86_64-linux";
       pkgs = nixpkgs.legacyPackages.${system};
-      runtimeTools = with pkgs; [ alsa-utils pulseaudio wmctrl curl systemd procps ];
+      runtimeTools = with pkgs; [ alsa-utils pulseaudio wmctrl curl systemd procps ffmpeg-headless ];
       graphics = with pkgs; [ xorg.libX11 xorg.libXcursor xorg.libXrandr xorg.libXi
         xorg.libXinerama libGL dbus mesa ];
       pins = builtins.filter (line: line != "")
@@ -29,7 +29,7 @@
         pname = "knobby";
         version = "0.1.0";
         src = self;
-        nativeBuildInputs = with pkgs; [ nim nimble makeWrapper xorg.xorgserver dbus systemd openbox ];
+        nativeBuildInputs = with pkgs; [ nim nimble makeWrapper xorg.xorgserver dbus systemd openbox ffmpeg-headless ];
         buildInputs = graphics;
         buildPhase = ''
           runHook preBuild
@@ -40,6 +40,7 @@
           ${dependencyConfig}
           CONFIG
           nim c -o:knobby-daemon src/knobby.nim
+          nim c -o:knobby-assets tools/prepare_button_media.nim
           nim c -o:gui/app/dist/knobby_gui gui/app/src/knobby_gui.nim
           runHook postBuild
         '';
@@ -52,17 +53,23 @@
           export DBUS_SESSION_CONF="${pkgs.dbus}/share/dbus-1/session.conf"
           export FONTCONFIG_FILE="${pkgs.makeFontsConf { fontDirectories = [ pkgs.dejavu_fonts ]; }}"
           sh gui/app/tools/smoke.sh
+          nim r gui/app/tools/test_button_media.nim
+          sh gui/app/tools/editor_smoke.sh
           runHook postCheck
         '';
         installPhase = ''
           mkdir -p "$out/bin" "$out/libexec" "$out/share/knobby"
           cp knobby-daemon "$out/libexec/knobby"
+          cp knobby-assets "$out/libexec/knobby-assets"
+          cp gui/app/assets/DejaVuSans.ttf "$out/share/knobby/DejaVuSans.ttf"
           cp gui/app/dist/knobby_gui "$out/libexec/knobby-gui"
           makeWrapper "$out/libexec/knobby" "$out/bin/knobby" \
             --prefix PATH : "${pkgs.lib.makeBinPath runtimeTools}"
           makeWrapper "$out/libexec/knobby-gui" "$out/bin/knobby-gui" \
-            --prefix PATH : "${pkgs.lib.makeBinPath [pkgs.systemd]}" \
+            --prefix PATH : "${pkgs.lib.makeBinPath [pkgs.systemd pkgs.zenity]}" \
             --prefix LD_LIBRARY_PATH : "${pkgs.lib.makeLibraryPath graphics}"
+          makeWrapper "$out/libexec/knobby-assets" "$out/bin/knobby-assets" \
+            --prefix PATH : "${pkgs.lib.makeBinPath [pkgs.ffmpeg-headless]}"
           cp docs/knobby.service docs/knobby-gui.service docs/knobby-gui.desktop "$out/share/knobby/"
           mkdir -p "$out/share/licenses/knobby"
           cp gui/app/assets/DejaVu-LICENSE.txt "$out/share/licenses/knobby/"
@@ -99,6 +106,8 @@
           xorg.xorgserver
           mesa
           openbox
+          ffmpeg-headless
+          zenity
         ];
 
         LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath (with pkgs; [

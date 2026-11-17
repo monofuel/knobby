@@ -1,6 +1,6 @@
 import
   std/[json, locks, times],
-  ./[audio_status, bindings, fader_cache, ipc, midi_events, stream_deck]
+  ./[audio_status, bindings, button_runtime, fader_cache, ipc, midi_events, stream_deck]
 
 type
   MixerStatus* = object
@@ -22,6 +22,7 @@ type
     audio*: AudioStatus
     faderStreams*: array[3, seq[AudioLevel]]
     audioUpdatedMs*: int64
+    buttonConfig*: JsonNode
 
 const
   StatusVersion* = ProtocolVersion
@@ -60,6 +61,9 @@ proc readKnobbyState*(): StatusSnapshot =
     withLock stateLock:
       deepCopy(result, shared)
   result.updatedMs = nowMs()
+  result.buttonConfig = buttonRuntimeStatus()
+  if result.buttonConfig{"initialized"}.getBool():
+    result.catalog = activeMixerCatalog()
 
 proc applyMidi*(state: var MixerStatus, event: MidiEvent, timeMs: int64) =
   ## Observe physical input independently of action success or assignment.
@@ -84,6 +88,7 @@ proc setMixerPort*(port: string) =
   {.cast(gcsafe).}:
     withLock stateLock:
       shared.mixer.resetMixerConnection(port)
+  resetMixerInput()
 
 proc observeMidi*(events: openArray[MidiEvent]) =
   ## Retain input immediately, before it is queued for action execution.
@@ -134,7 +139,10 @@ proc setMousepadPresence*(present: bool) =
 
 proc encodeState*(state: StatusSnapshot): JsonNode =
   ## Encode authoritative observations for initial snapshots and live updates.
-  %state
+  var snapshot = state
+  if snapshot.buttonConfig.isNil:
+    snapshot.buttonConfig = newJObject()
+  %snapshot
 
 proc encodeSnapshot*(state: MixerStatus, session: string, timeMs: int64): string =
   ## Construct a full snapshot around a mixer fixture for pure tests.
