@@ -35,7 +35,7 @@ proc ffmpeg(args: varargs[string]) =
 
 proc decode(path: string): Pixels =
   ## Decode a prepared JPEG to raw RGB, rotated upright as a preview would.
-  result.data = runTool(@["ffmpeg", "-nostdin", "-v", "error", "-i", "file:" & path,
+  result.data = runTool(@["ffmpeg", "-nostdin", "-v", "error", "-f", "jpeg_pipe", "-i", "file:" & path,
     "-vf", "hflip,vflip", "-f", "rawvideo", "-pix_fmt", "rgb24", "-"])
   check result.data.len == KeySize * KeySize * 3
 
@@ -94,7 +94,7 @@ proc checkEncoding(path: string) =
   check layout.width == KeySize
   check layout.height == KeySize
   check layout.sampling == @[0x22, 0x11, 0x11]
-  let probe = parseJson(runTool(@["ffprobe", "-v", "error", "-show_entries",
+  let probe = parseJson(runTool(@["ffprobe", "-v", "error", "-f", "jpeg_pipe", "-show_entries",
     "stream=codec_name,pix_fmt,width,height", "-of", "json", "file:" & path]))
   check probe["streams"][0]["codec_name"].getStr() == "mjpeg"
   check probe["streams"][0]["pix_fmt"].getStr() == "yuvj420p"
@@ -190,7 +190,7 @@ suite "button media FFmpeg integration":
     let
       image = importButtonAsset(FixtureDirectory / "disposal.gif", configDir)
       manifest = prepare(menuConfig(%*[artKey(2, image)]))
-      raw = runTool(@["ffmpeg", "-nostdin", "-v", "error", "-i",
+      raw = runTool(@["ffmpeg", "-nostdin", "-v", "error", "-f", "jpeg_pipe", "-i",
         "file:" & manifest["menus"]["root"]["2"]["normal"][1]["path"].getStr(),
         "-f", "rawvideo", "-pix_fmt", "rgb24", "-"])
       corner = (KeySize - SourceBlock div 2) * (KeySize + 1) * 3
