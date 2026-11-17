@@ -16,6 +16,8 @@ type
     io: StreamDeckIo
     keys: StreamDeckKeys
     closed: bool
+  ReportWrite* = enum
+    ReportSent, ReportDeferred
   StreamDeckMonitor* = ref object
     readReport: proc (timeoutMs: int): string {.gcsafe.}
     closeTransport: proc () {.gcsafe.}
@@ -47,6 +49,8 @@ const
   LogoCommand = '\x02'
   MaxBrightness = 100
   DefaultPollMs = 100
+  DeferredImageRetries = 200
+  DeferredImageRetryMs = 1
 
 var RawInfoRequest {.importc: "HIDIOCGRAWINFO", header: "<linux/hidraw.h>".}: cuint
 
@@ -149,12 +153,29 @@ proc showLogo*(deck: StreamDeck) =
   if deck.io.sendFeature(report) != report.len:
     raise newException(IOError, "Incomplete Stream Deck logo report.")
 
+proc trySendReport*(deck: StreamDeck, report: string): ReportWrite =
+  ## Write one complete output report, or report that the transport would block.
+  ## A zero-byte write means the report was not accepted and may be retried;
+  ## any other short write is an incomplete transfer and raises IOError.
+  deck.ensureOpen()
+  let written = deck.io.writeReport(report)
+  if written == 0 and report.len > 0:
+    result = ReportDeferred
+  elif written == report.len:
+    result = ReportSent
+  else:
+    raise newException(IOError, "Incomplete Stream Deck image report.")
+
 proc setKeyImage*(deck: StreamDeck, keyIndex: int, jpeg: string) =
-  ## Upload a prepared JPEG, failing on short writes instead of splitting reports.
+  ## Upload a prepared JPEG, retrying a deferred report briefly and failing on short writes.
   deck.ensureOpen()
   for report in encodeKeyImageReports(keyIndex, jpeg):
-    if deck.io.writeReport(report) != report.len:
-      raise newException(IOError, "Incomplete Stream Deck image report.")
+    var attempts = 0
+    while deck.trySendReport(report) == ReportDeferred:
+      inc attempts
+      if attempts > DeferredImageRetries:
+        raise newException(IOError, "Stream Deck output stayed busy.")
+      sleep(DeferredImageRetryMs)
 
 proc pollKeys*(deck: StreamDeck, timeoutMs = DefaultPollMs): seq[StreamDeckKeyEvent] =
   ## Poll for changed keys, returning no events on timeout or unrelated reports.
@@ -233,9 +254,13 @@ proc openNativeStreamDeck(path: string, flags: cint): StreamDeck =
         readNativeReport(handle, timeoutMs),
       writeReport: proc (report: string): int =
         ## Write one complete output report through hidraw.
+        ## A nonblocking write that would block returns zero so callers retry the same report.
         result = posix.write(handle, report.cstring, report.len)
         if result < 0:
-          raiseOSError(osLastError(), path),
+          let code = osLastError()
+          if code.int32 notin [EAGAIN.int32, EWOULDBLOCK.int32, EINTR.int32]:
+            raiseOSError(code, path)
+          result = 0,
       sendFeature: proc (report: string): int =
         ## Send a feature report using the kernel's HID ioctl.
         result = posix.ioctl(FileHandle(handle), uint(featureRequest(cint(report.len))), report.cstring)

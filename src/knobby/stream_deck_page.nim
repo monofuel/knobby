@@ -14,6 +14,28 @@ const
     for index in 0..<StreamDeckKeyCount:
       images[index] = staticRead(AssetDirectory / ($(index + 1) & "-pressed.jpg"))
     images
+  BlankImage = staticRead(AssetDirectory / "blank.jpg")
+  MissingImage = staticRead(AssetDirectory / "missing.jpg")
+
+proc builtinNormalImage*(number: int): string =
+  ## Return the embedded numbered key JPEG for a one-based key number.
+  if number notin 1..StreamDeckKeyCount:
+    raise newException(ValueError, "Builtin Stream Deck images are numbered 1 to 15.")
+  result = NormalImages[number - 1]
+
+proc builtinPressedImage*(number: int): string =
+  ## Return the embedded pressed numbered key JPEG for a one-based key number.
+  if number notin 1..StreamDeckKeyCount:
+    raise newException(ValueError, "Builtin Stream Deck images are numbered 1 to 15.")
+  result = PressedImages[number - 1]
+
+proc blankKeyImage*(): string =
+  ## Return the embedded black JPEG shown on unassigned keys.
+  BlankImage
+
+proc missingKeyImage*(): string =
+  ## Return the embedded JPEG shown when a key's prepared media cannot be used.
+  MissingImage
 
 proc runDemoSession*(deck: StreamDeck, shouldStop: proc (): bool,
     onKey: proc (event: StreamDeckKeyEvent), onReady: proc () = nil) =

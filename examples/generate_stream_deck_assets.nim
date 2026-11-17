@@ -34,10 +34,16 @@ proc generateKeyImage*(filename, text, font: string, pressed = false,
     "-vf", filter, "-frames:v", "1", "-c:v", "mjpeg", "-threads", "1",
     "-pix_fmt", pixelFormat, "-huffman", huffman, "-q:v", "2", filename])
 
+proc generateFallbackImages*(font: string) =
+  ## Render the blank and missing-media fallback key JPEGs.
+  generateKeyImage(AssetDirectory / "blank.jpg", " ", font)
+  generateKeyImage(AssetDirectory / "missing.jpg", "?", font)
+
 proc main() =
-  ## Generate the thirty embedded numbered-key JPEGs.
+  ## Generate the thirty embedded numbered-key JPEGs and the fallback images.
   let font = findFont()
   createDir(AssetDirectory)
+  generateFallbackImages(font)
   for number in 1..KeyCount:
     for pressed in [false, true]:
       let suffix = if pressed: "-pressed.jpg" else: "-normal.jpg"
