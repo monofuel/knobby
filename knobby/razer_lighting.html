@@ -68,12 +68,18 @@
   <details open>
     <summary><a class="reference reference-toplevel" href="#12" id="62">Procs</a></summary>
     <ul class="simple simple-toc-section">
-      <ul class="simple nested-toc-section">startMousepadLighting
+      <ul class="simple nested-toc-section">observeMousepadAttachment
+  <li><a class="reference" href="#observeMousepadAttachment" title="observeMousepadAttachment(usbDevices = UsbDevicesPath): string">observeMousepadAttachment(usbDevices = UsbDevicesPath): string</a></li>
+
+</ul>
+<ul class="simple nested-toc-section">startMousepadLighting
   <li><a class="reference" href="#startMousepadLighting" title="startMousepadLighting()">startMousepadLighting()</a></li>
 
 </ul>
 <ul class="simple nested-toc-section">syncMousepadLighting
-  <li><a class="reference" href="#syncMousepadLighting%2CMousepadLightingState%2CBusctlRunner" title="syncMousepadLighting(state: var MousepadLightingState; run: BusctlRunner)">syncMousepadLighting(state: var MousepadLightingState; run: BusctlRunner)</a></li>
+  <li><a class="reference" href="#syncMousepadLighting%2CMousepadLightingState%2CBusctlRunner%2Cstring" title="syncMousepadLighting(state: var MousepadLightingState; run: BusctlRunner;
+                     attachment: string)">syncMousepadLighting(state: var MousepadLightingState; run: BusctlRunner;
+                     attachment: string)</a></li>
 
 </ul>
 
@@ -126,29 +132,44 @@
 <div class="section" id="12">
   <h1><a class="toc-backref" href="#12">Procs</a></h1>
   <dl class="item">
-    <div id="startMousepadLighting-procs-all">
+    <div id="observeMousepadAttachment-procs-all">
+  <div id="observeMousepadAttachment">
+  <dt><pre><span class="Keyword">proc</span> <a href="#observeMousepadAttachment"><span class="Identifier">observeMousepadAttachment</span></a><span class="Other">(</span><span class="Identifier">usbDevices</span> <span class="Other">=</span> <span class="Identifier">UsbDevicesPath</span><span class="Other">)</span><span class="Other">:</span> <span class="Identifier">string</span> {.
+    <span><span class="Other pragmadots">...</span></span><span class="pragmawrap"><span class="Identifier">raises</span><span class="Other">:</span> <span class="Other">[</span><span class="Identifier">OSError</span><span class="Other">,</span> <span class="Identifier">IOError</span><span class="Other">]</span><span class="Other">,</span> <span class="Identifier">tags</span><span class="Other">:</span> <span class="Other">[</span><span class="Identifier">ReadDirEffect</span><span class="Other">,</span> <span class="Identifier">ReadIOEffect</span><span class="Other">]</span><span class="Other">,</span> <span class="Identifier">forbids</span><span class="Other">:</span> <span class="Other">[</span><span class="Other">]</span></span>.}</pre></dt>
+  <dd>
+    
+    Identify each attached Goliathus by USB port and device number, empty when absent. The kernel assigns a new device number on every enumeration, so a replug changes the result even when it happens between two observations.
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/razer_lighting.nim#L31" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/razer_lighting.nim#L31" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+
+  </dd>
+</div>
+
+</div>
+<div id="startMousepadLighting-procs-all">
   <div id="startMousepadLighting">
   <dt><pre><span class="Keyword">proc</span> <a href="#startMousepadLighting"><span class="Identifier">startMousepadLighting</span></a><span class="Other">(</span><span class="Other">)</span> {.<span><span class="Other pragmadots">...</span></span><span class="pragmawrap"><span class="Identifier">raises</span><span class="Other">:</span> <span class="Other">[</span><span class="Identifier">OSError</span><span class="Other">,</span> <span class="Identifier">IOError</span><span class="Other">,</span> <span class="Identifier">ResourceExhaustedError</span><span class="Other">]</span><span class="Other">,</span> <span class="Identifier">tags</span><span class="Other">:</span> <span class="Other">[</span>
     <span class="Identifier">ReadDirEffect</span><span class="Other">,</span> <span class="Identifier">ReadEnvEffect</span><span class="Other">,</span> <span class="Identifier">ReadIOEffect</span><span class="Other">,</span> <span class="Identifier">WriteIOEffect</span><span class="Other">]</span><span class="Other">,</span> <span class="Identifier">forbids</span><span class="Other">:</span> <span class="Other">[</span><span class="Other">]</span></span>.}</pre></dt>
   <dd>
     
     Start optional OpenRazer lighting control without changing other Razer devices.
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/razer_lighting.nim#L81" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/razer_lighting.nim#L81" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/razer_lighting.nim#L91" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/razer_lighting.nim#L91" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
 
 </div>
 <div id="syncMousepadLighting-procs-all">
-  <div id="syncMousepadLighting,MousepadLightingState,BusctlRunner">
-  <dt><pre><span class="Keyword">proc</span> <a href="#syncMousepadLighting%2CMousepadLightingState%2CBusctlRunner"><span class="Identifier">syncMousepadLighting</span></a><span class="Other">(</span><span class="Identifier">state</span><span class="Other">:</span> <span class="Keyword">var</span> <a href="razer_lighting.html#MousepadLightingState"><span class="Identifier">MousepadLightingState</span></a><span class="Other">;</span> <span class="Identifier">run</span><span class="Other">:</span> <a href="razer_lighting.html#BusctlRunner"><span class="Identifier">BusctlRunner</span></a><span class="Other">)</span> {.
-    <span><span class="Other pragmadots">...</span></span><span class="pragmawrap"><span class="Identifier">raises</span><span class="Other">:</span> <span class="Other">[</span><span class="Identifier">KeyError</span><span class="Other">,</span> <span class="Identifier">Exception</span><span class="Other">]</span><span class="Other">,</span> <span class="Identifier">tags</span><span class="Other">:</span> <span class="Other">[</span><span class="Identifier">RootEffect</span><span class="Other">]</span><span class="Other">,</span> <span class="Identifier">forbids</span><span class="Other">:</span> <span class="Other">[</span><span class="Other">]</span></span>.}</pre></dt>
+  <div id="syncMousepadLighting,MousepadLightingState,BusctlRunner,string">
+  <dt><pre><span class="Keyword">proc</span> <a href="#syncMousepadLighting%2CMousepadLightingState%2CBusctlRunner%2Cstring"><span class="Identifier">syncMousepadLighting</span></a><span class="Other">(</span><span class="Identifier">state</span><span class="Other">:</span> <span class="Keyword">var</span> <a href="razer_lighting.html#MousepadLightingState"><span class="Identifier">MousepadLightingState</span></a><span class="Other">;</span> <span class="Identifier">run</span><span class="Other">:</span> <a href="razer_lighting.html#BusctlRunner"><span class="Identifier">BusctlRunner</span></a><span class="Other">;</span>
+                          <span class="Identifier">attachment</span><span class="Other">:</span> <span class="Identifier">string</span><span class="Other">)</span> {.<span><span class="Other pragmadots">...</span></span><span class="pragmawrap"><span class="Identifier">raises</span><span class="Other">:</span> <span class="Other">[</span><span class="Identifier">KeyError</span><span class="Other">,</span> <span class="Identifier">Exception</span><span class="Other">]</span><span class="Other">,</span>
+    <span class="Identifier">tags</span><span class="Other">:</span> <span class="Other">[</span><span class="Identifier">RootEffect</span><span class="Other">]</span><span class="Other">,</span> <span class="Identifier">forbids</span><span class="Other">:</span> <span class="Other">[</span><span class="Other">]</span></span>.}</pre></dt>
   <dd>
     
-    Apply grey breathing to newly seen mousepads and after OpenRazer restarts.
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/razer_lighting.nim#L37" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/razer_lighting.nim#L37" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    Apply grey breathing to newly seen mousepads, after a USB reattachment, and after OpenRazer restarts.
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/razer_lighting.nim#L44" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/razer_lighting.nim#L44" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -164,7 +185,7 @@
       <div class="twelve-columns footer">
         <span class="nim-sprite"></span>
         <br>
-        <small style="color: var(--hint);">Made with Nim. Generated: 2026-11-17 07:54:14 UTC</small>
+        <small style="color: var(--hint);">Made with Nim. Generated: 2026-11-17 21:32:10 UTC</small>
       </div>
     </div>
   </div>

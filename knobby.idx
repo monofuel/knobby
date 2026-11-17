@@ -1,4 +1,4 @@
 nimTitle	knobby	knobby.html	module knobby		0
-nim	appName	knobby.html#appName	proc appName(): string		5
-nim	daemonDescription	knobby.html#daemonDescription	proc daemonDescription(): string		9
-nim	run	knobby.html#run	proc run()		13
+nim	appName	knobby.html#appName	proc appName(): string		6
+nim	daemonDescription	knobby.html#daemonDescription	proc daemonDescription(): string		10
+nim	run	knobby.html#run	proc run()		39

@@ -1,5 +1,6 @@
 nimTitle	razer_lighting	knobby/razer_lighting.html	module knobby/razer_lighting		0
 nim	BusctlRunner	knobby/razer_lighting.html#BusctlRunner	type BusctlRunner		6
 nim	MousepadLightingState	knobby/razer_lighting.html#MousepadLightingState	object MousepadLightingState		7
-nim	syncMousepadLighting	knobby/razer_lighting.html#syncMousepadLighting,MousepadLightingState,BusctlRunner	proc syncMousepadLighting(state: var MousepadLightingState; run: BusctlRunner)		37
-nim	startMousepadLighting	knobby/razer_lighting.html#startMousepadLighting	proc startMousepadLighting()		81
+nim	observeMousepadAttachment	knobby/razer_lighting.html#observeMousepadAttachment	proc observeMousepadAttachment(usbDevices = UsbDevicesPath): string		31
+nim	syncMousepadLighting	knobby/razer_lighting.html#syncMousepadLighting,MousepadLightingState,BusctlRunner,string	proc syncMousepadLighting(state: var MousepadLightingState; run: BusctlRunner;\n                     attachment: string)		44
+nim	startMousepadLighting	knobby/razer_lighting.html#startMousepadLighting	proc startMousepadLighting()		91

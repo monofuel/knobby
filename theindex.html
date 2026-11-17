@@ -25,7 +25,7 @@
   <div class="document" id="documentId">
     <div class="container">
       <h1 class="title">Index</h1>
-      Modules: <a href="knobby.html">knobby</a>, <a href="knobby/actions.html">knobby/actions</a>, <a href="knobby/audio_outputs.html">knobby/audio_outputs</a>, <a href="knobby/audio_status.html">knobby/audio_status</a>, <a href="knobby/bindings.html">knobby/bindings</a>, <a href="knobby/button_cli.html">knobby/button_cli</a>, <a href="knobby/button_client.html">knobby/button_client</a>, <a href="knobby/button_config.html">knobby/button_config</a>, <a href="knobby/button_media.html">knobby/button_media</a>, <a href="knobby/button_runtime.html">knobby/button_runtime</a>, <a href="knobby/common.html">knobby/common</a>, <a href="knobby/daemon_workers.html">knobby/daemon_workers</a>, <a href="knobby/discord_rpc.html">knobby/discord_rpc</a>, <a href="knobby/fader_cache.html">knobby/fader_cache</a>, <a href="knobby/ipc.html">knobby/ipc</a>, <a href="knobby/midi_events.html">knobby/midi_events</a>, <a href="knobby/midi_monitor.html">knobby/midi_monitor</a>, <a href="knobby/razer_lighting.html">knobby/razer_lighting</a>, <a href="knobby/runtime.html">knobby/runtime</a>, <a href="knobby/status.html">knobby/status</a>, <a href="knobby/stream_deck.html">knobby/stream_deck</a>, <a href="knobby/stream_deck_page.html">knobby/stream_deck_page</a>, <a href="knobby/stream_deck_player.html">knobby/stream_deck_player</a>.<br/><p /><h2>API symbols</h2>
+      Modules: <a href="knobby.html">knobby</a>, <a href="knobby/actions.html">knobby/actions</a>, <a href="knobby/audio_outputs.html">knobby/audio_outputs</a>, <a href="knobby/audio_status.html">knobby/audio_status</a>, <a href="knobby/bindings.html">knobby/bindings</a>, <a href="knobby/button_cli.html">knobby/button_cli</a>, <a href="knobby/button_client.html">knobby/button_client</a>, <a href="knobby/button_config.html">knobby/button_config</a>, <a href="knobby/button_media.html">knobby/button_media</a>, <a href="knobby/button_runtime.html">knobby/button_runtime</a>, <a href="knobby/common.html">knobby/common</a>, <a href="knobby/daemon_workers.html">knobby/daemon_workers</a>, <a href="knobby/discord_rpc.html">knobby/discord_rpc</a>, <a href="knobby/fader_cache.html">knobby/fader_cache</a>, <a href="knobby/ipc.html">knobby/ipc</a>, <a href="knobby/midi_events.html">knobby/midi_events</a>, <a href="knobby/midi_monitor.html">knobby/midi_monitor</a>, <a href="knobby/midi_supervisor.html">knobby/midi_supervisor</a>, <a href="knobby/razer_lighting.html">knobby/razer_lighting</a>, <a href="knobby/runtime.html">knobby/runtime</a>, <a href="knobby/status.html">knobby/status</a>, <a href="knobby/stream_deck.html">knobby/stream_deck</a>, <a href="knobby/stream_deck_page.html">knobby/stream_deck_page</a>, <a href="knobby/stream_deck_player.html">knobby/stream_deck_player</a>.<br/><p /><h2>API symbols</h2>
 <dl><dt><a name="acquireOwnership" href="#acquireOwnership"><span>acquireOwnership:</span></a></dt><dd><ul class="simple">
 <li><a class="reference external"
           data-doc-search-tag="ipc: proc acquireOwnership(path: string): cint" href="knobby/ipc.html#acquireOwnership%2Cstring">ipc: proc acquireOwnership(path: string): cint</a></li>
@@ -339,6 +339,10 @@
 <dt><a name="DeckDevice" href="#DeckDevice"><span>DeckDevice:</span></a></dt><dd><ul class="simple">
 <li><a class="reference external"
           data-doc-search-tag="button_config: ButtonDevice.DeckDevice" href="knobby/button_config.html#DeckDevice">button_config: ButtonDevice.DeckDevice</a></li>
+          </ul></dd>
+<dt><a name="DeckDriver" href="#DeckDriver"><span>DeckDriver:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="daemon_workers: object DeckDriver" href="knobby/daemon_workers.html#DeckDriver">daemon_workers: object DeckDriver</a></li>
           </ul></dd>
 <dt><a name="DeckKeyCount" href="#DeckKeyCount"><span>DeckKeyCount:</span></a></dt><dd><ul class="simple">
 <li><a class="reference external"
@@ -876,6 +880,10 @@
 <li><a class="reference external"
           data-doc-search-tag="button_config: ConfigActionKind.MicrophonesAction" href="knobby/button_config.html#MicrophonesAction">button_config: ConfigActionKind.MicrophonesAction</a></li>
           </ul></dd>
+<dt><a name="MidiBatchHandler" href="#MidiBatchHandler"><span>MidiBatchHandler:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="midi_supervisor: type MidiBatchHandler" href="knobby/midi_supervisor.html#MidiBatchHandler">midi_supervisor: type MidiBatchHandler</a></li>
+          </ul></dd>
 <dt><a name="MidiEvent" href="#MidiEvent"><span>MidiEvent:</span></a></dt><dd><ul class="simple">
 <li><a class="reference external"
           data-doc-search-tag="midi_events: object MidiEvent" href="knobby/midi_events.html#MidiEvent">midi_events: object MidiEvent</a></li>
@@ -887,6 +895,14 @@
 <dt><a name="midiMonitorUsage" href="#midiMonitorUsage"><span>midiMonitorUsage:</span></a></dt><dd><ul class="simple">
 <li><a class="reference external"
           data-doc-search-tag="midi_monitor: proc midiMonitorUsage(): string" href="knobby/midi_monitor.html#midiMonitorUsage">midi_monitor: proc midiMonitorUsage(): string</a></li>
+          </ul></dd>
+<dt><a name="MidiRetryMs" href="#MidiRetryMs"><span>MidiRetryMs:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="midi_supervisor: const MidiRetryMs" href="knobby/midi_supervisor.html#MidiRetryMs">midi_supervisor: const MidiRetryMs</a></li>
+          </ul></dd>
+<dt><a name="MidiSupervisor" href="#MidiSupervisor"><span>MidiSupervisor:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="midi_supervisor: object MidiSupervisor" href="knobby/midi_supervisor.html#MidiSupervisor">midi_supervisor: object MidiSupervisor</a></li>
           </ul></dd>
 <dt><a name="missingKeyImage" href="#missingKeyImage"><span>missingKeyImage:</span></a></dt><dd><ul class="simple">
 <li><a class="reference external"
@@ -977,6 +993,10 @@
 <dt><a name="observeMidi" href="#observeMidi"><span>observeMidi:</span></a></dt><dd><ul class="simple">
 <li><a class="reference external"
           data-doc-search-tag="status: proc observeMidi(events: openArray[MidiEvent])" href="knobby/status.html#observeMidi%2CopenArray%5BMidiEvent%5D">status: proc observeMidi(events: openArray[MidiEvent])</a></li>
+          </ul></dd>
+<dt><a name="observeMousepadAttachment" href="#observeMousepadAttachment"><span>observeMousepadAttachment:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="razer_lighting: proc observeMousepadAttachment(usbDevices = UsbDevicesPath): string" href="knobby/razer_lighting.html#observeMousepadAttachment">razer_lighting: proc observeMousepadAttachment(usbDevices = UsbDevicesPath): string</a></li>
           </ul></dd>
 <dt><a name="OpenClaude" href="#OpenClaude"><span>OpenClaude:</span></a></dt><dd><ul class="simple">
 <li><a class="reference external"
@@ -1432,9 +1452,19 @@
               includeGames: bool): bool" href="knobby/actions.html#streamMatches%2CAudioOutputStream%2CopenArray%5Bstring%5D%2Cbool">actions: proc streamMatches(stream: AudioOutputStream; appNames: openArray[string];
               includeGames: bool): bool</a></li>
           </ul></dd>
+<dt><a name="superviseDeck" href="#superviseDeck"><span>superviseDeck:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="daemon_workers: proc superviseDeck(driver: DeckDriver; shouldStop: proc (): bool)" href="knobby/daemon_workers.html#superviseDeck%2CDeckDriver%2Cproc%29">daemon_workers: proc superviseDeck(driver: DeckDriver; shouldStop: proc (): bool)</a></li>
+          </ul></dd>
+<dt><a name="superviseMidi" href="#superviseMidi"><span>superviseMidi:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="midi_supervisor: proc superviseMidi(supervisor: MidiSupervisor)" href="knobby/midi_supervisor.html#superviseMidi%2CMidiSupervisor">midi_supervisor: proc superviseMidi(supervisor: MidiSupervisor)</a></li>
+          </ul></dd>
 <dt><a name="syncMousepadLighting" href="#syncMousepadLighting"><span>syncMousepadLighting:</span></a></dt><dd><ul class="simple">
 <li><a class="reference external"
-          data-doc-search-tag="razer_lighting: proc syncMousepadLighting(state: var MousepadLightingState; run: BusctlRunner)" href="knobby/razer_lighting.html#syncMousepadLighting%2CMousepadLightingState%2CBusctlRunner">razer_lighting: proc syncMousepadLighting(state: var MousepadLightingState; run: BusctlRunner)</a></li>
+          data-doc-search-tag="razer_lighting: proc syncMousepadLighting(state: var MousepadLightingState; run: BusctlRunner;
+                     attachment: string)" href="knobby/razer_lighting.html#syncMousepadLighting%2CMousepadLightingState%2CBusctlRunner%2Cstring">razer_lighting: proc syncMousepadLighting(state: var MousepadLightingState; run: BusctlRunner;
+                     attachment: string)</a></li>
           </ul></dd>
 <dt><a name="takeButtonActions" href="#takeButtonActions"><span>takeButtonActions:</span></a></dt><dd><ul class="simple">
 <li><a class="reference external"
@@ -1502,6 +1532,10 @@
                     path = daemonSocketPath()): JsonNode" href="knobby/button_client.html#waitConfigOperation%2Cstring">button_client: proc waitConfigOperation(id: string; timeoutMs = OperationTimeoutMs;
                     path = daemonSocketPath()): JsonNode</a></li>
           </ul></dd>
+<dt><a name="waitUnlessStopped" href="#waitUnlessStopped"><span>waitUnlessStopped:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="midi_supervisor: proc waitUnlessStopped(ms: int; shouldStop: proc (): bool; progress: proc ())" href="knobby/midi_supervisor.html#waitUnlessStopped%2Cint%2Cproc%29%2Cproc%29">midi_supervisor: proc waitUnlessStopped(ms: int; shouldStop: proc (): bool; progress: proc ())</a></li>
+          </ul></dd>
 <dt><a name="withOperationDeadline" href="#withOperationDeadline"><span>withOperationDeadline:</span></a></dt><dd><ul class="simple">
 <li><a class="reference external"
           data-doc-search-tag="button_media: template withOperationDeadline(timeoutMs: int; body: untyped)" href="knobby/button_media.html#withOperationDeadline.t%2Cint%2Cuntyped">button_media: template withOperationDeadline(timeoutMs: int; body: untyped)</a></li>
@@ -1518,7 +1552,7 @@
       <div class="twelve-columns footer">
         <span class="nim-sprite"></span>
         <br>
-        <small style="color: var(--hint);">Made with Nim. Generated: 2026-11-17 07:54:14 UTC</small>
+        <small style="color: var(--hint);">Made with Nim. Generated: 2026-11-17 21:32:10 UTC</small>
       </div>
     </div>
   </div>

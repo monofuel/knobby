@@ -1,0 +1,6 @@
+nimTitle	midi_supervisor	knobby/midi_supervisor.html	module knobby/midi_supervisor		0
+nim	MidiBatchHandler	knobby/midi_supervisor.html#MidiBatchHandler	type MidiBatchHandler		5
+nim	MidiSupervisor	knobby/midi_supervisor.html#MidiSupervisor	object MidiSupervisor		6
+nim	MidiRetryMs	knobby/midi_supervisor.html#MidiRetryMs	const MidiRetryMs		19
+nim	waitUnlessStopped	knobby/midi_supervisor.html#waitUnlessStopped,int,proc),proc)	proc waitUnlessStopped(ms: int; shouldStop: proc (): bool; progress: proc ())		23
+nim	superviseMidi	knobby/midi_supervisor.html#superviseMidi,MidiSupervisor	proc superviseMidi(supervisor: MidiSupervisor)		32
