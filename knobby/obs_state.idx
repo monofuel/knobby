@@ -2,11 +2,12 @@ nimTitle	obs_state	knobby/obs_state.html	module knobby/obs_state		0
 nim	ObsOperations	knobby/obs_state.html#ObsOperations	const ObsOperations		5
 nim	ObsVisualStates	knobby/obs_state.html#ObsVisualStates	const ObsVisualStates		6
 nim	ObsStatusFields	knobby/obs_state.html#ObsStatusFields	const ObsStatusFields		7
-nim	unavailableObsStatus	knobby/obs_state.html#unavailableObsStatus	proc unavailableObsStatus(): JsonNode		22
-nim	setObsStatus	knobby/obs_state.html#setObsStatus,JsonNode	proc setObsStatus(status: JsonNode)		28
-nim	readObsStatus	knobby/obs_state.html#readObsStatus	proc readObsStatus(): JsonNode		38
-nim	isObsOperation	knobby/obs_state.html#isObsOperation,string	proc isObsOperation(operation: string): bool		46
-nim	obsOperationLabel	knobby/obs_state.html#obsOperationLabel,string	proc obsOperationLabel(operation: string): string		50
-nim	obsOperationDescription	knobby/obs_state.html#obsOperationDescription,string	proc obsOperationDescription(operation: string): string		60
-nim	obsVisualState	knobby/obs_state.html#obsVisualState,string,JsonNode	proc obsVisualState(operation: string; status: JsonNode): string		75
-nim	selectObsVisual	knobby/obs_state.html#selectObsVisual,JsonNode,JsonNode	proc selectObsVisual(entry: JsonNode; status: JsonNode): JsonNode		106
+nim	unavailableObsStatus	knobby/obs_state.html#unavailableObsStatus	proc unavailableObsStatus(): JsonNode		23
+nim	setObsStatus	knobby/obs_state.html#setObsStatus,JsonNode	proc setObsStatus(status: JsonNode)		29
+nim	readObsStatus	knobby/obs_state.html#readObsStatus	proc readObsStatus(): JsonNode		39
+nim	isObsOperation	knobby/obs_state.html#isObsOperation,string	proc isObsOperation(operation: string): bool		47
+nim	obsOperationLabel	knobby/obs_state.html#obsOperationLabel,string	proc obsOperationLabel(operation: string): string		51
+nim	obsOperationDescription	knobby/obs_state.html#obsOperationDescription,string	proc obsOperationDescription(operation: string): string		61
+nim	obsVisualState	knobby/obs_state.html#obsVisualState,string,JsonNode	proc obsVisualState(operation: string; status: JsonNode): string		76
+nim	obsStatusDescription	knobby/obs_state.html#obsStatusDescription,string,JsonNode	proc obsStatusDescription(operation: string; status: JsonNode): string		111
+nim	selectObsVisual	knobby/obs_state.html#selectObsVisual,JsonNode,JsonNode	proc selectObsVisual(entry: JsonNode; status: JsonNode): JsonNode		141
