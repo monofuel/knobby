@@ -24,6 +24,8 @@ const
   LateCommand = "notify-send late"
   GateTimeoutMs = 120_000
   GatePollMs = 10
+  StateFrames = [("recording", 5), ("paused", 6), ("muted", 10), ("unavailable", 9)]
+  ObsKey = 6
 
 var
   serverThread: Thread[void]
@@ -62,6 +64,15 @@ proc fixturePrepare(config: JsonNode): JsonNode {.gcsafe.} =
           "normal": [{"path": FramePaths[0], "durationMs": FrameMs},
             {"path": FramePaths[1], "durationMs": FrameMs}],
           "pressed": PressedPath}
+      if entry{"action"}{"kind"}.getStr() == $ObsAction and keys.hasKey($entry["key"].getInt()):
+        let prepared = keys[$entry["key"].getInt()]
+        prepared["obsOperation"] = entry["action"]["operation"]
+        for (state, number) in StateFrames:
+          if not visual{"states"}.isNil and visual["states"].hasKey(state):
+            if not prepared.hasKey("states"): prepared["states"] = newJObject()
+            prepared["states"][state] = %*{
+              "normal": [{"path": DeckAssets / ($number & "-normal.jpg"), "durationMs": 0}],
+              "pressed": DeckAssets / ($number & "-pressed.jpg")}
     result["menus"][menu["id"].getStr()] = keys
 
 proc fixtureImport(source: string): string {.gcsafe.} =
@@ -74,6 +85,13 @@ proc fixtureImport(source: string): string {.gcsafe.} =
   writeFile(directory / name, data)
   "assets/" & name
 
+proc fakeObsStatus(): JsonNode =
+  ## Report a connected OBS that is recording, or paused once the script creates its control file.
+  let paused = fileExists(smokeControlPath(ObsPausedName))
+  %*{"connected": true, "workspaceReady": true, "minecraftReady": true, "recording": true,
+    "paused": paused, "micMuted": false, "transitioning": false, "error": "",
+    "updatedMs": nowMs()}
+
 proc stateMessage(): JsonNode =
   ## Build a complete status frame carrying the real button runtime status.
   var state = parseJson(encodeSnapshot(emptyMixer(), "editor-fixture", nowMs()))
@@ -81,6 +99,7 @@ proc stateMessage(): JsonNode =
   state["catalog"] = activeMixerCatalog()
   state["audio"]["master"]["name"] = %AudioName
   state["audioUpdatedMs"] = %nowMs()
+  state["obs"] = fakeObsStatus()
   %*{"version": ProtocolVersion, "type": "state", "state": state}
 
 proc serveLoop() {.thread.} =
@@ -330,6 +349,56 @@ proc main() =
   doAssert reapplied.mixerSlot(3)["action"]["command"].getStr() == LateCommand
   doAssert buttonRuntimeStatus()["revision"].getStr() == configRevision(reapplied)
   doAssert not fileExists(draftPath()), "A successful apply must remove the draft."
+
+  var obsConfig = requireConfigResult(requestConfig("config.get"))["envelope"]
+  let obsImage = fixtureImport(fixture)
+  for menu in obsConfig["config"]["menus"]:
+    if menu["id"].getStr() == RootMenuId:
+      menu.putEntry("deck", %*{"key": ObsKey, "title": "Rec",
+        "action": {"kind": "obs", "operation": "recordToggle"},
+        "visual": {"image": obsImage, "states": {"recording": obsImage, "paused": obsImage}}})
+  discard runConfigOperation("config.apply", %*{"envelope": obsConfig})
+  discard readDeckPage(0)
+  deckPageReady()
+  if buttonRuntimeStatus()["deckMenu"].getStr() != RootMenuId:
+    routeDeckButton(0, true)
+    routeDeckButton(0, false)
+  discard takeButtonActions()
+  let
+    obsStatus = buttonRuntimeStatus()
+    obsLiveConfig = readFile(paths.configPath())
+    appliesBeforeObs = requestCount("config.apply")
+  doAssert obsStatus["deckMenu"].getStr() == RootMenuId
+  runPhase(binary, "obs", directory, fixture)
+  doAssert buttonRuntimeStatus()["revision"] == obsStatus["revision"] and
+    readFile(paths.configPath()) == obsLiveConfig, "Choosing a preview state changed the live configuration."
+  doAssert requestCount("config.apply") == appliesBeforeObs
+  doAssert takeButtonActions().len == 0, "The viewer dispatched a button action."
+  let
+    obsDirectory = directory / "obs"
+    obsDraft = readDraft(draftPath())
+    stateFrame = proc (number: int, kind = "normal"): string = DeckAssets / ($number & "-" & kind & ".jpg")
+  doAssert not obsDraft.isNil, "OBS edits were not autosaved."
+  let
+    draftObsKey = obsDraft["config"].deckEntry(RootMenuId, ObsKey)
+    draftPauseKey = obsDraft["config"].deckEntry(RootMenuId, ObsKey + 1)
+  doAssert draftObsKey["action"] == %*{"kind": "obs", "operation": "recordToggle"}
+  doAssert draftObsKey["visual"]["image"].getStr() == obsImage
+  doAssert draftObsKey["visual"]["states"]["paused"].getStr() == obsImage
+  doAssert isManagedAssetPath(draftObsKey["visual"]["states"]["unavailable"].getStr())
+  doAssert draftPauseKey["action"] == %*{"kind": "obs", "operation": "pauseToggle"}
+  validateButtonConfig(obsDraft["config"])
+  checkPreview(obsDirectory, "obs-live-recording", "liveArt:6", [stateFrame(5)])
+  checkPreview(obsDirectory, "obs-live-recording", "liveDetail:Normal", [stateFrame(5)])
+  checkPreview(obsDirectory, "obs-live-recording", "liveDetail:Pressed", [stateFrame(5, "pressed")])
+  checkPreview(obsDirectory, "obs-live-paused", "liveArt:6", [stateFrame(6)])
+  checkPreview(obsDirectory, "obs-draft-paused", "preview:6", [stateFrame(6)])
+  checkPreview(obsDirectory, "obs-draft-paused", "detailPreview:Normal", [stateFrame(6)])
+  checkPreview(obsDirectory, "obs-draft-paused", "detailPreview:Pressed", [stateFrame(6, "pressed")])
+  checkPreview(obsDirectory, "obs-draft-unavailable", "preview:6", [stateFrame(9)])
+  checkPreview(obsDirectory, "obs-live-after", "liveArt:6", [stateFrame(6)])
+  checkPreview(obsDirectory, "obs-live-after", "liveDetail:Pressed", [stateFrame(6, "pressed")])
+  removeFile(smokeControlPath(ObsPausedName))
   withLock requestLock:
     for kind in requestKinds:
       doAssert kind in AllowedRequests, "Editor sent an unexpected request: " & kind

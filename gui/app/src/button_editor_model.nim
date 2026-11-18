@@ -1,6 +1,6 @@
 import
   std/[algorithm, json, os, strutils, unicode],
-  knobby/button_config
+  knobby/[button_config, obs_state]
 
 type
   ConflictState* = enum
@@ -23,6 +23,7 @@ type
     loaded*: bool
     submitted*: JsonNode
     submittedEdits*: int
+    visualState*: string
   DraftSaver* = object
     ## Autosave bookkeeping; edits count as saved only after the file write or removal succeeds.
     path*: string
@@ -33,13 +34,16 @@ type
 const
   BackKey* = 1
   ActionLabels*: array[ConfigActionKind, string] = ["None", "Command", "Grok",
-    "Claude", "FFXIV", "Microphones", "Discord", "Open menu", "Back", "Home"]
+    "Claude", "FFXIV", "Microphones", "Discord", "Open menu", "Back", "Home", "OBS"]
   TargetLabels*: array[ButtonTarget, string] = ["Mixer", "Deck", "Both"]
   DeviceLabels*: array[ButtonDevice, string] = ["Arduino mixer", "Stream Deck"]
   StaleCode* = "stale"
   DraftFileName = "gui-draft.json"
   DraftSaveDelayMs* = 700
   MaxPreparedBytes* = 64 * 1024
+  NormalState* = ""
+  StateLabels* = [("", "Default"), ("recording", "Recording"), ("paused", "Paused"),
+    ("muted", "Muted"), ("unavailable", "Unavailable")]
 
 proc keyCount*(device: ButtonDevice): int =
   ## Return the number of editable physical keys on a device.
@@ -104,6 +108,29 @@ proc showsTitle*(entry: JsonNode): bool =
   if not value.isNil and value.kind == JBool: value.getBool()
   else: not entry.hasImage()
 
+proc obsOperation*(entry: JsonNode): string =
+  ## Return an OBS action's operation, or "" for any other action.
+  if entry.actionKind() == ObsAction: entry{"action"}{"operation"}.getStr() else: ""
+
+proc obsStates*(operation: string): seq[string] =
+  ## List the visual states core can select for an operation, in display order.
+  case operation
+  of "recordToggle", "pauseToggle": @["recording", "paused", "unavailable"]
+  of "micToggle": @["muted", "unavailable"]
+  of "open": @["unavailable"]
+  else: @[]
+
+proc stateLabel*(state: string): string =
+  ## Name a visual state for editor controls.
+  for (name, label) in StateLabels:
+    if name == state: return label
+  state
+
+proc stateImage*(entry: JsonNode, state: string): string =
+  ## Return the managed image for a visual state, or the base image for NormalState.
+  if state == NormalState: entry{"visual"}{"image"}.getStr()
+  else: entry{"visual"}{"states"}{state}.getStr()
+
 proc describeAction*(config: JsonNode, entry: JsonNode): string =
   ## Summarize an action for compact grid tiles and status text.
   let action = entry{"action"}
@@ -114,6 +141,7 @@ proc describeAction*(config: JsonNode, entry: JsonNode): string =
     "Open " & config.menuTitle(action{"menu"}.getStr()) & " on " &
       TargetLabels[entry.menuTarget()].toLowerAscii()
   of HomeAction: "Return to main menu"
+  of ObsAction: "OBS: " & obsOperationLabel(entry.obsOperation())
   else: ActionLabels[entry.actionKind()]
 
 proc menuReferences*(config: JsonNode, id: string): seq[string] =
@@ -170,9 +198,13 @@ proc ensureSelection(model: var EditorModel) =
   if model.draft.findMenu(model.menu).isNil:
     model.menu = model.draft.rootMenu()
   model.key = clamp(model.key, 1, model.device.keyCount())
+  let operation = model.draft.entryAt(model.menu, model.device, model.key).obsOperation()
+  if model.device != DeckDevice or model.visualState notin obsStates(operation):
+    model.visualState = NormalState
 
 proc touch(model: var EditorModel) =
   ## Record a draft edit, clear the previous failure, and revalidate.
+  model.ensureSelection()
   inc model.edits
   model.error = ""
   model.errorField = ""
@@ -254,21 +286,32 @@ proc selectMenu*(model: var EditorModel, id: string) =
   if model.draft.findMenu(id).isNil:
     raise newException(ValueError, "Unknown menu: " & id)
   model.menu = id
+  model.ensureSelection()
 
 proc selectDevice*(model: var EditorModel, device: ButtonDevice) =
   ## Choose the device grid being edited.
   model.device = device
   model.key = clamp(model.key, 1, device.keyCount())
+  model.ensureSelection()
 
 proc selectKey*(model: var EditorModel, key: int) =
   ## Inspect one slot; selection never dispatches its action.
   if key notin 1..model.device.keyCount():
     raise newException(ValueError, "Key " & $key & " is outside the " & $model.device & " grid.")
   model.key = key
+  model.ensureSelection()
 
 proc selected*(model: EditorModel): JsonNode =
   ## Return the effective selected slot, including implicit Back and unassigned keys.
   model.draft.entryAt(model.menu, model.device, model.key)
+
+proc selectVisualState*(model: var EditorModel, state: string) =
+  ## Choose which state's image the Deck preview and image controls use; OBS is never contacted.
+  if model.device != DeckDevice or
+      (state != NormalState and state notin obsStates(model.selected().obsOperation())):
+    raise newException(ValueError, "The selected key has no " & stateLabel(state).toLowerAscii() &
+      " image.")
+  model.visualState = state
 
 proc selectedLocked*(model: EditorModel): bool =
   ## Report whether the selected slot is the immutable linked Back key.
@@ -323,6 +366,9 @@ proc setActionKind*(model: var EditorModel, kind: ConfigActionKind) =
           break
     action["menu"] = %target
     action["target"] = %previous{"target"}.getStr($TargetBoth)
+  of ObsAction:
+    let operation = previous{"operation"}.getStr()
+    action["operation"] = %(if isObsOperation(operation): operation else: ObsOperations[0])
   else: discard
   entry["action"] = action
   model.touch()
@@ -362,22 +408,45 @@ proc deckVisual(model: var EditorModel): JsonNode =
     entry["visual"] = newJObject()
   entry["visual"]
 
-proc setImage*(model: var EditorModel, managedPath: string) =
-  ## Use an imported managed asset; the title overlay defaults off for images.
-  if not isManagedAssetPath(managedPath):
-    raise newException(ValueError, "Images must be imported into the managed assets directory.")
-  let visual = model.deckVisual()
-  if visual.hasKey("builtinNumber"): visual.delete("builtinNumber")
-  visual["image"] = %managedPath
-  if not visual.hasKey("showTitle"):
-    visual["showTitle"] = %false
+proc setObsOperation*(model: var EditorModel, operation: string) =
+  ## Choose what an OBS key does; its per-state images are kept for every operation.
+  if not isObsOperation(operation):
+    raise newException(ValueError, "Unknown OBS operation: " & operation)
+  let entry = model.mutableEntry()
+  if entry.actionKind() != ObsAction:
+    raise newException(ValueError, "Only OBS actions have an operation.")
+  entry["action"]["operation"] = %operation
   model.touch()
 
-proc clearImage*(model: var EditorModel) =
-  ## Remove a Deck image so the key renders its title.
+proc setImage*(model: var EditorModel, managedPath: string, state = NormalState) =
+  ## Use an imported managed asset for the base face or one OBS state; base images hide the title.
+  if not isManagedAssetPath(managedPath):
+    raise newException(ValueError, "Images must be imported into the managed assets directory.")
+  if state != NormalState and state notin ObsVisualStates:
+    raise newException(ValueError, "Unknown key state: " & state)
   let visual = model.deckVisual()
-  for field in ["image", "showTitle"]:
-    if visual.hasKey(field): visual.delete(field)
+  if state == NormalState:
+    if visual.hasKey("builtinNumber"): visual.delete("builtinNumber")
+    visual["image"] = %managedPath
+    if not visual.hasKey("showTitle"):
+      visual["showTitle"] = %false
+  else:
+    if visual{"states"}.isNil or visual["states"].kind != JObject:
+      visual["states"] = newJObject()
+    visual["states"][state] = %managedPath
+  model.touch()
+
+proc clearImage*(model: var EditorModel, state = NormalState) =
+  ## Remove the base image so the key renders its title, or one OBS state's image.
+  let visual = model.deckVisual()
+  if state == NormalState:
+    for field in ["image", "showTitle"]:
+      if visual.hasKey(field): visual.delete(field)
+  else:
+    let states = visual{"states"}
+    if not states.isNil and states.kind == JObject and states.hasKey(state):
+      states.delete(state)
+      if states.len == 0: visual.delete("states")
   model.touch()
 
 proc setShowTitle*(model: var EditorModel, show: bool) =

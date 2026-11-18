@@ -228,6 +228,10 @@ proc drawDetails(sk: Silky, viewer: Viewer, x, height: float32) =
         title = entry{"title"}.getStr()
       text(if title.len > 0: title else: "Untitled", "Body", if title.len > 0: Foreground else: Muted)
       text(live.describeAction(entry), "Small", Muted)
+      if entry.obsOperation().len > 0:
+        let state = editor.liveObsState(entry)
+        text("OBS status: " & (if state == NormalState: "Ready" else: stateLabel(state)), "Small",
+          if state == "unavailable": Muted else: Accent)
       text("Menu: " & live.menuTitle(menu), "Small", Muted)
     elif not viewer.state.buttons.isNil:
       if editor.model.error.len > 0: text(editor.model.error, "Small", Danger)
@@ -292,7 +296,7 @@ proc render(sk: Silky, window: Window, viewer: Viewer) =
     of MousepadPage: sk.drawMousepad(left, boardWidth)
     of EditorPage: discard
     if sk.mousePos.x >= width - DetailWidth:
-      viewer.scroll = clamp(viewer.scroll - window.scrollDelta.y * 30, 0'f32, viewer.contentHeight)
+      viewer.scroll = clamp(viewer.scroll + window.scrollDelta.y * 30, 0'f32, viewer.contentHeight)
     sk.drawDetails(viewer, detailsX, height)
   viewer.editor.releaseUndrawnFields()
   sk.endUi()
@@ -368,6 +372,23 @@ proc editorScript(phase, directory, fixtureImage: string, window: Window, sk: Si
     SmokeStep(name: "resize", run: proc (frame: int): bool =
       if frame == 0: window.size = ivec2(width.int32, height.int32)
       frame >= 4)
+  proc scrollTo(name: string): SmokeStep =
+    ## Turn the wheel over the details panel until a control is fully inside its visible area.
+    const WheelDown = 5
+    var turns = 0
+    SmokeStep(name: "scroll to " & name, run: proc (frame: int): bool =
+      let
+        size = window.size.vec2
+        panel = vec2(size.x - DetailWidth / 2, size.y / 2) + window.pos.vec2
+        bounds = editor.rects.getOrDefault(name)
+      if name in editor.rects and bounds.y >= 159 and bounds.y + bounds.h <= size.y - 40:
+        return true
+      if frame == 0: pointerEvent(panel.x.int, panel.y.int, 0)
+      elif frame mod 4 == 1: pointerEvent(panel.x.int, panel.y.int, 1, WheelDown)
+      elif frame mod 4 == 2:
+        pointerEvent(panel.x.int, panel.y.int, 2, WheelDown)
+        inc turns
+      turns > 40)
   proc replaceField(name, value: string): seq[SmokeStep] =
     ## Focus a field, clear it, and type replacement text.
     @[click(name), key(KeyEnd), key(KeyBackspace, 24), typeText(value)]
@@ -525,6 +546,71 @@ proc editorScript(phase, directory, fixtureImage: string, window: Window, sk: Si
       waitFor("live key 2 again", proc (): bool = viewer.selected == 1 and liveArt()),
       settle(20),
       capture("live-after-draft")]
+  of "obs":
+    proc liveArt(): bool =
+      ## Report whether the live grid and selected key show frames of the published active page.
+      editor.liveDeckReady() and editor.previewCurrent(viewer.selected) and
+        editor.previewCurrent(PressedSlot)
+    proc draftArt(): bool =
+      ## Report whether the draft grid and pressed preview show the newest prepared page.
+      editor.previewEdits == model().edits and not editor.busy and
+        editor.previewCurrent(model().key - 1) and editor.previewCurrent(PressedSlot)
+    proc liveState(): string =
+      ## Return the live visual state of the OBS key under test.
+      editor.liveObsState(model().live.entryAt(RootMenuId, DeckDevice, 6))
+    result = @[
+      click("page:DeckPage"),
+      waitFor("live configuration", proc (): bool = model().loaded and not editor.opened),
+      click("live:6"),
+      waitFor("live recording art", proc (): bool =
+        viewer.selected == 5 and liveState() == "recording" and liveArt()),
+      settle(20),
+      capture("obs-live-recording"),
+      createFile(smokeControlPath(ObsPausedName)),
+      waitFor("live paused art", proc (): bool = liveState() == "paused" and liveArt()),
+      settle(20),
+      capture("obs-live-paused")] &
+      openEditor & @[
+      click("device:deck"),
+      click("key:6"),
+      waitFor("obs key", proc (): bool =
+        model().key == 6 and model().selected().obsOperation() == "recordToggle" and
+          "state:paused" in editor.rects and draftArt()),
+      click("state:paused"),
+      waitFor("draft paused art", proc (): bool =
+        model().visualState == "paused" and not model().dirty and draftArt()),
+      settle(20),
+      capture("obs-draft-paused"),
+      click("state:unavailable"),
+      waitFor("unavailable state", proc (): bool =
+        model().visualState == "unavailable" and "importPath" in editor.rects),
+      scrollTo("import")] &
+      replaceField("importPath", fixtureImage) & @[
+      click("import"),
+      waitFor("unavailable image imported", proc (): bool =
+        model().selected().stateImage("unavailable").len > 0 and model().selected().hasImage()),
+      waitFor("unavailable preview", proc (): bool =
+        not editor.manifest{"menus"}{RootMenuId}{"6"}{"states"}{"unavailable"}.isNil and draftArt()),
+      settle(20),
+      capture("obs-draft-unavailable"),
+      click("key:7"),
+      click("action:obs"),
+      waitFor("obs action", proc (): bool = model().selected().obsOperation() == "recordToggle"),
+      scrollTo("obsOp:pauseToggle"),
+      click("obsOp:pauseToggle"),
+      waitFor("pause operation", proc (): bool =
+        model().key == 7 and model().selected().obsOperation() == "pauseToggle"),
+      waitFor("obs draft autosaved", proc (): bool =
+        let draft = readDraft(draftPath())
+        not draft.isNil and draft["config"] == model().draft),
+      settle(10),
+      capture("obs-editor"),
+      click("page:DeckPage"),
+      click("live:6"),
+      waitFor("live paused art again", proc (): bool =
+        viewer.selected == 5 and liveState() == "paused" and liveArt()),
+      settle(20),
+      capture("obs-live-after")]
   of "pending":
     result = openEditor & @[
       waitFor("clean root mixer", proc (): bool =
@@ -660,7 +746,7 @@ proc main() =
     ## Refresh from observer snapshots without blocking on hardware or subprocesses.
     viewer.state = if fixtureStatus: previewState() else: readState()
     viewer.editor.liveKey = viewer.selected + 1
-    sk.updateEditor(viewer.editor, viewer.state.buttons, viewer.previewView(window))
+    sk.updateEditor(viewer.editor, viewer.state.buttons, viewer.state.obs, viewer.previewView(window))
     if not window.visible:
       return
     if fixtureStatus and frame == 40:

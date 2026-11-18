@@ -1,6 +1,6 @@
 import
   std/[json, os, strutils, unittest],
-  knobby/button_config,
+  knobby/[button_config, obs_state],
   ../gui/app/src/button_editor_model
 
 proc liveModel(config = defaultButtonConfig()): EditorModel =
@@ -366,3 +366,112 @@ suite "Button editor model":
     expect IOError: discard readPreparedFrame(directory / "missing.jpg")
     writeFile(fits, "")
     check readPreparedFrame(fits) == ""
+
+  test "OBS actions pick an operation and keep it across kind changes":
+    var model = liveModel()
+    model.selectDevice(DeckDevice)
+    model.selectKey(6)
+    model.setActionKind(ObsAction)
+    check model.selected()["action"] == %*{"kind": "obs", "operation": "recordToggle"}
+    check model.validation == "" and model.canApply()
+    for operation in ObsOperations:
+      model.setObsOperation(operation)
+      check model.selected().obsOperation() == operation and model.validation == ""
+    check model.draft.describeAction(model.selected()) == "OBS: Open OBS"
+    expect ValueError: model.setObsOperation("startStream")
+    model.setObsOperation("micToggle")
+    model.setActionKind(CommandAction)
+    check model.selected().obsOperation() == "" and not model.selected()["action"].hasKey("operation")
+    expect ValueError: model.setObsOperation("open")
+    model.setActionKind(ObsAction)
+    check model.selected().obsOperation() == "recordToggle"
+
+  test "state images edit visual.states and selecting a state never edits the draft":
+    var model = liveModel()
+    model.selectDevice(DeckDevice)
+    model.selectKey(6)
+    expect ValueError: model.selectVisualState("recording")
+    model.setActionKind(ObsAction)
+    model.setImage("assets/base.png")
+    let edits = model.edits
+    model.selectVisualState("recording")
+    check model.visualState == "recording" and model.edits == edits
+    expect ValueError: model.selectVisualState("muted")
+    model.setImage("assets/rec.png", model.visualState)
+    model.setImage("assets/off.png", "unavailable")
+    check model.selected()["visual"]["image"].getStr() == "assets/base.png"
+    check model.selected()["visual"]["states"] ==
+      %*{"recording": "assets/rec.png", "unavailable": "assets/off.png"}
+    check model.selected().stateImage("recording") == "assets/rec.png"
+    check model.selected().stateImage(NormalState) == "assets/base.png"
+    check model.validation == "" and model.canApply()
+    expect ValueError: model.setImage("/tmp/raw.png", "paused")
+    expect ValueError: model.setImage("assets/x.png", "streaming")
+    let canonical = canonicalButtonConfig(model.draft)
+    check canonical.entryAt(RootMenuId, DeckDevice, 6)["visual"]["states"] ==
+      model.selected()["visual"]["states"]
+    model.clearImage(NormalState)
+    check not model.selected().hasImage() and model.selected()["visual"].hasKey("states")
+    model.clearImage("recording")
+    model.clearImage("unavailable")
+    check not model.selected()["visual"].hasKey("states") and model.validation == ""
+
+  test "the previewed state follows the selected key's operation":
+    var model = liveModel()
+    model.selectDevice(DeckDevice)
+    model.selectKey(6)
+    model.setActionKind(ObsAction)
+    model.setObsOperation("micToggle")
+    model.selectVisualState("muted")
+    model.selectKey(7)
+    check model.visualState == NormalState
+    model.selectKey(6)
+    model.selectVisualState("unavailable")
+    model.setObsOperation("open")
+    check model.visualState == "unavailable"
+    model.setObsOperation("recordToggle")
+    model.selectVisualState("paused")
+    model.setActionKind(NoAction)
+    check model.visualState == NormalState
+    model.setActionKind(ObsAction)
+    model.selectVisualState("recording")
+    model.selectDevice(MixerDevice)
+    check model.visualState == NormalState
+    expect ValueError: model.selectVisualState("recording")
+
+  test "OBS edits autosave, recover, and survive edits made while applying":
+    let
+      directory = getTempDir() / "knobby-editor-obs-draft-test"
+      path = directory / "draft.json"
+    removeDir(directory)
+    createDir(directory)
+    defer: removeDir(directory)
+    var
+      model = liveModel()
+      saver = newDraftSaver(path)
+    saver.markDraftSaved(model)
+    model.selectDevice(DeckDevice)
+    model.selectKey(6)
+    model.setActionKind(ObsAction)
+    model.setImage("assets/rec.png", "recording")
+    model.applySubmitted()
+    let submitted = model.submitted.copy()
+    model.selectKey(7)
+    model.setActionKind(ObsAction)
+    model.setObsOperation("pauseToggle")
+    model.setImage("assets/paused.png", "paused")
+    model.applySucceeded(configRevision(canonicalButtonConfig(submitted)))
+    saver.markDraftStale()
+    saver.autosaveDraft(model, 1_000, force = true)
+    let draft = readDraft(path)
+    check not draft.isNil and draft["baseRevision"].getStr() == model.liveRevision
+    check model.live.entryAt(RootMenuId, DeckDevice, 6)["visual"]["states"]["recording"].getStr() ==
+      "assets/rec.png"
+    check model.live.entryAt(RootMenuId, DeckDevice, 7).actionKind() != ObsAction
+    var recovered = newEditorModel()
+    recovered.loadLive(configEnvelope(model.live))
+    recovered.recoverDraft(draft)
+    check recovered.conflict == NoConflict and recovered.canApply()
+    let late = recovered.draft.entryAt(RootMenuId, DeckDevice, 7)
+    check late["action"] == %*{"kind": "obs", "operation": "pauseToggle"}
+    check late["visual"]["states"] == %*{"paused": "assets/paused.png"}
