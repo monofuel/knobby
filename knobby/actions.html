@@ -139,7 +139,7 @@
     <div class="section" id="6">
   <h1><a class="toc-backref" href="#6">Imports</a></h1>
   <dl class="item">
-    <a class="reference external" href="audio_outputs.html">audio_outputs</a>, <a class="reference external" href="bindings.html">bindings</a>, <a class="reference external" href="common.html">common</a>, <a class="reference external" href="discord_worker.html">discord_worker</a>, <a class="reference external" href="midi_events.html">midi_events</a>, <a class="reference external" href="obs_worker.html">obs_worker</a>, <a class="reference external" href="overlay_activation.html">overlay_activation</a>, <a class="reference external" href="runtime.html">runtime</a>
+    <a class="reference external" href="audio_outputs.html">audio_outputs</a>, <a class="reference external" href="bindings.html">bindings</a>, <a class="reference external" href="common.html">common</a>, <a class="reference external" href="discord_worker.html">discord_worker</a>, <a class="reference external" href="midi_events.html">midi_events</a>, <a class="reference external" href="obs_worker.html">obs_worker</a>, <a class="reference external" href="overlay_activation.html">overlay_activation</a>, <a class="reference external" href="overlay_state.html">overlay_state</a>, <a class="reference external" href="runtime.html">runtime</a>
   </dl>
 </div>
 <div class="section" id="7">
@@ -151,8 +151,8 @@
   <dd>
     
     
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/actions.nim#L21" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/actions.nim#L21" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/actions.nim#L22" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/actions.nim#L22" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -171,8 +171,8 @@
   <dd>
     
     Execute an already-resolved button action without consulting the current menu.
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/actions.nim#L201" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/actions.nim#L201" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/actions.nim#L202" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/actions.nim#L202" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -184,8 +184,8 @@
   <dd>
     
     Convert a MIDI fader value to a volume percentage with endpoint snapping.
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/actions.nim#L36" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/actions.nim#L36" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/actions.nim#L37" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/actions.nim#L37" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -198,8 +198,8 @@
   <dd>
     
     Reduce a batch of events to the newest value per fader, so a burst of movement applies the final position instead of replaying the sweep.
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/actions.nim#L241" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/actions.nim#L241" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/actions.nim#L243" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/actions.nim#L243" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -214,8 +214,8 @@
   <dd>
     
     Dispatch a batch of parsed MIDI events, coalescing fader moves.
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/actions.nim#L248" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/actions.nim#L248" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/actions.nim#L250" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/actions.nim#L250" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -230,8 +230,8 @@
   <dd>
     
     Dispatch one parsed MIDI event to its bound action.
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/actions.nim#L256" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/actions.nim#L256" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/actions.nim#L258" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/actions.nim#L258" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -243,8 +243,8 @@
   <dd>
     
     Report whether <tt class="docutils literal"><span class="pre"><span class="Identifier">pactl</span> <span class="Identifier">get</span><span class="Operator">-</span><span class="Identifier">source</span><span class="Operator">-</span><span class="Identifier">mute</span></span></tt> output says the source is muted.
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/actions.nim#L161" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/actions.nim#L161" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/actions.nim#L162" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/actions.nim#L162" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -256,8 +256,8 @@
   <dd>
     
     Report whether a pactl subscribe line announces a new sink input.
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/actions.nim#L81" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/actions.nim#L81" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/actions.nim#L82" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/actions.nim#L82" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -269,8 +269,8 @@
   <dd>
     
     Create a dispatcher with no fader state.
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/actions.nim#L32" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/actions.nim#L32" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/actions.nim#L33" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/actions.nim#L33" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -283,8 +283,8 @@
   <dd>
     
     Parse source names from <tt class="docutils literal"><span class="pre"><span class="Identifier">pactl</span> <span class="Identifier">list</span> <span class="Identifier">short</span> <span class="Identifier">sources</span></span></tt>, skipping the monitor sources that mirror output sinks.
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/actions.nim#L153" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/actions.nim#L153" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/actions.nim#L154" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/actions.nim#L154" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -297,8 +297,8 @@
   <dd>
     
     Decide whether a fader event is significant enough to apply, ignoring single-step jitter while keeping the snapped endpoints reachable.
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/actions.nim#L44" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/actions.nim#L44" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/actions.nim#L45" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/actions.nim#L45" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -311,8 +311,8 @@
   <dd>
     
     Start the background thread that applies remembered fader levels to streams created after the fader last moved.
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/actions.nim#L109" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/actions.nim#L109" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/actions.nim#L110" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/actions.nim#L110" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -326,8 +326,8 @@
   <dd>
     
     Report whether a stream is targeted by an app fader binding: by app name, by being a Steam-launched game, or by declaring the game media role (OpenAL Soft apps like decompbound's player set it).
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/actions.nim#L61" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/actions.nim#L61" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/actions.nim#L62" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/actions.nim#L62" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -349,7 +349,7 @@
       <div class="twelve-columns footer">
         <span class="nim-sprite"></span>
         <br>
-        <small style="color: var(--hint);">Made with Nim. Generated: 2026-11-18 22:21:33 UTC</small>
+        <small style="color: var(--hint);">Made with Nim. Generated: 2026-11-18 23:00:04 UTC</small>
       </div>
     </div>
   </div>

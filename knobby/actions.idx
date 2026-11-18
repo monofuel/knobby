@@ -1,14 +1,14 @@
 nimTitle	actions	knobby/actions.html	module knobby/actions		0
-nim	Dispatcher	knobby/actions.html#Dispatcher	type Dispatcher		21
-nim	newDispatcher	knobby/actions.html#newDispatcher	proc newDispatcher(): Dispatcher		32
-nim	faderPercent	knobby/actions.html#faderPercent,int	proc faderPercent(value: int): int		36
-nim	shouldApplyFader	knobby/actions.html#shouldApplyFader,int,int	proc shouldApplyFader(lastValue, newValue: int): bool		44
-nim	streamMatches	knobby/actions.html#streamMatches,AudioOutputStream,openArray[string],bool	proc streamMatches(stream: AudioOutputStream; appNames: openArray[string];\n              includeGames: bool): bool		61
-nim	isNewSinkInputEvent	knobby/actions.html#isNewSinkInputEvent,string	proc isNewSinkInputEvent(line: string): bool		81
-nim	startStreamWatcher	knobby/actions.html#startStreamWatcher	proc startStreamWatcher()		109
-nim	parseSourceNames	knobby/actions.html#parseSourceNames,string	proc parseSourceNames(output: string): seq[string]		153
-nim	isMuteReported	knobby/actions.html#isMuteReported,string	proc isMuteReported(output: string): bool		161
-nim	executeButtonAction	knobby/actions.html#executeButtonAction,JsonNode	proc executeButtonAction(action: JsonNode)		201
-nim	finalFaderValues	knobby/actions.html#finalFaderValues,seq[MidiEvent]	proc finalFaderValues(events: seq[MidiEvent]): OrderedTable[int, int]		241
-nim	handleBatch	knobby/actions.html#handleBatch,Dispatcher,seq[MidiEvent]	proc handleBatch(dispatcher: Dispatcher; events: seq[MidiEvent])		248
-nim	handleEvent	knobby/actions.html#handleEvent,Dispatcher,MidiEvent	proc handleEvent(dispatcher: Dispatcher; event: MidiEvent)		256
+nim	Dispatcher	knobby/actions.html#Dispatcher	type Dispatcher		22
+nim	newDispatcher	knobby/actions.html#newDispatcher	proc newDispatcher(): Dispatcher		33
+nim	faderPercent	knobby/actions.html#faderPercent,int	proc faderPercent(value: int): int		37
+nim	shouldApplyFader	knobby/actions.html#shouldApplyFader,int,int	proc shouldApplyFader(lastValue, newValue: int): bool		45
+nim	streamMatches	knobby/actions.html#streamMatches,AudioOutputStream,openArray[string],bool	proc streamMatches(stream: AudioOutputStream; appNames: openArray[string];\n              includeGames: bool): bool		62
+nim	isNewSinkInputEvent	knobby/actions.html#isNewSinkInputEvent,string	proc isNewSinkInputEvent(line: string): bool		82
+nim	startStreamWatcher	knobby/actions.html#startStreamWatcher	proc startStreamWatcher()		110
+nim	parseSourceNames	knobby/actions.html#parseSourceNames,string	proc parseSourceNames(output: string): seq[string]		154
+nim	isMuteReported	knobby/actions.html#isMuteReported,string	proc isMuteReported(output: string): bool		162
+nim	executeButtonAction	knobby/actions.html#executeButtonAction,JsonNode	proc executeButtonAction(action: JsonNode)		202
+nim	finalFaderValues	knobby/actions.html#finalFaderValues,seq[MidiEvent]	proc finalFaderValues(events: seq[MidiEvent]): OrderedTable[int, int]		243
+nim	handleBatch	knobby/actions.html#handleBatch,Dispatcher,seq[MidiEvent]	proc handleBatch(dispatcher: Dispatcher; events: seq[MidiEvent])		250
+nim	handleEvent	knobby/actions.html#handleEvent,Dispatcher,MidiEvent	proc handleEvent(dispatcher: Dispatcher; event: MidiEvent)		258
