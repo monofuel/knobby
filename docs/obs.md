@@ -107,6 +107,15 @@ queues, and deadlines. Losing the helper marks status unavailable without
 interrupting MIDI, faders, lighting, or the Stream Deck connection. Quitting
 Knobby leaves OBS and any recording running.
 
+The OBS client owns one socket from HTTP upgrade through session shutdown.
+Every failed or timed-out attempt closes and unregisters it before retrying.
+The generic `ws.newWebSocket` factory in the pinned library allocates an unused
+socket, so this client performs the bounded upgrade on its own socket and uses
+`ws` for frame transmission. Regression tests run 1,200 attempts per connection
+outcome under a 1,024-descriptor limit, checking both descriptor counts and
+async registrations. This prevents a closed OBS server from eventually blocking
+X11 access and the Prism button.
+
 The Nix package pins `obs-pipewire-audio-capture` 1.2.1, supported by the
 installed OBS 32.1.2. The installer links this plugin into OBS's user plugin
 directory and refuses to replace an unmanaged installation. Loading a newly
