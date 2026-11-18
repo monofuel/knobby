@@ -7,6 +7,7 @@ const
   MaxCommandBacklog* = 16
   ReconnectDelayMs* = 1000
   HeartbeatMs* = 1000
+  PresenceIntervalMs* = 1000
   ResyncIntervalMs = 2000
   TickMs = 25
   XCompositeKind = "xcomposite_input"
@@ -17,12 +18,18 @@ const
   ]
   XCompositeValueSeparator = "\r\n"
   XCompositeClassField = 2
+  AsyncTracebackHeader = "\nAsync traceback:"
 
 type
   ObsCommandError* = object of ObsError
 
   ObsStatus* = object
+    ## OBS connection state plus OBS and Minecraft presence observed without OBS.
+    ## minecraftReady means OBS can record Minecraft video and isolated audio.
     connected*: bool
+    obsRunning*: bool
+    minecraftRunning*: bool
+    minecraftSized*: bool
     workspaceReady*: bool
     minecraftReady*: bool
     recording*: bool
@@ -36,6 +43,9 @@ type
     obsRunning*: proc (): bool {.gcsafe.}
     launchObs*: proc () {.gcsafe.}
     focusObs*: proc () {.gcsafe.}
+    minecraftState*: proc (): tuple[running, sized: bool] {.gcsafe.}
+    launchPrism*: proc () {.gcsafe.}
+    resizeMinecraft*: proc () {.gcsafe.}
     audioTarget*: proc (): string {.gcsafe.}
     videoTarget*: proc (): string {.gcsafe.}
     emit*: proc (line: JsonNode) {.gcsafe.}
@@ -63,6 +73,8 @@ type
     lastResyncMs: int64
     nextConnectMs: int64
     lastLog: string
+    lastPresenceLog: string
+    lastPresenceMs: int64
     stopped: bool
 
 proc nowMs(): int64 =
@@ -74,6 +86,9 @@ proc statusJson*(status: ObsStatus): JsonNode =
   %*{
     "type": "status",
     "connected": status.connected,
+    "obsRunning": status.obsRunning,
+    "minecraftRunning": status.minecraftRunning,
+    "minecraftSized": status.minecraftSized,
     "workspaceReady": status.workspaceReady,
     "minecraftReady": status.minecraftReady,
     "recording": status.recording,
@@ -82,6 +97,13 @@ proc statusJson*(status: ObsStatus): JsonNode =
     "transitioning": status.transitioning,
     "error": status.error
   }
+
+proc conciseError*(message: string): string =
+  ## Reduce an error to its first line without async tracebacks for status and results.
+  let
+    cut = message.find(AsyncTracebackHeader)
+    text = if cut >= 0: message[0 ..< cut] else: message
+  result = text.strip().splitLines()[0].strip()
 
 proc resultJson*(id: JsonNode, error: string): JsonNode =
   ## Render one command result line; error is "" on success.
@@ -285,10 +307,36 @@ proc publish(bridge: ObsBridge, force = false) =
     bridge.lastEmitMs = current
     bridge.hooks.emit(statusJson(bridge.status))
 
+proc replaceObsState(bridge: ObsBridge, next: ObsStatus) =
+  ## Replace WebSocket-derived state while keeping independently observed presence.
+  var status = next
+  status.obsRunning = bridge.status.obsRunning
+  status.minecraftRunning = bridge.status.minecraftRunning
+  status.minecraftSized = bridge.status.minecraftSized
+  bridge.status = status
+
+proc refreshPresence(bridge: ObsBridge) =
+  ## Observe OBS and Minecraft presence directly; a failed read keeps the last values.
+  bridge.lastPresenceMs = nowMs()
+  bridge.status.obsRunning = bridge.hooks.obsRunning()
+  try:
+    let minecraft = bridge.hooks.minecraftState()
+    bridge.status.minecraftRunning = minecraft.running
+    bridge.status.minecraftSized = minecraft.running and minecraft.sized
+    bridge.lastPresenceLog = ""
+  except ObsError, OSError, IOError, MinecraftWindowError:
+    # Unknown presence is not absence; report the failure once until it changes.
+    let message = conciseError(getCurrentExceptionMsg())
+    if message != bridge.lastPresenceLog:
+      bridge.lastPresenceLog = message
+      if bridge.hooks.log != nil:
+        bridge.hooks.log("Minecraft presence unavailable: " & message)
+
 proc setOffline(bridge: ObsBridge, message: string) =
   ## Report OBS as unavailable; unknown state never reads as stopped and ready.
-  bridge.status = ObsStatus(error: message)
-  bridge.log(message)
+  let concise = conciseError(message)
+  bridge.replaceObsState(ObsStatus(error: concise))
+  bridge.log(concise)
   bridge.publish()
 
 proc handleEvent(bridge: ObsBridge, eventType: string, data: JsonNode) =
@@ -359,7 +407,7 @@ proc resync(bridge: ObsBridge) {.async.} =
     # The connection supervisor reports disconnects.
     disconnected = true
   except ObsError:
-    error = getCurrentExceptionMsg()
+    error = conciseError(getCurrentExceptionMsg())
     minecraftReady = false
   if disconnected or client != bridge.client or not client.isOpen:
     discard
@@ -465,6 +513,13 @@ proc openObs(bridge: ObsBridge) {.async.} =
   else:
     bridge.hooks.launchObs()
 
+proc resizeOrLaunchMinecraft(bridge: ObsBridge) =
+  ## Resize the running Minecraft game to 1920x1080, or open Prism when no game window exists.
+  if bridge.hooks.minecraftState().running:
+    bridge.hooks.resizeMinecraft()
+  else:
+    bridge.hooks.launchPrism()
+
 proc runOperation*(bridge: ObsBridge, operation: string) {.async.} =
   ## Execute one bridge operation against actual OBS state, raising on failure.
   case operation
@@ -477,7 +532,7 @@ proc runOperation*(bridge: ObsBridge, operation: string) {.async.} =
   of "open":
     await bridge.openObs()
   of "minecraft1080":
-    discard resizeMinecraft1080()
+    bridge.resizeOrLaunchMinecraft()
   else:
     raise newException(ObsCommandError, "Unknown OBS operation \"" &
       operation & "\".")
@@ -489,10 +544,16 @@ proc execute(bridge: ObsBridge, command: BridgeCommand) {.async.} =
     await bridge.runOperation(command.operation)
   except ObsConnectionError:
     error = "OBS disconnected; the outcome of " & command.operation &
-      " is unknown: " & getCurrentExceptionMsg()
+      " is unknown: " & conciseError(getCurrentExceptionMsg())
   except ObsError, OSError, IOError, MinecraftWindowError:
     # Launcher and window commands fail with OSError; report them per command.
-    error = getCurrentExceptionMsg()
+    let detail = getCurrentExceptionMsg()
+    error = conciseError(detail)
+    if detail.strip() != error:
+      # Results stay one line; command stderr and tracebacks go to the log.
+      bridge.log(detail)
+  bridge.refreshPresence()
+  bridge.publish()
   bridge.hooks.emit(resultJson(command.id, error))
   bridge.resyncWanted = true
 
@@ -545,7 +606,7 @@ proc connectLoop(bridge: ObsBridge) {.async.} =
         client.close()
         return
       bridge.client = client
-      bridge.status = ObsStatus(connected: true)
+      bridge.replaceObsState(ObsStatus(connected: true))
       bridge.resyncWanted = true
       bridge.log("Connected to OBS.")
       bridge.publish()
@@ -565,8 +626,10 @@ proc workLoop(bridge: ObsBridge) {.async.} =
       await sleepAsync(TickMs)
 
 proc heartbeatLoop(bridge: ObsBridge) {.async.} =
-  ## Emit status at least once per second.
+  ## Refresh presence and emit status at least once per second, connected or not.
   while not bridge.stopped:
+    if nowMs() - bridge.lastPresenceMs >= PresenceIntervalMs:
+      bridge.refreshPresence()
     bridge.publish()
     await sleepAsync(TickMs)
 
@@ -576,6 +639,7 @@ proc newObsBridge*(hooks: ObsHooks): ObsBridge =
 
 proc start*(bridge: ObsBridge) =
   ## Start connection, work, and heartbeat loops on the current dispatcher.
+  bridge.refreshPresence()
   bridge.publish(force = true)
   asyncCheck bridge.connectLoop()
   asyncCheck bridge.workLoop()

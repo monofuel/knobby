@@ -1,6 +1,6 @@
 import
   std/[json, os, osproc, streams, strtabs, strutils, tables, tempfiles],
-  obs_client, obs_workspace, ./fake_obs
+  obs_client, obs_workspace, obs_targets, minecraft_window, ./fake_obs
 
 const
   MinecraftWindow = "4194307\r\nMinecraft* 1.21.4 - Singleplayer\r\nMinecraft* 1.21.4"
@@ -14,14 +14,21 @@ const
   BridgeBinaryTimeoutMs = 60000
   # Longer than the bridge's periodic resync interval.
   CleanResyncWaitMs = 2500
+  PresenceFailure = "Cannot open X display \":0\" to resize Minecraft."
+  TracedFailure = PresenceFailure & "\nAsync traceback:\n  obs_workspace.nim(1) runOperation\n" &
+    "Exception message: " & PresenceFailure & "\n"
 
 type
   Harness = ref object
     fake: FakeObs
     bridge: ObsBridge
     lines: seq[JsonNode]
+    logs: seq[string]
     launches, focuses: int
     running: bool
+    minecraftRunning, minecraftSized: bool
+    presenceError: string
+    prismLaunches, resizes: int
     port: int
     videoTarget, audioTarget: string
     videoError, audioError: string
@@ -39,12 +46,14 @@ proc appItems(names: varargs[string]): JsonNode =
   for name in names:
     result.add(%*{"itemName": name, "itemValue": name, "itemEnabled": true})
 
-proc newHarness(minecraft = true, port = 0, targets = false): Harness =
+proc newHarness(minecraft = true, port = 0, targets = false, present = false): Harness =
   ## Start a fake OBS and a bridge whose effects are recorded.
   ## With targets, exact video and audio targets come from harness fields, and a
-  ## non-empty error field makes that hook raise ObsError instead.
+  ## non-empty error field makes that hook raise ObsError instead. With present,
+  ## OBS and a 1920x1080 Minecraft window are observed from the first status.
   let harness = Harness(fake: newFakeObs("pw"), videoTarget: MinecraftWindow,
-    audioTarget: MinecraftAudioLabel)
+    audioTarget: MinecraftAudioLabel, running: present,
+    minecraftRunning: present, minecraftSized: present)
   harness.port = if port == 0: harness.fake.port else: port
   harness.fake.settings["Minecraft Video"] = %*{"capture_window": TerminalWindow}
   harness.fake.settings["Minecraft Audio"] = %*{"TargetName": JavaApp}
@@ -62,10 +71,19 @@ proc newHarness(minecraft = true, port = 0, targets = false): Harness =
     inc harness.launches
   hooks.focusObs = proc () {.gcsafe.} =
     inc harness.focuses
+  hooks.minecraftState = proc (): tuple[running, sized: bool] {.gcsafe.} =
+    if harness.presenceError.len > 0:
+      raise newException(ObsError, harness.presenceError)
+    (harness.minecraftRunning, harness.minecraftSized)
+  hooks.launchPrism = proc () {.gcsafe.} =
+    inc harness.prismLaunches
+  hooks.resizeMinecraft = proc () {.gcsafe.} =
+    inc harness.resizes
+    harness.minecraftSized = true
   hooks.emit = proc (line: JsonNode) {.gcsafe.} =
     harness.lines.add(line)
   hooks.log = proc (message: string) {.gcsafe.} =
-    discard
+    harness.logs.add(message)
   if targets:
     hooks.videoTarget = proc (): string {.gcsafe.} =
       if harness.videoError.len > 0:
@@ -139,8 +157,9 @@ proc testRecordWithActualState() =
   for line in harness.lines:
     if line["type"].getStr() == "status":
       inc statusLines
-      for field in ["connected", "workspaceReady", "minecraftReady", "recording",
-          "paused", "micMuted", "transitioning"]:
+      for field in ["connected", "obsRunning", "minecraftRunning", "minecraftSized",
+          "workspaceReady", "minecraftReady", "recording", "paused", "micMuted",
+          "transitioning"]:
         doAssert line[field].kind == JBool
       doAssert line["error"].kind == JString
   doAssert statusLines > 0
@@ -253,6 +272,94 @@ proc testOffline() =
   pumpFor(HeartbeatMs + 300)
   doAssert harness.lines.len > before, "heartbeat continues while offline"
 
+proc statusLines(harness: Harness, first = 0): seq[JsonNode] =
+  ## Return emitted status lines from index first onward.
+  for line in harness.lines[first .. ^1]:
+    if line["type"].getStr() == "status":
+      result.add(line)
+
+proc testPresenceWhileOffline() =
+  ## Track OBS and Minecraft presence independently while OBS has no WebSocket.
+  let harness = newHarness(port = closedPort())
+  defer: harness.close()
+  doAssert harness.waitStatus(proc (status: ObsStatus): bool =
+    not status.connected and status.error.len > 0)
+  doAssert harness.statusLines()[0]["obsRunning"].getBool() == false
+  harness.minecraftRunning = true
+  doAssert harness.waitStatus(proc (status: ObsStatus): bool =
+    status.minecraftRunning and not status.minecraftSized and not status.obsRunning)
+  harness.minecraftSized = true
+  doAssert harness.waitStatus(proc (status: ObsStatus): bool = status.minecraftSized)
+  harness.running = true
+  doAssert harness.waitStatus(proc (status: ObsStatus): bool =
+    status.obsRunning and status.minecraftRunning and not status.connected)
+  let status = harness.bridge.status
+  doAssert not (status.minecraftReady or status.workspaceReady or status.recording)
+  harness.minecraftRunning = false
+  doAssert harness.waitStatus(proc (status: ObsStatus): bool =
+    status.obsRunning and not status.minecraftRunning and not status.minecraftSized)
+  doAssert harness.statusLines()[^1]["obsRunning"].getBool()
+  harness.presenceError = TracedFailure
+  harness.running = false
+  doAssert harness.waitStatus(proc (status: ObsStatus): bool = not status.obsRunning)
+  harness.minecraftRunning = true
+  pumpFor(2 * PresenceIntervalMs + 300)
+  doAssert not harness.bridge.status.minecraftRunning,
+    "a failed presence read keeps the last observation"
+  var presenceLogs: seq[string]
+  for message in harness.logs:
+    if "presence" in message: presenceLogs.add(message)
+  doAssert presenceLogs == @["Minecraft presence unavailable: " & PresenceFailure],
+    $presenceLogs
+  for line in harness.statusLines():
+    doAssert '\n' notin line["error"].getStr(), line["error"].getStr()
+  harness.presenceError = ""
+  doAssert harness.waitStatus(proc (status: ObsStatus): bool = status.minecraftRunning)
+  doAssert harness.fake.requests.len == 0
+
+proc testMinecraft1080Offline() =
+  ## Launch Prism without a game window, otherwise resize, all without OBS.
+  let harness = newHarness(port = closedPort())
+  defer: harness.close()
+  doAssert harness.waitStatus(proc (status: ObsStatus): bool = not status.connected)
+  doAssert harness.command(1, "minecraft1080")["ok"].getBool()
+  doAssert harness.prismLaunches == 1 and harness.resizes == 0
+  doAssert not harness.bridge.status.minecraftRunning
+  harness.minecraftRunning = true
+  doAssert harness.command(2, "minecraft1080")["ok"].getBool()
+  doAssert harness.prismLaunches == 1 and harness.resizes == 1
+  let status = harness.bridge.status
+  doAssert status.minecraftRunning and status.minecraftSized and not status.connected,
+    "a command refreshes presence before its result"
+  doAssert harness.command(3, "minecraft1080")["ok"].getBool()
+  doAssert harness.prismLaunches == 1 and harness.resizes == 2
+  harness.presenceError = TracedFailure
+  let failed = harness.command(4, "minecraft1080")
+  doAssert not failed["ok"].getBool()
+  doAssert failed["error"].getStr() == PresenceFailure
+  doAssert harness.prismLaunches == 1 and harness.resizes == 2
+  doAssert harness.bridge.status.minecraftSized
+  doAssert harness.launches == 0 and harness.focuses == 0
+  doAssert harness.fake.requests.len == 0
+
+proc testPresenceSurvivesConnectionChanges() =
+  ## Connecting and disconnecting OBS never resets observed presence to false.
+  let harness = newHarness(present = true)
+  defer: harness.close()
+  doAssert harness.ready()
+  harness.fake.hangupOn = @["GetRecordStatus"]
+  doAssert harness.waitStatus(proc (status: ObsStatus): bool = not status.connected)
+  harness.fake.hangupOn = @[]
+  doAssert harness.ready()
+  doAssert harness.command(1, "minecraft1080")["ok"].getBool()
+  doAssert harness.resizes == 1 and harness.prismLaunches == 0
+  let lines = harness.statusLines()
+  doAssert lines.len > 3
+  for line in lines:
+    doAssert line["obsRunning"].getBool() and line["minecraftRunning"].getBool()
+    doAssert line["minecraftSized"].getBool()
+  doAssert harness.fake.count("StartRecord") == 0
+
 proc testDisconnectNoReplay() =
   ## Report an unknown outcome on disconnect and never resend after reconnecting.
   let harness = newHarness()
@@ -312,6 +419,8 @@ proc testBridgeProcess() =
   for key, value in envPairs():
     environment[key] = value
   environment["XDG_CONFIG_HOME"] = directory
+  # Production presence hooks must not read the desktop's X display in tests.
+  environment.del("DISPLAY")
 
   let request = startProcess(binary, args = ["request", "GetRecordStatus"],
     env = environment, options = {})
@@ -470,12 +579,31 @@ proc main() =
   doAssert isMinecraftItem("pipewire_audio_application_capture", MinecraftApp,
     MinecraftApp)
   doAssert minecraftTargetProperty("pulse_output_capture") == ""
+  doAssert conciseError(TracedFailure) == PresenceFailure
+  doAssert conciseError("") == ""
+  let
+    game = ClientWindow(id: 1, instance: "Minecraft* 1.20.1", class: "Minecraft* 1.20.1",
+      width: TargetWidth, height: TargetHeight)
+    launcher = ClientWindow(id: 2, instance: "prismlauncher", class: "PrismLauncher")
+    server = ClientWindow(id: 3, instance: "java", class: "java")
+  doAssert minecraftPresence([launcher, server]) == (running: false, sized: false)
+  doAssert minecraftPresence([launcher, game]) == (running: true, sized: true)
+  var fullscreen = game
+  fullscreen.states = {wsFullscreen}
+  doAssert minecraftPresence([fullscreen]) == (running: true, sized: false)
+  var small = game
+  small.width = 854
+  doAssert minecraftPresence([small]) == (running: true, sized: false)
+  doAssert minecraftPresence([game, small]) == (running: true, sized: false)
   testRecordWithActualState()
   testExternalStateIsAuthoritative()
   testMinecraftAbsent()
   testWorkspaceMismatch()
   testOpenPreservesActiveOutput()
   testOffline()
+  testPresenceWhileOffline()
+  testMinecraft1080Offline()
+  testPresenceSurvivesConnectionChanges()
   testDisconnectNoReplay()
   testCommandValidation()
   testExactTargetsSkipPropertyLists()

@@ -1,7 +1,7 @@
 import
   std/[asyncdispatch, json, os, posix, strutils],
   knobby/common,
-  obs_client, obs_workspace, obs_targets
+  obs_client, obs_workspace, obs_targets, minecraft_window
 
 const
   Usage = """Usage:
@@ -12,6 +12,13 @@ const
   PollMs = 25
   ObsProcessNames = ["obs", ".obs-wrapped"]
   ObsWindowClass = "obs"
+  PrismProcessNames = ["prismlauncher"]
+  PrismClassName = "prismlauncher"
+  PrismScript = "bin/prism"
+  PrismUnit = "knobby-prism.service"
+  PendingUnitStates = ["active", "activating", "reloading"]
+  # The kernel truncates /proc/PID/comm to 15 bytes.
+  ProcessNameBytes = 15
   UsageExitCode = 2
 
 type
@@ -53,16 +60,49 @@ proc readStdin() {.thread.} =
           line.add(character)
   stdinChannel.send(StdinMessage(kind: StdinEnd))
 
-proc obsRunning(): bool {.gcsafe.} =
-  ## Check /proc for a running OBS process.
+proc processRunning(names: openArray[string]): bool {.gcsafe.} =
+  ## Check /proc for a process whose kernel name matches one of names.
   for kind, path in walkDir("/proc"):
     if kind == pcDir and path.lastPathPart.allCharsInSet(Digits):
       try:
-        if readFile(path / "comm").strip() in ObsProcessNames:
-          return true
+        let comm = readFile(path / "comm").strip()
+        for name in names:
+          if comm == name[0 ..< min(name.len, ProcessNameBytes)]:
+            return true
       except IOError:
         # Processes may exit between listing and reading.
         discard
+
+proc obsRunning(): bool {.gcsafe.} =
+  ## Check /proc for a running OBS process, independent of its WebSocket.
+  processRunning(ObsProcessNames)
+
+proc prismWindow(): string {.gcsafe.} =
+  ## Return the X11 id of a Prism Launcher window, or "" when none is mapped.
+  for window in listClientWindows():
+    if result.len == 0 and (PrismClassName in window.instance.toLowerAscii() or
+        PrismClassName in window.class.toLowerAscii()):
+      result = windowLabel(window.id)
+
+proc prismLaunchPending(): bool {.gcsafe.} =
+  ## Report whether the Knobby-started Prism unit is still starting or running.
+  let state = runAudioCommand("systemctl", @["--user", "show",
+    "--property=ActiveState", "--value", PrismUnit]).strip()
+  state in PendingUnitStates
+
+proc launchPrism() {.gcsafe.} =
+  ## Focus Prism Launcher, leave a pending launch alone, or start ~/bin/prism detached.
+  ## No instance is selected; the user picks the modpack in Prism. The transient
+  ## unit gets the user manager's environment rather than this helper's packaged
+  ## PATH and libraries, and the game survives Prism exiting.
+  let window = prismWindow()
+  if window.len > 0:
+    discard runAudioCommand("wmctrl", @["-i", "-a", window])
+  elif not processRunning(PrismProcessNames) and not prismLaunchPending():
+    discard runAudioCommand("systemd-run", @["--user", "--collect", "--quiet",
+      "--unit=" & PrismUnit, "--property=Type=exec", "--property=KillMode=process",
+      "--property=StandardInput=null", "--property=StandardOutput=null",
+      "--property=StandardError=null", "--", getHomeDir() / PrismScript])
 
 proc launchObs() {.gcsafe.} =
   ## Start OBS on the Minecraft project as an independent user service.
@@ -105,6 +145,9 @@ proc runBridge() =
     obsRunning: obsRunning,
     launchObs: launchObs,
     focusObs: focusObs,
+    minecraftState: minecraftWindowState,
+    launchPrism: launchPrism,
+    resizeMinecraft: resizeMinecraftWindow,
     audioTarget: minecraftAudioTarget,
     videoTarget: minecraftVideoTarget,
     emit: emitLine,
