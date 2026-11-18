@@ -9,7 +9,7 @@ const
   DeckAssets = RepositoryAssets / "stream_deck"
   ObsArtAssets = RepositoryAssets / "obs"
   ObsArtSources = [("default", "record-idle.png"), ("recording", "record-recording.png"),
-    ("paused", "record-paused.png"), ("muted", "mic-muted.png"), ("unavailable", "unavailable.png")]
+    ("paused", "record-paused.png"), ("muted", "mic-muted.png"), ("unavailable", "record-unavailable.png")]
   ObsArtMenu = "obs-art"
   ObsArtManifestName = "obs-art.json"
   FramePaths = [DeckAssets / "3-normal.jpg", DeckAssets / "4-normal.jpg"]

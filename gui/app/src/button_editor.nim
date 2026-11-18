@@ -516,6 +516,10 @@ proc liveObsState*(editor: ButtonEditor, entry: JsonNode): string =
   let operation = entry.obsOperation()
   if operation.len > 0: obsVisualState(operation, editor.obsStatus) else: NormalState
 
+proc liveObsDescription*(editor: ButtonEditor, entry: JsonNode): string =
+  ## Explain the live OBS or Minecraft key using the daemon's authoritative status.
+  obsStatusDescription(entry.obsOperation(), editor.obsStatus)
+
 proc liveDeckReady*(editor: ButtonEditor): bool =
   ## Report whether the daemon published an active Deck manifest the live view can show.
   let live = editor.liveDeckSource()

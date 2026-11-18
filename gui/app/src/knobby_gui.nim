@@ -230,7 +230,7 @@ proc drawDetails(sk: Silky, viewer: Viewer, x, height: float32) =
       text(live.describeAction(entry), "Small", Muted)
       if entry.obsOperation().len > 0:
         let state = editor.liveObsState(entry)
-        text("OBS status: " & (if state == NormalState: "Ready" else: stateLabel(state)), "Small",
+        text(editor.liveObsDescription(entry), "Small",
           if state == "unavailable": Muted else: Accent)
       text("Menu: " & live.menuTitle(menu), "Small", Muted)
     elif not viewer.state.buttons.isNil:

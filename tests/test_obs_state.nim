@@ -42,7 +42,7 @@ suite "OBS state":
       for operation in ["recordToggle", "pauseToggle", "micToggle"]:
         check obsVisualState(operation, snapshot) == "unavailable"
     check obsVisualState("open", status(connected = false)) == "unavailable"
-    check obsVisualState("open", status(workspaceReady = false)) == ""
+    check obsVisualState("open", status(workspaceReady = false)) == "running"
 
   test "operation precedence selects recording, paused and muted states":
     check obsVisualState("recordToggle", status()) == ""
@@ -58,7 +58,7 @@ suite "OBS state":
     var missingMic = status(micMuted = %true)
     missingMic["micReady"] = %false
     check obsVisualState("micToggle", missingMic) == "unavailable"
-    check obsVisualState("open", status(recording = true)) == ""
+    check obsVisualState("open", status(recording = true)) == "running"
     check obsVisualState("stream", status()) == ""
     for operation in ObsOperations:
       check isObsOperation(operation)
@@ -78,7 +78,33 @@ suite "OBS state":
     check obsVisualState("pauseToggle",
       status(recording = true, paused = true, minecraftReady = false)) == "paused"
     check obsVisualState("micToggle", notReady) == ""
-    check obsVisualState("open", notReady) == ""
+    check obsVisualState("open", notReady) == "running"
+
+  test "launcher artwork follows app presence independently of OBS control":
+    let offline = status(connected = false, minecraftReady = false)
+    check obsVisualState("minecraft1080", offline) == "unavailable"
+    offline["obsRunning"] = %true
+    check obsVisualState("open", offline) == "running"
+    check obsStatusDescription("open", offline) == "OBS open; control connection unavailable"
+    offline["minecraftRunning"] = %true
+    check obsVisualState("minecraft1080", offline) == "running"
+    check obsStatusDescription("minecraft1080", offline) == "Resize Minecraft to 1920 by 1080"
+    offline["minecraftSized"] = %true
+    check obsVisualState("minecraft1080", offline) == "ready"
+    check obsStatusDescription("minecraft1080", offline) == "Minecraft is 1920 by 1080"
+    offline["minecraftRunning"] = %false
+    check obsVisualState("minecraft1080", offline) == "unavailable"
+    check obsStatusDescription("minecraft1080", offline) == "Minecraft closed; press to open Prism"
+
+  test "record details explain capture prerequisites and retain actual recording state":
+    let waiting = status(minecraftReady = false)
+    check obsStatusDescription("recordToggle", waiting) == "Open Minecraft before recording"
+    waiting["minecraftRunning"] = %true
+    check obsStatusDescription("recordToggle", waiting) == "Waiting for Minecraft capture"
+    waiting["error"] = %"Minecraft audio is missing\nAsync traceback: private details"
+    check obsStatusDescription("recordToggle", waiting) == "Minecraft audio is missing"
+    waiting["recording"] = %true
+    check obsStatusDescription("recordToggle", waiting) == "Recording"
 
   test "selection returns a prepared variant or the base entry":
     let entry = variantEntry()

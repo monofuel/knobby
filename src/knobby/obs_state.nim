@@ -1,11 +1,12 @@
 import
-  std/[json, locks]
+  std/[json, locks, strutils]
 
 const
   ObsOperations* = ["recordToggle", "pauseToggle", "micToggle", "open", "minecraft1080"]
-  ObsVisualStates* = ["recording", "paused", "muted", "unavailable"]
+  ObsVisualStates* = ["recording", "paused", "muted", "unavailable", "running", "ready"]
   ObsStatusFields* = ["connected", "workspaceReady", "minecraftReady",
-    "recording", "paused", "micMuted", "transitioning", "error"]
+    "recording", "paused", "micMuted", "transitioning", "error", "obsRunning",
+    "minecraftRunning", "minecraftSized"]
   RecordingState = "recording"
   PausedState = "paused"
   MutedState = "muted"
@@ -64,7 +65,7 @@ proc obsOperationDescription*(operation: string): string =
   of "pauseToggle": "Pause or resume the OBS recording."
   of "micToggle": "Mute or unmute the OBS Commentary microphone."
   of "open": "Open or focus OBS."
-  of "minecraft1080": "Resize the Minecraft window content to 1920 by 1080 pixels."
+  of "minecraft1080": "Launch Prism when Minecraft is closed, or resize Minecraft to 1920 by 1080 pixels."
   else: "Unknown OBS operation " & operation & "."
 
 proc flag(status: JsonNode, field: string): bool =
@@ -99,9 +100,43 @@ proc obsVisualState*(operation: string, status: JsonNode): string =
     if not ready or micMissing: result = UnavailableState
     elif muted.getBool(): result = MutedState
   of "open":
-    if not connected: result = UnavailableState
+    result = if status.flag("obsRunning") or connected: "running" else: UnavailableState
+  of "minecraft1080":
+    if not status.flag("minecraftRunning"): result = UnavailableState
+    elif status.flag("minecraftSized"): result = "ready"
+    else: result = "running"
   else:
     discard
+
+proc obsStatusDescription*(operation: string, status: JsonNode): string =
+  ## Explain the current action or missing prerequisite without conflating app presence with capture readiness.
+  case operation
+  of "open":
+    if status.flag("obsRunning") or status.flag("connected"):
+      result = if status.flag("connected"): "OBS open" else: "OBS open; control connection unavailable"
+    else: result = "OBS closed; press to open"
+  of "minecraft1080":
+    if not status.flag("minecraftRunning"): result = "Minecraft closed; press to open Prism"
+    elif status.flag("minecraftSized"): result = "Minecraft is 1920 by 1080"
+    else: result = "Resize Minecraft to 1920 by 1080"
+  else:
+    if not status.flag("connected"): result = "OBS control unavailable"
+    elif not status.flag("workspaceReady"): result = "Minecraft AI Demos workspace unavailable"
+    elif operation == "recordToggle":
+      if status.flag("paused"): result = "Recording paused"
+      elif status.flag("recording"): result = "Recording"
+      elif not status.flag("minecraftRunning"): result = "Open Minecraft before recording"
+      elif not status.flag("minecraftReady"): result = "Waiting for Minecraft capture"
+      else: result = "Ready to record"
+    elif operation == "pauseToggle":
+      if not status.flag("recording"): result = "Not recording"
+      elif status.flag("paused"): result = "Recording paused"
+      else: result = "Recording"
+    elif operation == "micToggle":
+      result = if status.flag("micMuted"): "Commentary muted" else: "Commentary enabled"
+    if operation == "recordToggle" and not status.flag("minecraftReady") and not status.flag("recording"):
+      let error = status{"error"}.getStr().splitLines()
+      if error.len > 0 and error[0].len > 0: result = error[0]
 
 proc selectObsVisual*(entry: JsonNode, status: JsonNode): JsonNode =
   ## Return the prepared variant of a manifest key entry for the status, or the

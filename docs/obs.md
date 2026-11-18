@@ -34,7 +34,7 @@ not launch OBS or start recording. The Arduino keeps its current menu.
 | 3 | Pause/resume recording |
 | 4 | Mute/unmute OBS Commentary |
 | 5 | Open/focus OBS and select the Minecraft project when idle |
-| 6 | Make the Minecraft window content exactly 1920×1080 |
+| 6 | Launch Prism if Minecraft is closed; otherwise resize Minecraft to 1920×1080 |
 
 Recording, pause, and mic artwork follows actual OBS events and periodic
 queries. Grey unavailable artwork means the connection or required workspace
@@ -42,6 +42,18 @@ is unavailable. Commands are never retried after an uncertain result, and
 reconnecting never starts a recording. Stop/pause remain available for an
 existing recording if Minecraft closes. Open OBS never switches projects
 while recording or streaming.
+
+The **OBS** key keeps its application icon: a grey frame when closed and a
+green frame when OBS is running. App presence is observed independently of
+the WebSocket connection, so an open OBS with unavailable controls can be
+explained in the GUI. The Record key keeps its **REC** artwork when capture is
+unavailable, with a grey frame; its details explain the missing prerequisite.
+Opening OBS alone does not make Minecraft capture ready.
+
+The Minecraft key shows **PRISM** while the game is absent. Pressing it opens
+`~/bin/prism` without choosing an instance or modpack. Once a Minecraft game
+window appears it shows amber **1080**, or green **1080** when its content is
+already exactly 1920×1080. These observations continue while OBS is closed.
 
 The 1080p action identifies Minecraft by its X11 window class, removes
 fullscreen/maximized state from that window, and resizes its client area.
@@ -58,7 +70,7 @@ OBS uses the existing [button configuration](buttons.md), with this action:
 
 Operations are `recordToggle`, `pauseToggle`, `micToggle`, `open`, and
 `minecraft1080`. Optional `visual.states` maps `recording`, `paused`,
-`muted`, and `unavailable` to managed image paths. The default visual remains
+`muted`, `unavailable`, `running`, and `ready` to managed image paths. The default visual remains
 `visual.image`. PNG, JPEG, and animated GIF preparation and limits apply to
 every variant. A status change selects preloaded media without resetting menu
 navigation, held keys, or animation timing.
@@ -126,7 +138,7 @@ References: [OBS WebSocket protocol](https://github.com/obsproject/obs-websocket
 and [Prism instance environment](https://github.com/PrismLauncher/PrismLauncher/blob/11.1.1/launcher/minecraft/MinecraftInstance.cpp).
 
 The installer restarts the daemon after all package checks pass. It leaves
-the existing Knobby GUI and its drafts running. After this IPC version 3
+the existing Knobby GUI and its drafts running. After this IPC version 4
 update, choose **Quit viewer** from the tray, then run
 `~/.local/bin/knobby-gui` to load the new editor.
 
