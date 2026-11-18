@@ -32,8 +32,8 @@ proc dismiss*(request: var OverlayRequest, nowMs: int64) =
     inc request.sequence
 
 proc press*(request: var OverlayRequest, requestsOverlay: bool, nowMs: int64) =
-  ## Apply one fresh button press: the help action shows the overlay, any other press hides it.
-  if requestsOverlay:
+  ## Toggle the overlay on a fresh help press; any other button hides it.
+  if requestsOverlay and not request.visible(nowMs):
     request.request(nowMs)
   else:
     request.dismiss(nowMs)

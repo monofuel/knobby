@@ -145,7 +145,7 @@ proc pressHelp() =
 
 proc requestHelpEndingIn(milliseconds: int64) =
   ## Record a help request whose deadline is only a short time away.
-  pressMixerOverlay(false)
+  resetMixerOverlay()
   pressMixerOverlay(true, monotonicMs() - MixerOverlayDurationMs + milliseconds)
 
 proc serve(daemon: var Daemon) =
@@ -491,16 +491,20 @@ proc main() =
   check daemon.pump(x11, fixture, 300) == false and x11.viewable(overlay),
     "Releases and unknown notes must not dismiss the overlay."
 
-  let refreshAtMs = requestedMs + 3000
-  discard daemon.pump(x11, fixture, int(refreshAtMs - monotonicMs()))
+  let closeAtMs = requestedMs + 3000
+  discard daemon.pump(x11, fixture, int(closeAtMs - monotonicMs()))
   pressHelp()
-  let refreshedMs = monotonicMs()
-  discard daemon.pump(x11, fixture, int(requestedMs + MixerOverlayDurationMs + 500 - monotonicMs()))
-  check x11.viewable(overlay), "Repeated help must refresh the ten-second deadline."
-  check daemon.pump(x11, fixture, int(refreshedMs + MixerOverlayDurationMs + HideLimitMs - monotonicMs()),
+  check daemon.pump(x11, fixture, HideLimitMs, proc (): bool = not x11.viewable(overlay)),
+    "Pressing Help again did not close the overlay."
+  check x11.focus() == fixture.window, "Closing the overlay moved keyboard focus."
+  pressHelp()
+  let reopenedMs = monotonicMs()
+  check daemon.pump(x11, fixture, ShowLimitMs, proc (): bool = x11.viewable(overlay)),
+    "A third Help press did not reopen the overlay."
+  check daemon.pump(x11, fixture, int(reopenedMs + MixerOverlayDurationMs + HideLimitMs - monotonicMs()),
     proc (): bool = not x11.viewable(overlay)), "The overlay did not hide at its deadline."
-  check monotonicMs() >= refreshedMs + MixerOverlayDurationMs - StateIntervalMs,
-    "The overlay hid before its refreshed deadline."
+  check monotonicMs() >= reopenedMs + MixerOverlayDurationMs - StateIntervalMs,
+    "The overlay hid before its new deadline."
 
   pressHelp()
   check daemon.pump(x11, fixture, ShowLimitMs, proc (): bool = x11.viewable(overlay)), "Help did not reopen."

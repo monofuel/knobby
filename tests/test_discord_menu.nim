@@ -81,3 +81,19 @@ suite "Discord submenu installation":
       let original = $config
       expect ValueError: discard installDiscordMenu(config, artwork())
       check $config == original
+
+  test "artwork refresh preserves custom titles and bindings":
+    let source = installDiscordMenu(defaultButtonConfig(), artwork())
+    source["menus"][1]["deck"][1]["title"] = %"All microphones"
+    source["menus"][1]["deck"][4]["action"] = %*{"kind": "command", "command": "my-discord"}
+    let original = $source
+    var changed = artwork()
+    for name in DiscordArtworkNames: changed[name] = "assets/updated-" & name & ".png"
+    let updated = refreshDiscordArtwork(source, changed)
+    validateButtonConfig(updated)
+    check $source == original
+    check updated["menus"][0]["mixer"] == source["menus"][0]["mixer"]
+    check updated["menus"][1]["deck"][1]["title"].getStr() == "All microphones"
+    check updated["menus"][1]["deck"][1]["visual"]["image"].getStr() == changed["system-live"]
+    check updated["menus"][1]["deck"][4] == source["menus"][1]["deck"][4]
+    expect ValueError: discard refreshDiscordArtwork(defaultButtonConfig(), changed)

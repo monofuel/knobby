@@ -53,3 +53,24 @@ proc installDiscordMenu*(source: JsonNode, artwork: Table[string, string]): Json
         replaced = true
     if not replaced: root[device].add(entry)
   result["menus"].add(menu)
+
+proc refreshDiscordArtwork*(source: JsonNode, artwork: Table[string, string]): JsonNode =
+  ## Refresh standard Discord key faces, preserving titles, actions, other menus, and custom bindings.
+  result = parseJson($source)
+  var current: JsonNode
+  for menu in result["menus"]:
+    if menu["id"].getStr() == DiscordMenuId: current = menu
+  if current.isNil:
+    raise newException(ValueError, "The Discord menu is missing; install it before refreshing artwork.")
+  let templateConfig = installDiscordMenu(%*{"version": 1, "root": "root", "menus": [
+    {"id": "root", "title": "Main", "mixer": [], "deck": []}]}, artwork)
+  for button in current["deck"]:
+    for standard in templateConfig["menus"][1]["deck"]:
+      if button["key"] == standard["key"] and button["action"] == standard["action"]:
+        button["visual"] = standard["visual"]
+  let rootEntry = templateConfig["menus"][0]["deck"][0]
+  for menu in result["menus"]:
+    if menu["id"].getStr() == result["root"].getStr():
+      for button in menu["deck"]:
+        if button["key"] == rootEntry["key"] and button["action"] == rootEntry["action"]:
+          button["visual"] = rootEntry["visual"]

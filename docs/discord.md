@@ -17,8 +17,9 @@ the OBS submenu. Duplicate MIDI and Deck buttons use the same actions.
 
 The icons show observations rather than guessing from the last press: green
 **LIVE**, red **MUTED** or **DEAF**, amber **MIXED** when microphone inputs
-disagree, and grey **N/A** when state cannot be established. Small **SYS** and
-**DISC** labels distinguish the microphone controls. Open Discord shows grey
+disagree, and grey **N/A** when state cannot be established. A teal **SYSTEM**
+header and a purple **DISCORD** header distinguish the microphone controls,
+including when both are muted. Open Discord shows grey
 **OPEN** when closed and green **READY** when running; it does not imply RPC
 authorization succeeded.
 
@@ -42,7 +43,8 @@ physical layout:
 
 It disappears after ten seconds or when another MIDI or Stream Deck button is
 pressed. That other button still performs its normal action. Press Help again
-to refresh the ten-second deadline; moving faders leaves the legend visible.
+to close it, and press once more to reopen it for ten seconds. Moving faders
+leaves the legend visible.
 
 The legend takes no keyboard focus and mouse clicks pass through it, including
 the cards. It uses transparent gaps around readable dark cards. Without an X11
@@ -65,5 +67,7 @@ nix develop --command nim r tools/setup_discord_buttons.nim --apply
 This refuses to replace an existing Discord menu or an occupied root key 3 on
 either device. Use the editor or export/edit/apply to change an existing setup.
 Other bindings, OBS menus, faders, and unfinished editor drafts are preserved.
+Use `--refresh-art` instead of `--apply` to update the standard key faces in an
+existing Discord menu while retaining titles and bindings.
 Artwork is original, generated alongside the OBS icons by
 `gui/app/tools/generate_obs_icons.nim`.

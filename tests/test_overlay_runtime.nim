@@ -81,13 +81,17 @@ suite "Overlay request state":
     check not expired["visible"].getBool()
     check expired["expiresAtMs"].getBiggestInt() == 0
 
-  test "repeated help refreshes the deadline":
+  test "help toggles closed and reopens with a fresh deadline":
     var request: OverlayRequest
     request.press(true, StartMs)
     let first = request.sequence
     request.press(true, StartMs + 7000)
-    check request.expiresAtMs == StartMs + 7000 + MixerOverlayDurationMs
+    check request.expiresAtMs == 0
     check request.sequence == first + 1
+    check not request.visible(StartMs + 7000)
+    request.press(true, StartMs + 8000)
+    check request.expiresAtMs == StartMs + 8000 + MixerOverlayDurationMs
+    check request.sequence == first + 2
     check request.visible(StartMs + 12000)
     request.press(true, StartMs + 30000)
     check request.visible(StartMs + 30000)
@@ -185,7 +189,7 @@ suite "Overlay button routing":
     check overlay()["sequence"].getBiggestInt() == 0
 
   when declared(MixerOverlayAction):
-    test "the help key requests, refreshes, and queues its activation once per press":
+    test "the help key toggles only on fresh presses and ignores held repeats":
       let paths = start(overlayConfig("mixerOverlay"))
       defer: finish(paths)
       check activeMixerCatalog()["buttons"][HelpKey - 1]["label"].getStr() == "Help"
@@ -197,11 +201,15 @@ suite "Overlay button routing":
       routeMixerButton(HelpKey, false)
       sleep(5)
       routeMixerButton(HelpKey, true)
-      check showing()
-      check overlay()["expiresAtMs"].getBiggestInt() > first["expiresAtMs"].getBiggestInt()
+      check not showing()
+      check overlay()["expiresAtMs"].getBiggestInt() == 0
       check overlay()["sequence"].getBiggestInt() == first["sequence"].getBiggestInt() + 1
       routeMixerButton(HelpKey, false)
-      check kinds(takeButtonActions()) == @["mixerOverlay", "mixerOverlay"]
+      routeMixerButton(HelpKey, true)
+      check showing()
+      check overlay()["expiresAtMs"].getBiggestInt() > first["expiresAtMs"].getBiggestInt()
+      routeMixerButton(HelpKey, false)
+      check kinds(takeButtonActions()) == @["mixerOverlay", "mixerOverlay", "mixerOverlay"]
       routeMixerButton(5, true)
       check not showing()
       check kinds(takeButtonActions()) == @["command"]

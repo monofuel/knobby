@@ -27,6 +27,20 @@ const
   LabelTop = 50
   LabelBandTop = 45
   Seed = 0x2f6e2b1'u32
+  BadgeScale = 2
+  BadgeGlyphWidth = 3
+  BadgeGlyphGap = 1
+  BadgeFont = {
+    'C': @["###", "#..", "#..", "#..", "###"],
+    'D': @["##.", "#.#", "#.#", "#.#", "##."],
+    'E': @["###", "#..", "##.", "#..", "###"],
+    'I': @["###", ".#.", ".#.", ".#.", "###"],
+    'M': @["#.#", "###", "###", "#.#", "#.#"],
+    'O': @["###", "#.#", "#.#", "#.#", "###"],
+    'R': @["##.", "#.#", "##.", "#.#", "#.#"],
+    'S': @["###", "#..", "###", "..#", "###"],
+    'T': @["###", ".#.", ".#.", ".#.", ".#."],
+    'Y': @["#.#", "#.#", ".#.", ".#.", ".#."]}.toTable
   Font = {
     '0': @[".###.", "#...#", "#..##", "#.#.#", "##..#", "#...#", ".###."],
     '1': @["..#..", ".##..", "..#..", "..#..", "..#..", "..#..", ".###."],
@@ -372,14 +386,24 @@ proc render(icon: Icon): Image =
   result.drawLabel(icon.label, icon.tone.labelColor())
 
 proc drawBadge(image: Image, text: string) =
-  ## Draw a small source label above the sprite to distinguish equal mute states.
-  var left = (Size - labelWidth(text)) div 2
-  for character in text:
-    let glyph = Font[character]
-    for row, line in glyph:
-      for column, symbol in line:
-        if symbol == '#': image[left + column, 5 + row] = rgb("#dadce2")
-    left += glyph[0].len + GlyphGap
+  ## Draw the full scope in a distinct colour band using native pixel glyphs.
+  let
+    width = (text.len * (BadgeGlyphWidth + BadgeGlyphGap) - BadgeGlyphGap) * BadgeScale
+    band = if text == "SYSTEM": rgb("#205f65") else: rgb("#414c89")
+  doAssert width <= Size - 2 * Border
+  for y in Border..<16:
+    for x in Border..<Size - Border: image[x, y] = band
+  for (offset, ink) in [(1, rgb("#10131b")), (0, rgb("#f4f6ff"))]:
+    var left = (Size - width) div 2
+    for character in text:
+      for row, line in BadgeFont[character]:
+        for column, symbol in line:
+          if symbol == '#':
+            for dy in 0..<BadgeScale:
+              for dx in 0..<BadgeScale:
+                image[left + column * BadgeScale + dx + offset,
+                  5 + row * BadgeScale + dy + offset] = ink
+      left += (BadgeGlyphWidth + BadgeGlyphGap) * BadgeScale
 
 proc generateDiscordIcons() =
   ## Generate original Discord-menu artwork using the same pixel style as OBS.
@@ -394,7 +418,7 @@ proc generateDiscordIcons() =
       "................", "..############..", ".#hhhhhhhhhhhh#.", ".#hrrrrrrrrrrr#.",
       ".#rrrrrrrrrrrr#.", ".#rr##rrrr##rr#.", ".#rr##rrrr##rr#.", ".#rrrrrrrrrrrr#.",
       ".#rrr######rrr#.", ".#rrrrrrrrrrrd#.", ".#dddddddddddd#.", "..####rr######..",
-      "......rr#.......", "......r#........", "......#.........", "................"]
+      "......rr#.......", "......r#........", "................", "................"]
   let
     green = palette("#0f2a0a", "#5fb83a", "#a6e67a", "#2f7a1c", [('s', "#c8cace")])
     red = palette("#2a0605", "#d42a1e", "#ff7a5c", "#8a130d", [('s', "#8e9094"), ('x', "#f2f2f2")])
@@ -402,7 +426,7 @@ proc generateDiscordIcons() =
     grey = palette("#1e1f21", "#6a6c70", "#84868a", "#4c4d50")
     purple = palette("#1c2049", "#7289da", "#c0c9ff", "#404b87")
   createDir(Directory)
-  for (prefix, badge) in [("system", "SYS"), ("discord", "DISC")]:
+  for (prefix, badge) in [("system", "SYSTEM"), ("discord", "DISCORD")]:
     for (suffix, label, tone, sprite, colors) in [
         ("live", "LIVE", GreenTone, MicSprite, green),
         ("muted", "MUTED", RedTone, MicMutedSprite, red),
@@ -414,20 +438,20 @@ proc generateDiscordIcons() =
       let image = newImage(Size, Size)
       image.fillStone(tone)
       image.drawBadge(badge)
-      image.drawSprite(sprite, colors, 12)
+      image.drawSprite(sprite, colors, 16)
       image.drawLabel(label, tone.labelColor())
       image.writeFile(Directory / (prefix & "-" & suffix & ".png"))
   for (name, label, badge, tone, sprite, colors) in [
       ("menu-discord", "CHAT", "DISCORD", GreenTone, Chat, purple),
-      ("deafen-live", "HEAR", "DISC", GreenTone, Headphones, green),
-      ("deafen-muted", "DEAF", "DISC", RedTone, Headphones, red),
-      ("deafen-unavailable", "N/A", "DISC", GreyTone, BarrierSprite, grey),
+      ("deafen-live", "HEAR", "DISCORD", GreenTone, Headphones, green),
+      ("deafen-muted", "DEAF", "DISCORD", RedTone, Headphones, red),
+      ("deafen-unavailable", "N/A", "DISCORD", GreyTone, BarrierSprite, grey),
       ("open-idle", "OPEN", "DISCORD", GreyTone, Chat, purple),
       ("open-running", "READY", "DISCORD", GreenTone, Chat, purple)]:
     let image = newImage(Size, Size)
     image.fillStone(tone)
     image.drawBadge(badge)
-    image.drawSprite(sprite, colors, 12)
+    image.drawSprite(sprite, colors, 16)
     image.drawLabel(label, tone.labelColor())
     image.writeFile(Directory / (name & ".png"))
   render(Icon(label: "BACK", tone: GreenTone, sprite: BackSprite,
