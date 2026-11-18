@@ -1,6 +1,6 @@
 import
   std/[atomics, json, os, strutils, unittest],
-  knobby/[bindings, button_config, button_runtime, ipc]
+  knobby/[bindings, button_config, button_runtime, ipc, obs_state]
 
 const
   FailTitle = "FAIL"
@@ -675,3 +675,45 @@ suite "Button runtime":
     check "Media preparation is unavailable" in record["error"].getStr()
     check awaitOperation(request("config.importAsset", %*{"source": "/tmp/cat.png"}))["code"].getStr() == "import"
     check revision() == configRevision(defaultButtonConfig())
+
+  test "OBS presses are captured at press time with their operation and description":
+    let paths = newPaths()
+    var config = navConfig()
+    config["menus"][0]["deck"].add(%*{"key": 9, "title": "OBS",
+      "action": {"kind": "menu", "menu": "obs", "target": "deck"}})
+    config["menus"][0]["mixer"].add(%*{"key": 7, "title": "Mic",
+      "action": {"kind": "obs", "operation": "micToggle"}})
+    config["menus"].add(%*{"id": "obs", "title": "OBS", "mixer": [
+        {"key": 3, "title": "Mic", "action": {"kind": "obs", "operation": "micToggle"}}],
+      "deck": [
+        {"key": 2, "title": "Rec", "action": {"kind": "obs", "operation": "recordToggle"}},
+        {"key": 5, "title": "Open", "action": {"kind": "obs", "operation": "open"}}]})
+    writeFileAtomic(paths.configPath(), encodeConfigFile(config))
+    start(paths)
+    defer: finish(paths)
+    check activeMixerCatalog()["buttons"][6]["description"].getStr() ==
+      obsOperationDescription("micToggle")
+    syncDeck()
+    press(DeckDevice, 9)
+    check menus() == ("root", "obs")
+    check takeButtonActions().len == 0
+    syncDeck()
+    routeDeckButton(1, true)
+    var changed = config
+    changed["menus"][3]["deck"][0]["action"]["operation"] = %"pauseToggle"
+    check awaitOperation(apply(changed))["status"].getStr() == "succeeded"
+    routeDeckButton(1, false)
+    syncDeck()
+    press(DeckDevice, 9)
+    syncDeck()
+    press(DeckDevice, 2)
+    press(DeckDevice, 5)
+    let actions = takeButtonActions()
+    check kinds(actions) == @["obs", "obs", "obs"]
+    check actions[0]["action"] == %*{"kind": "obs", "operation": "recordToggle"}
+    check actions[0]["menu"].getStr() == "obs"
+    check actions[1]["action"]["operation"].getStr() == "pauseToggle"
+    check actions[2]["action"]["operation"].getStr() == "open"
+    check menus() == ("root", "obs")
+    press(MixerDevice, 2)
+    check menus() == ("a", "a")

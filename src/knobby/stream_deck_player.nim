@@ -1,6 +1,6 @@
 import
   std/[algorithm, json, monotimes, os, strutils, tables],
-  ./[bindings, stream_deck, stream_deck_page]
+  ./[bindings, obs_state, stream_deck, stream_deck_page]
 
 type
   PlayerClock* = proc (): int64
@@ -11,14 +11,20 @@ type
     busyLimitMs*: int
     brightness*: int
     onDiagnostic*: proc (message: string)
+    readIndicators*: proc (): JsonNode
   ImageSource = object
     path: string
     loaded: bool
     failure: string
-  KeyPlan = object
+  KeyVisual = object
     normal: seq[int]
     ends: seq[int]
     pressed: int
+  KeyPlan = object
+    # visuals[0] is the base; later visuals are OBS state variants named by states.
+    visuals: seq[KeyVisual]
+    states: seq[string]
+    operation: string
     diagnostic: string
   DeckPage = object
     generation: int64
@@ -41,6 +47,9 @@ type
     hasPending: bool
     anchorMs: int64
     shown: array[StreamDeckKeyCount, int]
+    selected: array[StreamDeckKeyCount, int]
+    shownVisual: array[StreamDeckKeyCount, int]
+    indicators: JsonNode
     shownHeld: StreamDeckKeys
     uploaded: array[StreamDeckKeyCount, bool]
     uploadedCount: int
@@ -71,10 +80,11 @@ proc writeDiagnostic(message: string) =
   stderr.writeLine("Stream Deck: " & message)
 
 proc defaultPlayerOptions*(): PlayerOptions =
-  ## Return the production clock, polling bounds, and diagnostic sink.
+  ## Return the production clock, polling bounds, diagnostic sink, and OBS status reader.
   PlayerOptions(clock: monotonicMs, idlePollMs: DefaultIdlePollMs,
     busyRetryMs: DefaultBusyRetryMs, busyLimitMs: DefaultBusyLimitMs,
-    brightness: StreamDeckDemoBrightness, onDiagnostic: writeDiagnostic)
+    brightness: StreamDeckDemoBrightness, onDiagnostic: writeDiagnostic,
+    readIndicators: readObsStatus)
 
 proc builtinDeckPage*(generation: int64 = 1, menu = "root"): JsonNode =
   ## Build a page that shows the embedded numbered images on every key.
@@ -144,9 +154,13 @@ proc addFile(page: var DeckPage, previous: DeckPage, path: string): int =
     page.images.add(image)
     page.sourceIndex[path] = result
 
-proc staticPlan(source: int): KeyPlan =
+proc staticVisual(source: int): KeyVisual =
   ## Show one image regardless of time or key state.
-  KeyPlan(normal: @[source], ends: @[1], pressed: source)
+  KeyVisual(normal: @[source], ends: @[1], pressed: source)
+
+proc staticPlan(source: int): KeyPlan =
+  ## Show one image regardless of time, key state, or OBS status.
+  KeyPlan(visuals: @[staticVisual(source)], states: @[""])
 
 proc framePath(node: JsonNode, field: string): string =
   ## Read an absolute prepared JPEG path or raise ValueError naming the field.
@@ -154,8 +168,33 @@ proc framePath(node: JsonNode, field: string): string =
     raise newException(ValueError, field & " must be an absolute JPEG path")
   result = node.getStr()
 
+proc frameVisual(page: var DeckPage, previous: DeckPage, entry: JsonNode,
+    prefix: string): KeyVisual =
+  ## Convert a {normal, pressed} object into image indices, raising ValueError when malformed.
+  if entry.kind != JObject:
+    raise newException(ValueError, prefix & "entry must be an object")
+  let frames = entry{"normal"}
+  if frames.isNil or frames.kind != JArray or frames.len == 0:
+    raise newException(ValueError, prefix & "normal must be a nonempty frame list")
+  if frames.len > MaxFramesPerKey:
+    raise newException(ValueError, prefix & "normal has more than " & $MaxFramesPerKey & " frames")
+  var durations: seq[int]
+  for frame in frames:
+    if frame.kind != JObject:
+      raise newException(ValueError, prefix & "normal frames must be objects")
+    let duration = frame{"durationMs"}
+    if duration.isNil or duration.kind != JInt:
+      raise newException(ValueError, prefix & "durationMs must be an integer")
+    durations.add(duration.getInt())
+    result.normal.add(page.addFile(previous, framePath(frame{"path"}, prefix & "path")))
+  result.ends = frameEnds(durations)
+  result.pressed =
+    if entry.hasKey("pressed"): page.addFile(previous, framePath(entry["pressed"], prefix & "pressed"))
+    else: result.normal[0]
+
 proc entryPlan(page: var DeckPage, previous: DeckPage, entry: JsonNode): KeyPlan =
-  ## Convert one manifest key entry into image indices, raising ValueError when malformed.
+  ## Convert one manifest key entry and its OBS state variants into image
+  ## indices, raising ValueError when malformed.
   if entry.kind != JObject:
     raise newException(ValueError, "entry must be an object")
   if entry.hasKey("builtinNumber"):
@@ -163,29 +202,26 @@ proc entryPlan(page: var DeckPage, previous: DeckPage, entry: JsonNode): KeyPlan
     if number.kind != JInt or number.getInt() notin 1..StreamDeckKeyCount:
       raise newException(ValueError, "builtinNumber must be between 1 and 15")
     let n = number.getInt()
-    result = KeyPlan(
+    result.visuals.add(KeyVisual(
       normal: @[page.addEmbedded(BuiltinPrefix & $n, builtinNormalImage(n))],
       ends: @[1],
-      pressed: page.addEmbedded(BuiltinPrefix & $n & ":pressed", builtinPressedImage(n)))
+      pressed: page.addEmbedded(BuiltinPrefix & $n & ":pressed", builtinPressedImage(n))))
   else:
-    let frames = entry{"normal"}
-    if frames.isNil or frames.kind != JArray or frames.len == 0:
-      raise newException(ValueError, "normal must be a nonempty frame list")
-    if frames.len > MaxFramesPerKey:
-      raise newException(ValueError, "normal has more than " & $MaxFramesPerKey & " frames")
-    var durations: seq[int]
-    for frame in frames:
-      if frame.kind != JObject:
-        raise newException(ValueError, "normal frames must be objects")
-      let duration = frame{"durationMs"}
-      if duration.isNil or duration.kind != JInt:
-        raise newException(ValueError, "durationMs must be an integer")
-      durations.add(duration.getInt())
-      result.normal.add(page.addFile(previous, framePath(frame{"path"}, "path")))
-    result.ends = frameEnds(durations)
-    result.pressed =
-      if entry.hasKey("pressed"): page.addFile(previous, framePath(entry["pressed"], "pressed"))
-      else: result.normal[0]
+    result.visuals.add(page.frameVisual(previous, entry, ""))
+  result.states.add("")
+  if entry.hasKey("obsOperation"):
+    if entry["obsOperation"].kind != JString:
+      raise newException(ValueError, "obsOperation must be a string")
+    result.operation = entry["obsOperation"].getStr()
+  if entry.hasKey("states"):
+    let states = entry["states"]
+    if states.kind != JObject:
+      raise newException(ValueError, "states must be an object")
+    for state, variant in states:
+      if state notin ObsVisualStates:
+        raise newException(ValueError, "unknown visual state " & state.escape())
+      result.visuals.add(page.frameVisual(previous, variant, "states." & state & "."))
+      result.states.add(state)
 
 proc parseDeckPage(node: JsonNode, previous: DeckPage): DeckPage =
   ## Parse a runtime page, isolating malformed key entries behind the missing image.
@@ -255,18 +291,22 @@ proc fullyLoaded(page: DeckPage): bool =
     result = result and page.sources[index].loaded
 
 proc finishLoading(page: var DeckPage) =
-  ## Replace keys whose entry or sources failed with the missing image.
+  ## Replace malformed keys, and each visual whose sources failed, with the missing image.
   for index in 0..<StreamDeckKeyCount:
     template plan: untyped = page.keys[index]
-    if plan.diagnostic.len == 0:
-      for source in plan.normal & @[plan.pressed]:
-        if page.sources[source].failure.len > 0:
-          plan.diagnostic = page.sources[source].failure
-          break
+    let prefix = "menu " & page.menu & " key " & $(index + 1)
     if plan.diagnostic.len > 0:
-      page.diagnostics.add("menu " & page.menu & " key " & $(index + 1) & ": " &
-        plan.diagnostic & "; showing the missing image")
+      page.diagnostics.add(prefix & ": " & plan.diagnostic & "; showing the missing image")
       plan = staticPlan(MissingSource)
+    for visual in 0..plan.visuals.high:
+      var failure = ""
+      for source in plan.visuals[visual].normal & @[plan.visuals[visual].pressed]:
+        if failure.len == 0:
+          failure = page.sources[source].failure
+      if failure.len > 0:
+        let state = if visual == 0: "" else: " state " & plan.states[visual]
+        page.diagnostics.add(prefix & state & ": " & failure & "; showing the missing image")
+        plan.visuals[visual] = staticVisual(MissingSource)
 
 proc pollInput(player: var Player, timeoutMs: int) =
   ## Deliver key edges from one bounded wait and any reports already queued.
@@ -294,6 +334,18 @@ proc receivePage(player: var Player, node: JsonNode) =
   player.hasPending = true
   player.ready = false
 
+proc visualIndex(plan: KeyPlan, status: JsonNode): int =
+  ## Return the visual matching the OBS status, falling back to the base.
+  if plan.operation.len > 0:
+    let state = obsVisualState(plan.operation, status)
+    if state.len > 0:
+      result = max(0, plan.states.find(state))
+
+proc selectVisuals(player: var Player) =
+  ## Choose each active key's visual from the newest status snapshot.
+  for key in 0..<StreamDeckKeyCount:
+    player.selected[key] = player.active.keys[key].visualIndex(player.indicators)
+
 proc activatePending(player: var Player) =
   ## Make the loaded page current and restart its animation clock.
   player.pending.finishLoading()
@@ -310,23 +362,27 @@ proc activatePending(player: var Player) =
     player.uploaded[index] = false
   for message in player.active.diagnostics:
     player.options.onDiagnostic(message)
+  player.selectVisuals()
 
 proc desiredImage(player: Player, key: int, nowMs: int64): int =
   ## Select the pressed image while held, otherwise the frame due now.
-  template plan: untyped = player.active.keys[key]
+  template plan: untyped = player.active.keys[key].visuals[player.selected[key]]
   if player.held[key]:
     result = plan.pressed
   else:
     result = plan.normal[frameIndexAt(plan.ends, nowMs - player.anchorMs)]
 
 proc nextUpload(player: var Player, nowMs: int64): int =
-  ## Choose the next stale key: unstaged keys, then press changes, then round robin.
+  ## Choose the next stale key: unstaged keys, then press or OBS state changes,
+  ## then round robin.
   result = NoImage
   for key in 0..<StreamDeckKeyCount:
     if result == NoImage and not player.uploaded[key]:
       result = key
   for key in 0..<StreamDeckKeyCount:
-    if result == NoImage and player.held[key] != player.shownHeld[key] and
+    let changed = player.held[key] != player.shownHeld[key] or
+      player.selected[key] != player.shownVisual[key]
+    if result == NoImage and changed and
         player.shown[key] != player.desiredImage(key, nowMs):
       result = key
   for offset in 0..<StreamDeckKeyCount:
@@ -340,7 +396,8 @@ proc idleWait(player: Player, nowMs: int64): int =
   result = player.options.idlePollMs
   for key in 0..<StreamDeckKeyCount:
     if not player.held[key]:
-      let wait = msUntilNextFrame(player.active.keys[key].ends, nowMs - player.anchorMs)
+      let wait = msUntilNextFrame(
+        player.active.keys[key].visuals[player.selected[key]].ends, nowMs - player.anchorMs)
       result = min(result.int64, wait).int
   result = max(result, 0)
 
@@ -364,6 +421,7 @@ proc uploadImage(player: var Player, key, image: int) =
     player.pollInput(0)
   player.shown[key] = image
   player.shownHeld[key] = player.held[key]
+  player.shownVisual[key] = player.selected[key]
   if not player.uploaded[key]:
     player.uploaded[key] = true
     inc player.uploadedCount
@@ -381,12 +439,14 @@ proc runPlayer(player: var Player, shouldStop: proc (): bool,
     let page = readPage(player.newestGeneration())
     if not page.isNil:
       player.receivePage(page)
+    player.indicators = player.options.readIndicators()
     if player.hasPending:
       if player.pending.fullyLoaded():
         player.activatePending()
       else:
         player.pending.loadNextSource()
     else:
+      player.selectVisuals()
       let
         nowMs = player.options.clock()
         key = player.nextUpload(nowMs)
@@ -409,8 +469,11 @@ proc runConfiguredSession*(deck: StreamDeck, shouldStop: proc (): bool,
   ## {generation, menu, keys}; nil readPage uses the builtin numbered page.
   ## onReady runs after every key of a new generation is on the device. Stopping
   ## restores the logo; the session is always closed, and a close failure after
-  ## another error is logged so the original error propagates.
-  if options.clock.isNil or options.onDiagnostic.isNil or options.busyLimitMs <= 0 or
+  ## another error is logged so the original error propagates. Each loop reads
+  ## one options.readIndicators snapshot to pick OBS state variants preloaded
+  ## with the page, without a new generation or animation clock reset.
+  if options.clock.isNil or options.onDiagnostic.isNil or options.readIndicators.isNil or
+      options.busyLimitMs <= 0 or
       options.idlePollMs < 0 or options.busyRetryMs < 0:
     raise newException(ValueError, "Stream Deck player options are incomplete.")
   var player = Player(deck: deck, onKey: onKey, options: options)

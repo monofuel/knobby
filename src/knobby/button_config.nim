@@ -1,6 +1,6 @@
 import
   std/[algorithm, json, os, posix, sets, strutils, unicode],
-  ./bindings
+  ./[bindings, obs_state]
 
 type
   ButtonConfigError* = object of ValueError
@@ -9,14 +9,15 @@ type
     NoAction = "none", CommandAction = "command", GrokAction = "grok",
     ClaudeAction = "claude", FfxivAction = "ffxiv",
     MicrophonesAction = "microphones", DiscordAction = "discord",
-    MenuAction = "menu", BackAction = "back", HomeAction = "home"
+    MenuAction = "menu", BackAction = "back", HomeAction = "home",
+    ObsAction = "obs"
   ButtonTarget* = enum
     TargetMixer = "mixer", TargetDeck = "deck", TargetBoth = "both"
   ButtonDevice* = enum
     MixerDevice = "mixer", DeckDevice = "deck"
   ConfiguredAction* = object
     kind*: ConfigActionKind
-    command*, menu*: string
+    command*, menu*, operation*: string
     target*: ButtonTarget
   ConfiguredButton* = object
     key*: int
@@ -55,7 +56,8 @@ const
   MenuKeys = ["id", "title", "mixer", "deck"]
   MixerEntryKeys = ["key", "title", "action"]
   DeckEntryKeys = ["key", "title", "action", "visual"]
-  VisualKeys = ["image", "showTitle", "builtinNumber"]
+  VisualKeys = ["image", "showTitle", "builtinNumber", "states"]
+  ActionFields = ["command", "menu", "target", "operation"]
   NamedActionKinds = {GrokAction, ClaudeAction, FfxivAction, MicrophonesAction, DiscordAction}
   Sha256Initial = [0x6a09e667'u32, 0xbb67ae85'u32, 0x3c6ef372'u32, 0xa54ff53a'u32,
     0x510e527f'u32, 0x9b05688c'u32, 0x1f83d9ab'u32, 0x5be0cd19'u32]
@@ -181,15 +183,16 @@ proc isManagedAssetPath*(path: string): bool =
 
 proc parseAction(node: JsonNode, field: string, menuIds: HashSet[string]): ConfiguredAction =
   ## Validate one action object and keep only the fields its kind uses.
-  requireObject(node, field, ["kind", "command", "menu", "target"])
+  requireObject(node, field, @["kind"] & @ActionFields)
   let kindText = requireMember(node, "kind", field, JString).getStr()
   try:
     result.kind = parseEnum[ConfigActionKind](kindText)
   except ValueError:
     raise configError(join(field, "kind"), "Unknown action kind: " & kindText)
-  for name in ["command", "menu", "target"]:
+  for name in ActionFields:
     let used = (name == "command" and result.kind == CommandAction) or
-      (name in ["menu", "target"] and result.kind == MenuAction)
+      (name in ["menu", "target"] and result.kind == MenuAction) or
+      (name == "operation" and result.kind == ObsAction)
     if node.hasKey(name) and not used:
       raise configError(join(field, name), "Field is not used by action kind " & kindText & ".")
   case result.kind
@@ -210,6 +213,11 @@ proc parseAction(node: JsonNode, field: string, menuIds: HashSet[string]): Confi
       result.target = parseEnum[ButtonTarget](targetText)
     except ValueError:
       raise configError(join(field, "target"), "Target must be mixer, deck, or both.")
+  of ObsAction:
+    result.operation = requireMember(node, "operation", field, JString).getStr()
+    if not isObsOperation(result.operation):
+      raise configError(join(field, "operation"), "OBS operation must be one of " &
+        ObsOperations.join(", ") & ".")
   else:
     discard
 
@@ -260,6 +268,14 @@ proc parseEntries(menu: JsonNode, device: ButtonDevice, field: string, isRoot: b
         if visual.hasKey("image"):
           raise configError(join(visualField, "builtinNumber"),
             "Use either an image or a built-in number, not both.")
+      if visual.hasKey("states"):
+        let statesField = join(visualField, "states")
+        requireObject(visual["states"], statesField, ObsVisualStates)
+        for state in ObsVisualStates:
+          if visual["states"].hasKey(state) and
+              not isManagedAssetPath(requireMember(visual["states"], state, statesField, JString).getStr()):
+            raise configError(join(statesField, state),
+              "State image must be a managed file path such as assets/<name>.png.")
     buttons[key - 1] = ConfiguredButton(key: int(key), title: title, action: action, explicit: true)
 
 proc parseButtonSet*(config: JsonNode): ButtonSet =
@@ -301,6 +317,7 @@ proc actionJson*(action: ConfiguredAction): JsonNode =
   of MenuAction:
     result["menu"] = %action.menu
     result["target"] = %($action.target)
+  of ObsAction: result["operation"] = %action.operation
   else: discard
 
 proc canonicalEntry(entry: JsonNode, button: ConfiguredButton, device: ButtonDevice): JsonNode =
@@ -315,6 +332,12 @@ proc canonicalEntry(entry: JsonNode, button: ConfiguredButton, device: ButtonDev
       visual["builtinNumber"] = source["builtinNumber"]
     visual["showTitle"] = %(if source.hasKey("showTitle"): source["showTitle"].getBool()
       else: not source.hasKey("image"))
+    if source.hasKey("states") and source["states"].len > 0:
+      var states = newJObject()
+      for state in ObsVisualStates:
+        if source["states"].hasKey(state):
+          states[state] = source["states"][state]
+      visual["states"] = states
     result["visual"] = visual
 
 proc canonicalEntries(menu: JsonNode, device: ButtonDevice, buttons: openArray[ConfiguredButton]): JsonNode =
@@ -404,7 +427,7 @@ proc buttonAt*(config: JsonNode, menu: string, device: string, key: int): JsonNo
 
 proc isQueuedAction*(kind: ConfigActionKind): bool =
   ## Report whether an action runs on the action worker rather than navigating.
-  kind == CommandAction or kind in NamedActionKinds
+  kind in {CommandAction, ObsAction} or kind in NamedActionKinds
 
 proc encodeLastApplied*(config: JsonNode): string =
   ## Encode the recovery record for the configuration most recently applied.

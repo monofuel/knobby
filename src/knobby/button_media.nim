@@ -5,7 +5,7 @@
 
 import
   std/[json, monotimes, os, osproc, posix, sequtils, sets, sha1, strutils, times, unicode],
-  ./common
+  ./[common, obs_state]
 
 type
   MediaError* = object of ValueError
@@ -45,9 +45,15 @@ type
     TitleKey
     ArtworkKey
 
+  StatePlan* = object
+    state*: string
+    image*: string
+
   KeyPlan* = object
     key*: int
     field*: string
+    obsOperation*: string
+    states*: seq[StatePlan]
     case kind*: KeyPlanKind
     of BuiltinKey:
       builtinNumber*: int
@@ -404,16 +410,27 @@ proc planButtonMedia*(config: JsonNode): seq[MenuPlan] =
         title = BackTitle
       if not showTitle:
         title = ""
-      if builtin > 0:
-        plan.keys.add(KeyPlan(key: key, field: field, kind: BuiltinKey,
-          builtinNumber: builtin))
-      elif image.len > 0:
-        if not isManagedAsset(image):
-          raiseMedia(field & ".visual.image", "Image must be a managed assets/ path.")
-        plan.keys.add(KeyPlan(key: key, field: field, kind: ArtworkKey,
-          title: title, image: image))
-      else:
-        plan.keys.add(KeyPlan(key: key, field: field, kind: TitleKey, title: title))
+      var keyPlan =
+        if builtin > 0:
+          KeyPlan(key: key, field: field, kind: BuiltinKey, builtinNumber: builtin)
+        elif image.len > 0:
+          if not isManagedAsset(image):
+            raiseMedia(field & ".visual.image", "Image must be a managed assets/ path.")
+          KeyPlan(key: key, field: field, kind: ArtworkKey, title: title, image: image)
+        else:
+          KeyPlan(key: key, field: field, kind: TitleKey, title: title)
+      let action = entry{"action"}
+      if action{"kind"}.getStr() == "obs":
+        keyPlan.obsOperation = action{"operation"}.getStr()
+        let states = if visual.isNil: nil else: visual{"states"}
+        for state in ObsVisualStates:
+          if not states.isNil and states.hasKey(state):
+            let stateImage = states[state].getStr()
+            if not isManagedAsset(stateImage):
+              raiseMedia(field & ".visual.states." & state,
+                "State image must be a managed assets/ path.")
+            keyPlan.states.add(StatePlan(state: state, image: stateImage))
+      plan.keys.add(keyPlan)
     result.add(plan)
 
 proc runTool*(args: seq[string], timeoutMs = ChildTimeoutMs,
@@ -766,12 +783,15 @@ proc prepareKey(plan: KeyPlan, configDir, cacheDir, fontPath,
   result = loadPrepared(destination)
 
 proc prepareButtonMedia*(config: JsonNode, configDir, cacheDir,
-    fontPath: string, timeoutMs = OperationTimeoutMs): JsonNode =
+    fontPath: string, timeoutMs = OperationTimeoutMs,
+    maxPreparedBytes = MaxPreparedBytes): JsonNode =
   ## Render every non-builtin Deck key of every menu and return the manifest
   ## {"version":1,"menus":{id:{"1".."15": entry}}}. Entries are either
   ## {"builtinNumber":n} or {"normal":[{"path","durationMs"}],"pressed":path}
-  ## with absolute JPEG paths under cacheDir. The whole preparation, including
-  ## every child process, shares one timeoutMs deadline and raises
+  ## with absolute JPEG paths under cacheDir. OBS-bound entries add
+  ## "obsOperation" and, for mapped visual states, "states":{state:{normal,
+  ## pressed}}. Every variant counts toward maxPreparedBytes. The whole
+  ## preparation, including every child process, shares one timeoutMs deadline and raises
   ## MediaTimeoutError when it runs out. Preparation never deletes published
   ## cache entries, so files referenced by the running config stay valid.
   withOperationDeadline(timeoutMs):
@@ -784,28 +804,43 @@ proc prepareButtonMedia*(config: JsonNode, configDir, cacheDir,
       counted = initHashSet[string]()
       totalBytes = 0
     removeStaleWork(cache)
+    proc prepared(keyPlan: KeyPlan): JsonNode =
+      ## Render or reuse one visual, count its new files toward the budget, and
+      ## return its {normal, pressed} manifest object.
+      if fontKey.len == 0:
+        if not fileExists(fontPath):
+          raise newException(IOError, "Title font does not exist: " & fontPath)
+        fontKey = contentKey(readFile(fontPath))
+      let prepared = prepareKey(keyPlan, configDir, cache, fontPath, fontKey)
+      var normal = newJArray()
+      for frame in prepared.normal:
+        normal.add(%*{"path": frame.path, "durationMs": frame.durationMs})
+      for path in prepared.normal.mapIt(it.path) & @[prepared.pressed]:
+        if path notin counted:
+          counted.incl(path)
+          totalBytes += getFileSize(path).int
+      if totalBytes > maxPreparedBytes:
+        raiseMedia(keyPlan.field, "Prepared media exceeds " & $maxPreparedBytes &
+          " bytes in total.")
+      result = %*{"normal": normal, "pressed": prepared.pressed}
+
     for plan in plans:
       var keys = newJObject()
       for keyPlan in plan.keys:
-        if keyPlan.kind == BuiltinKey:
-          keys[$keyPlan.key] = %*{"builtinNumber": keyPlan.builtinNumber}
-          continue
-        if fontKey.len == 0:
-          if not fileExists(fontPath):
-            raise newException(IOError, "Title font does not exist: " & fontPath)
-          fontKey = contentKey(readFile(fontPath))
-        let prepared = prepareKey(keyPlan, configDir, cache, fontPath, fontKey)
-        var normal = newJArray()
-        for frame in prepared.normal:
-          normal.add(%*{"path": frame.path, "durationMs": frame.durationMs})
-        for path in prepared.normal.mapIt(it.path) & @[prepared.pressed]:
-          if path notin counted:
-            counted.incl(path)
-            totalBytes += getFileSize(path).int
-        if totalBytes > MaxPreparedBytes:
-          raiseMedia(keyPlan.field, "Prepared media exceeds " & $MaxPreparedBytes &
-            " bytes in total.")
-        keys[$keyPlan.key] = %*{"normal": normal, "pressed": prepared.pressed}
+        var entry = if keyPlan.kind == BuiltinKey: %*{"builtinNumber": keyPlan.builtinNumber}
+          else: prepared(keyPlan)
+        if keyPlan.obsOperation.len > 0:
+          entry["obsOperation"] = %keyPlan.obsOperation
+          if keyPlan.states.len > 0:
+            var states = newJObject()
+            for statePlan in keyPlan.states:
+              # Variants reuse the base title so overlays stay consistent.
+              let title = if keyPlan.kind == BuiltinKey: "" else: keyPlan.title
+              states[statePlan.state] = prepared(KeyPlan(key: keyPlan.key,
+                field: keyPlan.field & ".visual.states." & statePlan.state,
+                kind: ArtworkKey, title: title, image: statePlan.image))
+            entry["states"] = states
+        keys[$keyPlan.key] = entry
       menus[plan.id] = keys
     result = %*{"version": ManifestVersion, "menus": menus}
 

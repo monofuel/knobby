@@ -231,3 +231,49 @@ suite "Button configuration":
     var leftovers = 0
     for _ in walkFiles(path.parentDir() / "*.tmp-*"): inc leftovers
     check leftovers == 0
+
+  test "OBS actions require a known operation and round-trip canonically":
+    var config = baseConfig()
+    config["menus"][1]["deck"] = %*[
+      {"key": 2, "title": "Rec", "action": {"kind": "obs", "operation": "recordToggle"},
+        "visual": {"image": "assets/rec.png", "states": {
+          "unavailable": "assets/off.png", "recording": "assets/on.gif", "paused": "assets/p.png"}}},
+      {"key": 4, "title": "Mic", "action": {"kind": "obs", "operation": "micToggle"},
+        "visual": {"states": {}}}]
+    let canonical = canonicalButtonConfig(config)
+    let rec = canonical["menus"][1]["deck"][0]
+    check rec["action"] == %*{"kind": "obs", "operation": "recordToggle"}
+    var order: seq[string]
+    for state, _ in rec["visual"]["states"]:
+      order.add(state)
+    check order == @["recording", "paused", "unavailable"]
+    check not canonical["menus"][1]["deck"][1]["visual"].hasKey("states")
+    check canonical["menus"][1]["deck"][1]["visual"]["showTitle"].getBool()
+    check configRevision(canonical) == configRevision(config)
+    let parsed = parseButtonSet(config)
+    check parsed.menus[1].deck[1].action.kind == ObsAction
+    check parsed.menus[1].deck[1].action.operation == "recordToggle"
+    check isQueuedAction(ObsAction)
+    check buttonAt(config, "tools", "deck", 4)["action"]["operation"].getStr() == "micToggle"
+
+  test "OBS action and visual state mistakes name their field":
+    let field = "menus[1].deck[0]"
+    for (action, visual, expected) in [
+        (%*{"kind": "obs"}, newJNull(), field & ".action.operation"),
+        (%*{"kind": "obs", "operation": "stream"}, newJNull(), field & ".action.operation"),
+        (%*{"kind": "obs", "operation": 3}, newJNull(), field & ".action.operation"),
+        (%*{"kind": "command", "command": "x", "operation": "open"}, newJNull(), field & ".action.operation"),
+        (%*{"kind": "obs", "operation": "open"}, %*{"states": {"live": "assets/a.png"}},
+          field & ".visual.states.live"),
+        (%*{"kind": "obs", "operation": "open"}, %*{"states": {"muted": "/tmp/a.png"}},
+          field & ".visual.states.muted"),
+        (%*{"kind": "obs", "operation": "open"}, %*{"states": {"muted": 5}},
+          field & ".visual.states.muted"),
+        (%*{"kind": "obs", "operation": "open"}, %*{"states": ["assets/a.png"]},
+          field & ".visual.states")]:
+      var config = baseConfig()
+      var entry = %*{"key": 2, "title": "OBS", "action": action}
+      if visual.kind != JNull:
+        entry["visual"] = visual
+      config["menus"][1]["deck"] = %*[entry]
+      check rejectedField(config) == expected

@@ -512,3 +512,146 @@ suite "Configured Stream Deck sessions":
       runConfiguredSession(newStreamDeck(fake.transport()), proc (): bool = false,
         ignoreKey, proc (previousGeneration: int64): JsonNode = nil, nil, fake.fakeOptions())
     check fake.closes == 1
+
+proc obsStatus(recording: bool, connected = true): JsonNode =
+  ## Build a fake OBS helper status snapshot.
+  %*{"connected": connected, "workspaceReady": connected, "minecraftReady": true,
+    "recording": recording, "paused": false, "micMuted": false,
+    "transitioning": false, "error": ""}
+
+proc obsPage(base, basePressed, recording, recordingPressed: string,
+    frames: openArray[string]): JsonNode =
+  ## Build a page with a recordToggle key 1 and an animated key 2.
+  result = framePage(1, "obs", frames, frames[0], key = 2)
+  result["keys"]["1"] = %*{"normal": [{"path": base, "durationMs": FrameMs}],
+    "pressed": basePressed, "obsOperation": "recordToggle",
+    "states": {"recording": {"normal": [{"path": recording, "durationMs": FrameMs}],
+      "pressed": recordingPressed}}}
+
+suite "OBS indicators":
+  test "status switches preloaded variants without a new page or clock reset":
+    let
+      directory = getTempDir() / "knobby-player-obs"
+      fake = newFakeDeck()
+    createDir(directory)
+    defer: removeDir(directory)
+    let
+      base = writeJpeg(directory, "base.jpg")
+      basePressed = writeJpeg(directory, "base-pressed.jpg")
+      recording = writeJpeg(directory, "recording.jpg")
+      recordingPressed = writeJpeg(directory, "recording-pressed.jpg")
+      a = writeJpeg(directory, "a.jpg")
+      b = writeJpeg(directory, "b.jpg")
+      pages = new seq[JsonNode]
+      calls = new seq[int64]
+      expected = [readFile(recording), readFile(recordingPressed)]
+    pages[].add(obsPage(base, basePressed, recording, recordingPressed, [a, b]))
+    fake.inputs = @[TimedReport(atMs: 600, report: keyReport([0])),
+      TimedReport(atMs: 700, report: keyReport([]))]
+    var
+      statusReads = 0
+      ready = 0
+      events: seq[StreamDeckKeyEvent]
+      options = fake.fakeOptions()
+    options.readIndicators = proc (): JsonNode =
+      ## Report recording from 300 ms of virtual time onwards.
+      inc statusReads
+      obsStatus(recording = fake.nowMs >= 300)
+    runConfiguredSession(newStreamDeck(fake.transport()), proc (): bool = fake.nowMs >= 900,
+      proc (event: StreamDeckKeyEvent) = events.add(event),
+      pageReader(pages, calls),
+      proc () =
+        ## Variants must already be in memory: remove their files once ready.
+        inc ready
+        removeFile(recording)
+        removeFile(recordingPressed),
+      options)
+    check ready == 1
+    check calls[][0] == 0
+    for call in calls[][1..^1]:
+      check call == 1
+    check statusReads == calls[].len - 1
+    check events.len == 2
+    var keyOne, keyTwo: seq[Upload]
+    for upload in fake.uploads():
+      if upload.key == 0: keyOne.add(upload)
+      elif upload.key == 1: keyTwo.add(upload)
+    var firstRecording = -1'i64
+    for upload in keyOne:
+      if upload.startMs < 300:
+        check upload.jpeg == readFile(base)
+      elif upload.startMs >= 600 and upload.startMs < 700:
+        check upload.jpeg == expected[1]
+      else:
+        check upload.jpeg == expected[0]
+        if firstRecording < 0:
+          firstRecording = upload.startMs
+    check firstRecording in 300'i64..340'i64
+    check keyOne[^1].jpeg == expected[0]
+    for upload in keyTwo:
+      let frame = if ((upload.startMs div FrameMs) mod 2) == 0: a else: b
+      check upload.jpeg == readFile(frame)
+    check keyTwo.len >= 8
+
+  test "a replugged session starts with the current OBS state and missing variants stay local":
+    let directory = getTempDir() / "knobby-player-obs-replug"
+    createDir(directory)
+    defer: removeDir(directory)
+    let
+      base = writeJpeg(directory, "base.jpg")
+      recording = writeJpeg(directory, "recording.jpg")
+      a = writeJpeg(directory, "a.jpg")
+      page = obsPage(base, base, recording, recording, [a])
+    page["keys"]["1"]["states"]["unavailable"] = %*{
+      "normal": [{"path": directory / "absent.jpg", "durationMs": FrameMs}]}
+    for (connected, shown) in [(true, readFile(recording)), (false, missingKeyImage()),
+        (true, readFile(recording))]:
+      let
+        fake = newFakeDeck()
+        pages = new seq[JsonNode]
+        calls = new seq[int64]
+        diagnostics = new seq[string]
+      pages[].add(page)
+      var options = fake.fakeOptions(diagnostics)
+      options.readIndicators = proc (): JsonNode = obsStatus(true, connected)
+      runConfiguredSession(newStreamDeck(fake.transport()), proc (): bool = fake.nowMs >= 300,
+        ignoreKey, pageReader(pages, calls), nil, options)
+      var keyOne: seq[string]
+      for upload in fake.uploads():
+        if upload.key == 0:
+          keyOne.add(upload.jpeg)
+      check keyOne == @[shown]
+      check diagnostics[].len == 1
+      check "key 1 state unavailable" in diagnostics[][0]
+      check "absent.jpg" in diagnostics[][0]
+
+  test "malformed OBS variants show the missing image for that key only":
+    let directory = getTempDir() / "knobby-player-obs-bad"
+    createDir(directory)
+    defer: removeDir(directory)
+    let
+      a = writeJpeg(directory, "a.jpg")
+      fake = newFakeDeck()
+      pages = new seq[JsonNode]
+      calls = new seq[int64]
+      diagnostics = new seq[string]
+    var page = framePage(1, "root", [a], a)
+    page["keys"]["1"]["states"] = %*{"live": {"normal": [{"path": a, "durationMs": FrameMs}]}}
+    page["keys"]["3"] = %*{"builtinNumber": 3, "obsOperation": 7}
+    pages[].add(page)
+    var options = fake.fakeOptions(diagnostics)
+    options.readIndicators = proc (): JsonNode = obsStatus(false)
+    runConfiguredSession(newStreamDeck(fake.transport()), proc (): bool = fake.nowMs >= 200,
+      ignoreKey, pageReader(pages, calls), nil, options)
+    var shown: array[StreamDeckKeyCount, string]
+    for upload in fake.uploads():
+      shown[upload.key] = upload.jpeg
+    check shown[0] == missingKeyImage()
+    check shown[1] == builtinNormalImage(2)
+    check shown[2] == missingKeyImage()
+    check diagnostics[].len == 2
+    var nilOptions = fake.fakeOptions()
+    nilOptions.readIndicators = nil
+    expect ValueError:
+      runConfiguredSession(newStreamDeck(newFakeDeck().transport()), proc (): bool = true,
+        ignoreKey, nil, nil, nilOptions)

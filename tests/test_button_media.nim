@@ -239,6 +239,44 @@ suite "button media plan":
     except MediaError as error:
       check error.field == "menus[0].deck[0].visual.image"
 
+  test "OBS keys plan their operation and mapped state images in a stable order":
+    let
+      obs = %*{"kind": "obs", "operation": "recordToggle"}
+      plans = planButtonMedia(buttonConfig(%*[{"id": "root", "title": "Main",
+        "mixer": [], "deck": [
+          deckKey(2, "Rec", %*{"image": "assets/a.png", "states": {
+            "unavailable": "assets/off.png", "recording": "assets/on.gif"}}, obs),
+          deckKey(3, "3", %*{"builtinNumber": 3, "states": {"paused": "assets/p.png"}},
+            %*{"kind": "obs", "operation": "pauseToggle"}),
+          deckKey(4, "Cmd", %*{"states": {"muted": "assets/m.png"}},
+            %*{"kind": "command", "command": "true"})]}]))
+      rec = plans.planFor("root", 2)
+    check rec.obsOperation == "recordToggle"
+    check rec.states == @[StatePlan(state: "recording", image: "assets/on.gif"),
+      StatePlan(state: "unavailable", image: "assets/off.png")]
+    check plans.planFor("root", 3).kind == BuiltinKey
+    check plans.planFor("root", 3).states == @[StatePlan(state: "paused", image: "assets/p.png")]
+    check plans.planFor("root", 4).obsOperation == ""
+    check plans.planFor("root", 4).states.len == 0
+    check plans.planFor("root", 5).obsOperation == ""
+    try:
+      discard planButtonMedia(buttonConfig(%*[{"id": "root", "title": "Main",
+        "mixer": [], "deck": [deckKey(5, "x", %*{"states": {"muted": "../m.png"}},
+          %*{"kind": "obs", "operation": "micToggle"})]}]))
+      check false
+    except MediaError as error:
+      check error.field == "menus[0].deck[0].visual.states.muted"
+
+  test "builtin OBS keys without states carry their operation and need no rendering":
+    var menu = builtinMenu("root")
+    menu["deck"][4]["action"] = %*{"kind": "obs", "operation": "open"}
+    let
+      cache = getTempDir() / "knobby-media-obs-unit-" & $getCurrentProcessId()
+      manifest = prepareButtonMedia(buttonConfig(%*[menu]), "/nonexistent", cache,
+        "/nonexistent/font.ttf")
+    check manifest["menus"]["root"]["5"] == %*{"builtinNumber": 5, "obsOperation": "open"}
+    check not dirExists(cache)
+
   test "builtin-only configs need no rendering, font or cache files":
     let
       cache = getTempDir() / "knobby-media-unit-" & $getCurrentProcessId()

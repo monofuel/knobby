@@ -1,6 +1,6 @@
 import
   std/[algorithm, json, locks, os, strutils, tables, times],
-  ./[bindings, button_config, ipc]
+  ./[bindings, button_config, ipc, obs_state]
 
 type
   ButtonServices* = object
@@ -123,7 +123,8 @@ proc builtinButtonManifest*(config: JsonNode): JsonNode =
       for entry in menu["deck"]:
         let visual = entry{"visual"}
         if entry["key"].getInt() == key and not visual.isNil and
-            visual.hasKey("builtinNumber") and not visual["showTitle"].getBool():
+            visual.hasKey("builtinNumber") and not visual["showTitle"].getBool() and
+            not visual.hasKey("states"):
           number = visual["builtinNumber"].getInt()
       if number == 0:
         raise newException(ValueError, "Media preparation is unavailable for menus[" &
@@ -354,6 +355,7 @@ proc buttonDescription(button: ConfiguredButton, buttons: ButtonSet): string =
     "Open " & (if menu.title.len > 0: menu.title else: menu.id) & " on " & target & "."
   of BackAction: "Return to the previous menu."
   of HomeAction: "Return to the main menu."
+  of ObsAction: obsOperationDescription(button.action.operation)
   of GrokAction, ClaudeAction, FfxivAction, MicrophonesAction, DiscordAction:
     let compiled = case button.action.kind
       of GrokAction: OpenGrok

@@ -1,5 +1,5 @@
 import
-  std/[json, os, osproc, strutils, times, unittest],
+  std/[json, os, osproc, sequtils, strutils, times, unittest],
   knobby/button_media
 
 const
@@ -431,6 +431,67 @@ suite "button media FFmpeg integration":
     check workEntries(work / "other" / "assets") == 0
     let manifest = prepareButtonMedia(config, configDir, cacheDir, FontPath)
     check manifest["menus"]["root"]["15"]["normal"].len == 4
+
+  test "OBS state variants are prepared once, budgeted and protected from cleanup":
+    ffmpeg("-f", "lavfi", "-i", "color=c=red:s=8x8", "-frames:v", "1", inputs / "red.png")
+    let
+      base = importButtonAsset(FixtureDirectory / "disposal.gif", configDir)
+      variant = importButtonAsset(inputs / "red.png", configDir)
+      manifests = work / "manifests"
+      obs = %*{"kind": "obs", "operation": "recordToggle"}
+      baseOnly = menuConfig(%*[{"key": 2, "title": "Rec", "action": obs,
+        "visual": {"image": base}}])
+      config = menuConfig(%*[
+        {"key": 2, "title": "Rec", "action": obs, "visual": {"image": base,
+          "states": {"recording": variant, "paused": variant}}},
+        {"key": 3, "title": "3", "action": {"kind": "obs", "operation": "pauseToggle"},
+          "visual": {"builtinNumber": 3, "showTitle": false, "states": {"unavailable": variant}}},
+        {"key": 4, "title": "Cmd", "action": {"kind": "command", "command": "true"},
+          "visual": {"image": base, "states": {"muted": variant}}}])
+      baseManifest = prepare(baseOnly)
+    var
+      baseBytes = 0
+      counted: seq[string]
+    for _, entry in baseManifest["menus"]["root"]:
+      for frame in entry["normal"]:
+        counted.add(frame["path"].getStr())
+      counted.add(entry["pressed"].getStr())
+    for path in counted.deduplicate():
+      baseBytes += getFileSize(path).int
+    try:
+      discard prepareButtonMedia(config, configDir, cacheDir, FontPath,
+        maxPreparedBytes = baseBytes)
+      check false
+    except MediaError as error:
+      check error.field == "menus[0].deck[0].visual.states.recording"
+    let
+      before = entryCount(cacheDir)
+      manifest = prepare(config)
+      rec = manifest["menus"]["root"]["2"]
+      states = rec["states"]
+    check rec["obsOperation"].getStr() == "recordToggle"
+    check rec["normal"] == baseManifest["menus"]["root"]["2"]["normal"]
+    check states["recording"] == states["paused"]
+    check states["recording"]["normal"].len == 1
+    checkEncoding(states["recording"]["normal"][0]["path"].getStr())
+    checkEncoding(states["recording"]["pressed"].getStr())
+    decode(states["recording"]["normal"][0]["path"].getStr()).checkBlock(1, 1, Red)
+    check manifest["menus"]["root"]["3"]["builtinNumber"].getInt() == 3
+    check manifest["menus"]["root"]["3"]["states"]["unavailable"] == states["recording"]
+    check not manifest["menus"]["root"]["4"].hasKey("states")
+    check not manifest["menus"]["root"]["4"].hasKey("obsOperation")
+    check entryCount(cacheDir) <= before + 1
+    let variantDir = states["recording"]["pressed"].getStr().parentDir
+    createDir(manifests)
+    writeFile(manifests / "active.json", $manifest)
+    for kind, path in walkDir(cacheDir):
+      setLastModificationTime(path, getTime() - initDuration(hours = 2))
+    let report = cleanPreparedCache(cacheDir, manifests)
+    check report.errors.len == 0
+    check dirExists(variantDir)
+    check variantDir notin report.removed
+    check prepare(config) == manifest
+    check workEntries(cacheDir) == 0
 
   test "cache cleanup keeps active and recently used entries":
     let
