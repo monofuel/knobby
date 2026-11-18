@@ -8,5 +8,5 @@ nim	drain	knobby/daemon_workers.html#drain,PendingActions	proc drain(queue: var 
 nim	queueActions	knobby/daemon_workers.html#queueActions,openArray[MidiEvent]	proc queueActions(events: openArray[MidiEvent])		57
 nim	superviseDeck	knobby/daemon_workers.html#superviseDeck,DeckDriver,proc)	proc superviseDeck(driver: DeckDriver; shouldStop: proc (): bool)		96
 nim	serveState	knobby/daemon_workers.html#serveState,LocalServer	proc serveState(server: LocalServer)		174
-nim	startDeviceWorkers	knobby/daemon_workers.html#startDeviceWorkers	proc startDeviceWorkers()		231
-nim	stopDeviceWorkers	knobby/daemon_workers.html#stopDeviceWorkers	proc stopDeviceWorkers()		271
+nim	startDeviceWorkers	knobby/daemon_workers.html#startDeviceWorkers	proc startDeviceWorkers()		242
+nim	stopDeviceWorkers	knobby/daemon_workers.html#stopDeviceWorkers	proc stopDeviceWorkers()		283

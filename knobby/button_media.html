@@ -64,6 +64,8 @@
 <li><a class="reference" href="#KeyPlan" title="KeyPlan = object
   key*: int
   field*: string
+  obsOperation*: string
+  states*: seq[StatePlan]
   case kind*: KeyPlanKind
   of BuiltinKey:
     builtinNumber*: int
@@ -89,6 +91,9 @@
   height*: int">SourceInfo</a></li>
 <li><a class="reference" href="#SourceKind" title="SourceKind = enum
   PngSource = &quot;png&quot;, JpegSource = &quot;jpg&quot;, GifSource = &quot;gif&quot;">SourceKind</a></li>
+<li><a class="reference" href="#StatePlan" title="StatePlan = object
+  state*: string
+  image*: string">StatePlan</a></li>
 <li><a class="reference" href="#TitleLayout" title="TitleLayout = object
   fontSize*: int
   lines*: seq[string]">TitleLayout</a></li>
@@ -188,8 +193,10 @@
 </ul>
 <ul class="simple nested-toc-section">prepareButtonMedia
   <li><a class="reference" href="#prepareButtonMedia%2CJsonNode%2Cstring%2Cstring%2Cstring" title="prepareButtonMedia(config: JsonNode; configDir, cacheDir, fontPath: string;
-                   timeoutMs = OperationTimeoutMs): JsonNode">prepareButtonMedia(config: JsonNode; configDir, cacheDir, fontPath: string;
-                   timeoutMs = OperationTimeoutMs): JsonNode</a></li>
+                   timeoutMs = OperationTimeoutMs;
+                   maxPreparedBytes = MaxPreparedBytes): JsonNode">prepareButtonMedia(config: JsonNode; configDir, cacheDir, fontPath: string;
+                   timeoutMs = OperationTimeoutMs;
+                   maxPreparedBytes = MaxPreparedBytes): JsonNode</a></li>
 
 </ul>
 <ul class="simple nested-toc-section">probeDurations
@@ -244,7 +251,7 @@
     <div class="section" id="6">
   <h1><a class="toc-backref" href="#6">Imports</a></h1>
   <dl class="item">
-    <a class="reference external" href="common.html">common</a>
+    <a class="reference external" href="common.html">common</a>, <a class="reference external" href="obs_state.html">obs_state</a>
   </dl>
 </div>
 <div class="section" id="7">
@@ -266,6 +273,8 @@
   <dt><pre><a href="button_media.html#KeyPlan"><span class="Identifier">KeyPlan</span></a> <span class="Other">=</span> <span class="Keyword">object</span>
   <span class="Identifier">key</span><span class="Operator">*</span><span class="Other">:</span> <span class="Identifier">int</span>
   <span class="Identifier">field</span><span class="Operator">*</span><span class="Other">:</span> <span class="Identifier">string</span>
+  <span class="Identifier">obsOperation</span><span class="Operator">*</span><span class="Other">:</span> <span class="Identifier">string</span>
+  <span class="Identifier">states</span><span class="Operator">*</span><span class="Other">:</span> <span class="Identifier">seq</span><span class="Other">[</span><a href="button_media.html#StatePlan"><span class="Identifier">StatePlan</span></a><span class="Other">]</span>
   <span class="Keyword">case</span> <span class="Identifier">kind</span><span class="Operator">*</span><span class="Other">:</span> <a href="button_media.html#KeyPlanKind"><span class="Identifier">KeyPlanKind</span></a>
   <span class="Keyword">of</span> <span class="Identifier">BuiltinKey</span><span class="Other">:</span>
     <span class="Identifier">builtinNumber</span><span class="Operator">*</span><span class="Other">:</span> <span class="Identifier">int</span>
@@ -275,8 +284,8 @@
   <dd>
     
     
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_media.nim#L48" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_media.nim#L48" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_media.nim#L52" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_media.nim#L52" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -319,8 +328,8 @@
   <dd>
     
     
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_media.nim#L58" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_media.nim#L58" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_media.nim#L64" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_media.nim#L64" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -362,6 +371,18 @@
 
   </dd>
 </div>
+<div id="StatePlan">
+  <dt><pre><a href="button_media.html#StatePlan"><span class="Identifier">StatePlan</span></a> <span class="Other">=</span> <span class="Keyword">object</span>
+  <span class="Identifier">state</span><span class="Operator">*</span><span class="Other">:</span> <span class="Identifier">string</span>
+  <span class="Identifier">image</span><span class="Operator">*</span><span class="Other">:</span> <span class="Identifier">string</span></pre></dt>
+  <dd>
+    
+    
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_media.nim#L48" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_media.nim#L48" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+
+  </dd>
+</div>
 <div id="TitleLayout">
   <dt><pre><a href="button_media.html#TitleLayout"><span class="Identifier">TitleLayout</span></a> <span class="Other">=</span> <span class="Keyword">object</span>
   <span class="Identifier">fontSize</span><span class="Operator">*</span><span class="Other">:</span> <span class="Identifier">int</span>
@@ -385,8 +406,8 @@
   <dd>
     
     
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_media.nim#L90" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_media.nim#L90" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_media.nim#L96" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_media.nim#L96" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -395,8 +416,8 @@
   <dd>
     
     
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_media.nim#L82" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_media.nim#L82" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_media.nim#L88" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_media.nim#L88" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -405,8 +426,8 @@
   <dd>
     
     
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_media.nim#L74" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_media.nim#L74" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_media.nim#L80" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_media.nim#L80" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -415,8 +436,8 @@
   <dd>
     
     
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_media.nim#L73" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_media.nim#L73" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_media.nim#L79" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_media.nim#L79" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -425,8 +446,8 @@
   <dd>
     
     
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_media.nim#L72" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_media.nim#L72" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_media.nim#L78" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_media.nim#L78" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -435,8 +456,8 @@
   <dd>
     
     
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_media.nim#L77" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_media.nim#L77" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_media.nim#L83" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_media.nim#L83" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -445,8 +466,8 @@
   <dd>
     
     
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_media.nim#L86" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_media.nim#L86" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_media.nim#L92" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_media.nim#L92" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -455,8 +476,8 @@
   <dd>
     
     
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_media.nim#L85" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_media.nim#L85" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_media.nim#L91" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_media.nim#L91" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -465,8 +486,8 @@
   <dd>
     
     
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_media.nim#L79" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_media.nim#L79" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_media.nim#L85" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_media.nim#L85" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -475,8 +496,8 @@
   <dd>
     
     
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_media.nim#L80" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_media.nim#L80" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_media.nim#L86" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_media.nim#L86" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -485,8 +506,8 @@
   <dd>
     
     
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_media.nim#L75" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_media.nim#L75" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_media.nim#L81" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_media.nim#L81" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -495,8 +516,8 @@
   <dd>
     
     
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_media.nim#L76" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_media.nim#L76" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_media.nim#L82" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_media.nim#L82" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -505,8 +526,8 @@
   <dd>
     
     
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_media.nim#L78" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_media.nim#L78" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_media.nim#L84" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_media.nim#L84" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -515,8 +536,8 @@
   <dd>
     
     
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_media.nim#L71" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_media.nim#L71" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_media.nim#L77" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_media.nim#L77" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -525,8 +546,8 @@
   <dd>
     
     
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_media.nim#L81" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_media.nim#L81" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_media.nim#L87" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_media.nim#L87" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -535,8 +556,8 @@
   <dd>
     
     
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_media.nim#L83" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_media.nim#L83" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_media.nim#L89" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_media.nim#L89" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -553,8 +574,8 @@
   <dd>
     
     Raise MediaTimeoutError when this thread's operation deadline has passed.
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_media.nim#L174" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_media.nim#L174" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_media.nim#L180" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_media.nim#L180" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -578,8 +599,8 @@ is missing, holds no manifest or holds unreadable JSON. Failures removing
 individual entries are collected in errors while the rest continue. Call
 it from the worker that serializes preparations.</pre>
 
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_media.nim#L839" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_media.nim#L839" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_media.nim#L874" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_media.nim#L874" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -591,8 +612,8 @@ it from the worker that serializes preparations.</pre>
   <dd>
     
     Replace control characters with spaces and collapse whitespace runs.
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_media.nim#L301" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_media.nim#L301" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_media.nim#L307" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_media.nim#L307" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -605,8 +626,8 @@ it from the worker that serializes preparations.</pre>
   <dd>
     
     Scale dimensions proportionally to fit inside the key, at least 1 pixel.
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_media.nim#L294" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_media.nim#L294" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_media.nim#L300" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_media.nim#L300" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -618,8 +639,8 @@ it from the worker that serializes preparations.</pre>
   <dd>
     
     Return the lowercase SHA-1 hex digest used for content addressing.
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_media.nim#L179" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_media.nim#L179" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_media.nim#L185" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_media.nim#L185" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -632,8 +653,8 @@ it from the worker that serializes preparations.</pre>
   <dd>
     
     Escape a value for a filter option and then for the filtergraph parser.
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_media.nim#L360" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_media.nim#L360" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_media.nim#L366" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_media.nim#L366" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -645,8 +666,8 @@ it from the worker that serializes preparations.</pre>
   <dd>
     
     Report whether a media operation deadline is active on this thread.
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_media.nim#L165" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_media.nim#L165" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_media.nim#L171" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_media.nim#L171" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -663,8 +684,8 @@ it from the worker that serializes preparations.</pre>
   <dd>
     
     Validate a PNG, JPEG or GIF and copy it to configDir/assets/&lt;sha1&gt;.&lt;ext&gt;. Returns the managed relative path. Existing identical assets are reused. The whole import, including every child process, shares one timeoutMs deadline and raises MediaTimeoutError when it runs out.
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_media.nim#L563" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_media.nim#L563" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_media.nim#L580" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_media.nim#L580" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -676,8 +697,8 @@ it from the worker that serializes preparations.</pre>
   <dd>
     
     Report whether a name is a 40-character lowercase hex content key.
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_media.nim#L812" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_media.nim#L812" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_media.nim#L847" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_media.nim#L847" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -689,8 +710,8 @@ it from the worker that serializes preparations.</pre>
   <dd>
     
     Report whether a relative path names a managed assets/&lt;name&gt; file.
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_media.nim#L208" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_media.nim#L208" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_media.nim#L214" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_media.nim#L214" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -704,8 +725,8 @@ it from the worker that serializes preparations.</pre>
   <dd>
     
     Choose the largest font size whose estimated wrapped text fits the box. The smallest size truncates with an ellipsis when nothing fits.
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_media.nim#L337" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_media.nim#L337" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_media.nim#L343" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_media.nim#L343" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -718,8 +739,8 @@ it from the worker that serializes preparations.</pre>
   <dd>
     
     Return the prepared cache keys referenced anywhere in a JSON document. Any string path component that is a content key counts, so manifests wrapped in other JSON objects are protected too.
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_media.nim#L832" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_media.nim#L832" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_media.nim#L867" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_media.nim#L867" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -733,8 +754,8 @@ it from the worker that serializes preparations.</pre>
   <dd>
     
     Convert ffprobe packet JSON into per-frame display durations in ms.
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_media.nim#L245" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_media.nim#L245" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_media.nim#L251" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_media.nim#L251" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -748,8 +769,8 @@ it from the worker that serializes preparations.</pre>
   <dd>
     
     Parse ffprobe stream JSON and enforce codec and dimension limits.
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_media.nim#L218" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_media.nim#L218" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_media.nim#L224" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_media.nim#L224" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -757,13 +778,13 @@ it from the worker that serializes preparations.</pre>
 </div>
 <div id="planButtonMedia-procs-all">
   <div id="planButtonMedia,JsonNode">
-  <dt><pre><span class="Keyword">proc</span> <a href="#planButtonMedia%2CJsonNode"><span class="Identifier">planButtonMedia</span></a><span class="Other">(</span><span class="Identifier">config</span><span class="Other">:</span> <span class="Identifier">JsonNode</span><span class="Other">)</span><span class="Other">:</span> <span class="Identifier">seq</span><span class="Other">[</span><a href="button_media.html#MenuPlan"><span class="Identifier">MenuPlan</span></a><span class="Other">]</span> {.<span><span class="Other pragmadots">...</span></span><span class="pragmawrap"><span class="Identifier">raises</span><span class="Other">:</span> <span class="Other">[</span><span class="Identifier">MediaError</span><span class="Other">]</span><span class="Other">,</span>
-    <span class="Identifier">tags</span><span class="Other">:</span> <span class="Other">[</span><span class="Other">]</span><span class="Other">,</span> <span class="Identifier">forbids</span><span class="Other">:</span> <span class="Other">[</span><span class="Other">]</span></span>.}</pre></dt>
+  <dt><pre><span class="Keyword">proc</span> <a href="#planButtonMedia%2CJsonNode"><span class="Identifier">planButtonMedia</span></a><span class="Other">(</span><span class="Identifier">config</span><span class="Other">:</span> <span class="Identifier">JsonNode</span><span class="Other">)</span><span class="Other">:</span> <span class="Identifier">seq</span><span class="Other">[</span><a href="button_media.html#MenuPlan"><span class="Identifier">MenuPlan</span></a><span class="Other">]</span> {.
+    <span><span class="Other pragmadots">...</span></span><span class="pragmawrap"><span class="Identifier">raises</span><span class="Other">:</span> <span class="Other">[</span><span class="Identifier">MediaError</span><span class="Other">,</span> <span class="Identifier">KeyError</span><span class="Other">]</span><span class="Other">,</span> <span class="Identifier">tags</span><span class="Other">:</span> <span class="Other">[</span><span class="Other">]</span><span class="Other">,</span> <span class="Identifier">forbids</span><span class="Other">:</span> <span class="Other">[</span><span class="Other">]</span></span>.}</pre></dt>
   <dd>
     
     Decide how every Deck key of every menu is presented, without I/O.
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_media.nim#L382" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_media.nim#L382" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_media.nim#L388" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_media.nim#L388" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -772,16 +793,17 @@ it from the worker that serializes preparations.</pre>
 <div id="prepareButtonMedia-procs-all">
   <div id="prepareButtonMedia,JsonNode,string,string,string">
   <dt><pre><span class="Keyword">proc</span> <a href="#prepareButtonMedia%2CJsonNode%2Cstring%2Cstring%2Cstring"><span class="Identifier">prepareButtonMedia</span></a><span class="Other">(</span><span class="Identifier">config</span><span class="Other">:</span> <span class="Identifier">JsonNode</span><span class="Other">;</span> <span class="Identifier">configDir</span><span class="Other">,</span> <span class="Identifier">cacheDir</span><span class="Other">,</span> <span class="Identifier">fontPath</span><span class="Other">:</span> <span class="Identifier">string</span><span class="Other">;</span>
-                        <span class="Identifier">timeoutMs</span> <span class="Other">=</span> <span class="Identifier">OperationTimeoutMs</span><span class="Other">)</span><span class="Other">:</span> <span class="Identifier">JsonNode</span> {.<span><span class="Other pragmadots">...</span></span><span class="pragmawrap"><span class="Identifier">raises</span><span class="Other">:</span> <span class="Other">[</span>
-    <span class="Identifier">ValueError</span><span class="Other">,</span> <span class="Identifier">MediaError</span><span class="Other">,</span> <span class="Identifier">ValueError</span><span class="Other">,</span> <span class="Identifier">OSError</span><span class="Other">,</span> <span class="Identifier">MediaTimeoutError</span><span class="Other">,</span> <span class="Identifier">IOError</span><span class="Other">,</span>
-    <span class="Identifier">JsonParsingError</span><span class="Other">,</span> <span class="Identifier">Exception</span><span class="Other">]</span><span class="Other">,</span> <span class="Identifier">tags</span><span class="Other">:</span> <span class="Other">[</span><span class="Identifier">TimeEffect</span><span class="Other">,</span> <span class="Identifier">ReadDirEffect</span><span class="Other">,</span>
+                        <span class="Identifier">timeoutMs</span> <span class="Other">=</span> <span class="Identifier">OperationTimeoutMs</span><span class="Other">;</span>
+                        <span class="Identifier">maxPreparedBytes</span> <span class="Other">=</span> <span class="Identifier">MaxPreparedBytes</span><span class="Other">)</span><span class="Other">:</span> <span class="Identifier">JsonNode</span> {.<span><span class="Other pragmadots">...</span></span><span class="pragmawrap"><span class="Identifier">raises</span><span class="Other">:</span> <span class="Other">[</span>
+    <span class="Identifier">ValueError</span><span class="Other">,</span> <span class="Identifier">MediaError</span><span class="Other">,</span> <span class="Identifier">KeyError</span><span class="Other">,</span> <span class="Identifier">ValueError</span><span class="Other">,</span> <span class="Identifier">OSError</span><span class="Other">,</span> <span class="Identifier">MediaTimeoutError</span><span class="Other">,</span>
+    <span class="Identifier">IOError</span><span class="Other">,</span> <span class="Identifier">JsonParsingError</span><span class="Other">,</span> <span class="Identifier">Exception</span><span class="Other">]</span><span class="Other">,</span> <span class="Identifier">tags</span><span class="Other">:</span> <span class="Other">[</span><span class="Identifier">TimeEffect</span><span class="Other">,</span> <span class="Identifier">ReadDirEffect</span><span class="Other">,</span>
     <span class="Identifier">WriteDirEffect</span><span class="Other">,</span> <span class="Identifier">ReadIOEffect</span><span class="Other">,</span> <span class="Identifier">WriteIOEffect</span><span class="Other">,</span> <span class="Identifier">ExecIOEffect</span><span class="Other">,</span> <span class="Identifier">ReadEnvEffect</span><span class="Other">,</span>
     <span class="Identifier">RootEffect</span><span class="Other">]</span><span class="Other">,</span> <span class="Identifier">forbids</span><span class="Other">:</span> <span class="Other">[</span><span class="Other">]</span></span>.}</pre></dt>
   <dd>
     
-    Render every non-builtin Deck key of every menu and return the manifest {&quot;version&quot;:1,&quot;menus&quot;:{id:{&quot;1&quot;..&quot;15&quot;: entry}}}. Entries are either {&quot;builtinNumber&quot;:n} or {&quot;normal&quot;:<a class="reference internal" href="#{&quot;path&quot;,&quot;durationMs&quot;}">{&quot;path&quot;,&quot;durationMs&quot;}</a>,&quot;pressed&quot;:path} with absolute JPEG paths under cacheDir. The whole preparation, including every child process, shares one timeoutMs deadline and raises MediaTimeoutError when it runs out. Preparation never deletes published cache entries, so files referenced by the running config stay valid.
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_media.nim#L768" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_media.nim#L768" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    Render every non-builtin Deck key of every menu and return the manifest {&quot;version&quot;:1,&quot;menus&quot;:{id:{&quot;1&quot;..&quot;15&quot;: entry}}}. Entries are either {&quot;builtinNumber&quot;:n} or {&quot;normal&quot;:<a class="reference internal" href="#{&quot;path&quot;,&quot;durationMs&quot;}">{&quot;path&quot;,&quot;durationMs&quot;}</a>,&quot;pressed&quot;:path} with absolute JPEG paths under cacheDir. OBS-bound entries add &quot;obsOperation&quot; and, for mapped visual states, &quot;states&quot;:{state:{normal, pressed}}. Every variant counts toward maxPreparedBytes. The whole preparation, including every child process, shares one timeoutMs deadline and raises MediaTimeoutError when it runs out. Preparation never deletes published cache entries, so files referenced by the running config stay valid.
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_media.nim#L785" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_media.nim#L785" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -796,8 +818,8 @@ it from the worker that serializes preparations.</pre>
   <dd>
     
     Read GIF frame delays from packets without decoding pixels. Reading stops one packet past the frame limit so oversized animations fail quickly.
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_media.nim#L498" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_media.nim#L498" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_media.nim#L515" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_media.nim#L515" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -812,8 +834,8 @@ it from the worker that serializes preparations.</pre>
   <dd>
     
     Probe a source file's first video stream with a forced demuxer.
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_media.nim#L490" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_media.nim#L490" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_media.nim#L507" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_media.nim#L507" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -829,8 +851,8 @@ it from the worker that serializes preparations.</pre>
   <dd>
     
     Run a command without a shell and return its stdout. Stderr is kept separately for the error message. The child is killed when it exceeds timeoutMs, the remaining operation deadline or either output cap; both timeouts raise MediaTimeoutError. Completion is decided by process exit rather than pipe EOF, because pipes may be inherited by unrelated children spawned on other daemon threads.
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_media.nim#L419" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_media.nim#L419" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_media.nim#L436" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_media.nim#L436" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -843,8 +865,8 @@ it from the worker that serializes preparations.</pre>
   <dd>
     
     Pick displayed frames so playback never exceeds MaxFramesPerSecond. Frames starting too soon after the previous displayed frame are merged into it. A single displayed frame is static and has duration 0.
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_media.nim#L262" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_media.nim#L262" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_media.nim#L268" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_media.nim#L268" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -857,8 +879,8 @@ it from the worker that serializes preparations.</pre>
   <dd>
     
     Identify a supported image by its signature, rejecting anything else.
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_media.nim#L183" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_media.nim#L183" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_media.nim#L189" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_media.nim#L189" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -876,8 +898,8 @@ it from the worker that serializes preparations.</pre>
   <dd>
     
     Run body with one overall deadline shared by every media check and child process on this thread. The previous deadline is restored afterwards, including when body raises.
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_media.nim#L154" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_media.nim#L154" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_media.nim#L160" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_media.nim#L160" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -893,7 +915,7 @@ it from the worker that serializes preparations.</pre>
       <div class="twelve-columns footer">
         <span class="nim-sprite"></span>
         <br>
-        <small style="color: var(--hint);">Made with Nim. Generated: 2026-11-17 21:32:10 UTC</small>
+        <small style="color: var(--hint);">Made with Nim. Generated: 2026-11-18 04:58:34 UTC</small>
       </div>
     </div>
   </div>

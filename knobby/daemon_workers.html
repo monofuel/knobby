@@ -133,7 +133,7 @@
     <div class="section" id="6">
   <h1><a class="toc-backref" href="#6">Imports</a></h1>
   <dl class="item">
-    <a class="reference external" href="actions.html">actions</a>, <a class="reference external" href="audio_status.html">audio_status</a>, <a class="reference external" href="bindings.html">bindings</a>, <a class="reference external" href="button_config.html">button_config</a>, <a class="reference external" href="button_media.html">button_media</a>, <a class="reference external" href="button_runtime.html">button_runtime</a>, <a class="reference external" href="common.html">common</a>, <a class="reference external" href="fader_cache.html">fader_cache</a>, <a class="reference external" href="ipc.html">ipc</a>, <a class="reference external" href="midi_events.html">midi_events</a>, <a class="reference external" href="razer_lighting.html">razer_lighting</a>, <a class="reference external" href="runtime.html">runtime</a>, <a class="reference external" href="status.html">status</a>, <a class="reference external" href="stream_deck.html">stream_deck</a>, <a class="reference external" href="stream_deck_player.html">stream_deck_player</a>
+    <a class="reference external" href="actions.html">actions</a>, <a class="reference external" href="audio_status.html">audio_status</a>, <a class="reference external" href="bindings.html">bindings</a>, <a class="reference external" href="button_config.html">button_config</a>, <a class="reference external" href="button_media.html">button_media</a>, <a class="reference external" href="button_runtime.html">button_runtime</a>, <a class="reference external" href="common.html">common</a>, <a class="reference external" href="fader_cache.html">fader_cache</a>, <a class="reference external" href="ipc.html">ipc</a>, <a class="reference external" href="midi_events.html">midi_events</a>, <a class="reference external" href="obs_state.html">obs_state</a>, <a class="reference external" href="obs_worker.html">obs_worker</a>, <a class="reference external" href="razer_lighting.html">razer_lighting</a>, <a class="reference external" href="runtime.html">runtime</a>, <a class="reference external" href="status.html">status</a>, <a class="reference external" href="stream_deck.html">stream_deck</a>, <a class="reference external" href="stream_deck_player.html">stream_deck_player</a>
   </dl>
 </div>
 <div class="section" id="7">
@@ -244,9 +244,10 @@
 </div>
 <div id="serveState-procs-all">
   <div id="serveState,LocalServer">
-  <dt><pre><span class="Keyword">proc</span> <a href="#serveState%2CLocalServer"><span class="Identifier">serveState</span></a><span class="Other">(</span><span class="Identifier">server</span><span class="Other">:</span> <a href="ipc.html#LocalServer"><span class="Identifier">LocalServer</span></a><span class="Other">)</span> {.<span><span class="Other pragmadots">...</span></span><span class="pragmawrap"><span class="Identifier">raises</span><span class="Other">:</span> <span class="Other">[</span><span class="Identifier">KeyError</span><span class="Other">,</span> <span class="Identifier">ValueError</span><span class="Other">,</span> <span class="Identifier">SslError</span><span class="Other">,</span>
-    <span class="Identifier">IOError</span><span class="Other">,</span> <span class="Identifier">Exception</span><span class="Other">,</span> <span class="Identifier">LibraryError</span><span class="Other">,</span> <span class="Identifier">OSError</span><span class="Other">,</span> <span class="Identifier">JsonParsingError</span><span class="Other">]</span><span class="Other">,</span> <span class="Identifier">tags</span><span class="Other">:</span> <span class="Other">[</span>
-    <span class="Identifier">TimeEffect</span><span class="Other">,</span> <span class="Identifier">ReadIOEffect</span><span class="Other">,</span> <span class="Identifier">RootEffect</span><span class="Other">,</span> <span class="Identifier">WriteIOEffect</span><span class="Other">]</span><span class="Other">,</span> <span class="Identifier">forbids</span><span class="Other">:</span> <span class="Other">[</span><span class="Other">]</span></span>.}</pre></dt>
+  <dt><pre><span class="Keyword">proc</span> <a href="#serveState%2CLocalServer"><span class="Identifier">serveState</span></a><span class="Other">(</span><span class="Identifier">server</span><span class="Other">:</span> <a href="ipc.html#LocalServer"><span class="Identifier">LocalServer</span></a><span class="Other">)</span> {.<span><span class="Other pragmadots">...</span></span><span class="pragmawrap"><span class="Identifier">raises</span><span class="Other">:</span> <span class="Other">[</span><span class="Identifier">KeyError</span><span class="Other">,</span> <span class="Identifier">IOError</span><span class="Other">,</span> <span class="Identifier">OSError</span><span class="Other">,</span>
+    <span class="Identifier">JsonParsingError</span><span class="Other">,</span> <span class="Identifier">ValueError</span><span class="Other">,</span> <span class="Identifier">SslError</span><span class="Other">,</span> <span class="Identifier">Exception</span><span class="Other">,</span> <span class="Identifier">LibraryError</span><span class="Other">,</span> <span class="Identifier">OSError</span><span class="Other">,</span>
+    <span class="Identifier">ValueError</span><span class="Other">]</span><span class="Other">,</span> <span class="Identifier">tags</span><span class="Other">:</span> <span class="Other">[</span><span class="Identifier">TimeEffect</span><span class="Other">,</span> <span class="Identifier">ReadIOEffect</span><span class="Other">,</span> <span class="Identifier">WriteIOEffect</span><span class="Other">,</span> <span class="Identifier">RootEffect</span><span class="Other">]</span><span class="Other">,</span>
+                                       <span class="Identifier">forbids</span><span class="Other">:</span> <span class="Other">[</span><span class="Other">]</span></span>.}</pre></dt>
   <dd>
     
     Service subscribers without blocking action workers or retaining update history.
@@ -267,8 +268,8 @@
   <dd>
     
     Start independently owned device, action, observation, and IPC workers.
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/daemon_workers.nim#L231" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/daemon_workers.nim#L231" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/daemon_workers.nim#L242" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/daemon_workers.nim#L242" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -280,8 +281,8 @@
   <dd>
     
     Flush persistence only after ingestion returns, then join the stopped workers.
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/daemon_workers.nim#L271" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/daemon_workers.nim#L271" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/daemon_workers.nim#L283" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/daemon_workers.nim#L283" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -312,7 +313,7 @@
       <div class="twelve-columns footer">
         <span class="nim-sprite"></span>
         <br>
-        <small style="color: var(--hint);">Made with Nim. Generated: 2026-11-17 21:32:10 UTC</small>
+        <small style="color: var(--hint);">Made with Nim. Generated: 2026-11-18 04:58:34 UTC</small>
       </div>
     </div>
   </div>

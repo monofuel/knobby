@@ -1,0 +1,4 @@
+nimTitle	obs_worker	knobby/obs_worker.html	module knobby/obs_worker		0
+nim	queueObsOperation	knobby/obs_worker.html#queueObsOperation,string	proc queueObsOperation(operation: string): string		30
+nim	startObsWorker	knobby/obs_worker.html#startObsWorker,string	proc startObsWorker(helper = "")		203
+nim	stopObsWorker	knobby/obs_worker.html#stopObsWorker	proc stopObsWorker()		222

@@ -10,55 +10,56 @@ nim	DiscordAction	knobby/button_config.html#DiscordAction	ConfigActionKind.Disco
 nim	MenuAction	knobby/button_config.html#MenuAction	ConfigActionKind.MenuAction		8
 nim	BackAction	knobby/button_config.html#BackAction	ConfigActionKind.BackAction		8
 nim	HomeAction	knobby/button_config.html#HomeAction	ConfigActionKind.HomeAction		8
+nim	ObsAction	knobby/button_config.html#ObsAction	ConfigActionKind.ObsAction		8
 nim	ConfigActionKind	knobby/button_config.html#ConfigActionKind	enum ConfigActionKind		8
-nim	TargetMixer	knobby/button_config.html#TargetMixer	ButtonTarget.TargetMixer		13
-nim	TargetDeck	knobby/button_config.html#TargetDeck	ButtonTarget.TargetDeck		13
-nim	TargetBoth	knobby/button_config.html#TargetBoth	ButtonTarget.TargetBoth		13
-nim	ButtonTarget	knobby/button_config.html#ButtonTarget	enum ButtonTarget		13
-nim	MixerDevice	knobby/button_config.html#MixerDevice	ButtonDevice.MixerDevice		15
-nim	DeckDevice	knobby/button_config.html#DeckDevice	ButtonDevice.DeckDevice		15
-nim	ButtonDevice	knobby/button_config.html#ButtonDevice	enum ButtonDevice		15
-nim	ConfiguredAction	knobby/button_config.html#ConfiguredAction	object ConfiguredAction		17
-nim	ConfiguredButton	knobby/button_config.html#ConfiguredButton	object ConfiguredButton		21
-nim	ConfiguredMenu	knobby/button_config.html#ConfiguredMenu	object ConfiguredMenu		26
-nim	ButtonSet	knobby/button_config.html#ButtonSet	object ButtonSet		30
-nim	ButtonPaths	knobby/button_config.html#ButtonPaths	object ButtonPaths		33
-nim	ButtonConfigVersion	knobby/button_config.html#ButtonConfigVersion	const ButtonConfigVersion		37
-nim	MixerKeyCount	knobby/button_config.html#MixerKeyCount	const MixerKeyCount		38
-nim	DeckKeyCount	knobby/button_config.html#DeckKeyCount	const DeckKeyCount		39
-nim	MaxMenus	knobby/button_config.html#MaxMenus	const MaxMenus		40
-nim	MaxIdBytes	knobby/button_config.html#MaxIdBytes	const MaxIdBytes		41
-nim	MaxTitleRunes	knobby/button_config.html#MaxTitleRunes	const MaxTitleRunes		42
-nim	MaxCommandBytes	knobby/button_config.html#MaxCommandBytes	const MaxCommandBytes		43
-nim	MaxConfigBytes	knobby/button_config.html#MaxConfigBytes	const MaxConfigBytes		44
-nim	RootMenuId	knobby/button_config.html#RootMenuId	const RootMenuId		46
-nim	BackTitle	knobby/button_config.html#BackTitle	const BackTitle		48
-nim	UnassignedTitle	knobby/button_config.html#UnassignedTitle	const UnassignedTitle		49
-nim	sha256Hex	knobby/button_config.html#sha256Hex,string	proc sha256Hex(data: string): string		77
-nim	isManagedAssetPath	knobby/button_config.html#isManagedAssetPath,string	proc isManagedAssetPath(path: string): bool		171
-nim	parseButtonSet	knobby/button_config.html#parseButtonSet,JsonNode	proc parseButtonSet(config: JsonNode): ButtonSet		265
-nim	actionJson	knobby/button_config.html#actionJson,ConfiguredAction	proc actionJson(action: ConfiguredAction): JsonNode		296
-nim	canonicalButtonConfig	knobby/button_config.html#canonicalButtonConfig,JsonNode	proc canonicalButtonConfig(config: JsonNode): JsonNode		329
-nim	validateButtonConfig	knobby/button_config.html#validateButtonConfig,JsonNode	proc validateButtonConfig(config: JsonNode)		341
-nim	configRevision	knobby/button_config.html#configRevision,JsonNode	proc configRevision(config: JsonNode): string		345
-nim	configEnvelope	knobby/button_config.html#configEnvelope,JsonNode	proc configEnvelope(config: JsonNode): JsonNode		349
-nim	parseConfigEnvelope	knobby/button_config.html#parseConfigEnvelope,JsonNode	proc parseConfigEnvelope(node: JsonNode): tuple[baseRevision: string,\n    config: JsonNode]		354
-nim	defaultButtonConfig	knobby/button_config.html#defaultButtonConfig	proc defaultButtonConfig(): JsonNode		362
-nim	menuAt	knobby/button_config.html#menuAt,JsonNode,string	proc menuAt(config: JsonNode; id: string): JsonNode		381
-nim	buttonAt	knobby/button_config.html#buttonAt,JsonNode,string,string,int	proc buttonAt(config: JsonNode; menu: string; device: string; key: int): JsonNode		388
-nim	isQueuedAction	knobby/button_config.html#isQueuedAction,ConfigActionKind	proc isQueuedAction(kind: ConfigActionKind): bool		405
-nim	encodeLastApplied	knobby/button_config.html#encodeLastApplied,JsonNode	proc encodeLastApplied(config: JsonNode): string		409
-nim	decodeLastApplied	knobby/button_config.html#decodeLastApplied,string	proc decodeLastApplied(text: string): JsonNode		415
-nim	encodeConfigFile	knobby/button_config.html#encodeConfigFile,JsonNode	proc encodeConfigFile(config: JsonNode): string		425
-nim	buttonConfigDirectory	knobby/button_config.html#buttonConfigDirectory	proc buttonConfigDirectory(): string		434
-nim	buttonStateDirectory	knobby/button_config.html#buttonStateDirectory	proc buttonStateDirectory(): string		438
-nim	buttonConfigPath	knobby/button_config.html#buttonConfigPath	proc buttonConfigPath(): string		442
-nim	newButtonPaths	knobby/button_config.html#newButtonPaths	proc newButtonPaths(configDir = buttonConfigDirectory();\n               stateDir = buttonStateDirectory()): ButtonPaths		446
-nim	configPath	knobby/button_config.html#configPath,ButtonPaths	proc configPath(paths: ButtonPaths): string		450
-nim	invalidBackupPath	knobby/button_config.html#invalidBackupPath,ButtonPaths	proc invalidBackupPath(paths: ButtonPaths): string		454
-nim	assetDirectory	knobby/button_config.html#assetDirectory,ButtonPaths	proc assetDirectory(paths: ButtonPaths): string		458
-nim	preparedDirectory	knobby/button_config.html#preparedDirectory,ButtonPaths	proc preparedDirectory(paths: ButtonPaths): string		462
-nim	manifestDirectory	knobby/button_config.html#manifestDirectory,ButtonPaths	proc manifestDirectory(paths: ButtonPaths): string		466
-nim	lastAppliedPath	knobby/button_config.html#lastAppliedPath,ButtonPaths	proc lastAppliedPath(paths: ButtonPaths): string		470
-nim	guiDraftPath	knobby/button_config.html#guiDraftPath,ButtonPaths	proc guiDraftPath(paths: ButtonPaths): string		474
-nim	writeFileAtomic	knobby/button_config.html#writeFileAtomic,string,string	proc writeFileAtomic(path, content: string)		478
+nim	TargetMixer	knobby/button_config.html#TargetMixer	ButtonTarget.TargetMixer		14
+nim	TargetDeck	knobby/button_config.html#TargetDeck	ButtonTarget.TargetDeck		14
+nim	TargetBoth	knobby/button_config.html#TargetBoth	ButtonTarget.TargetBoth		14
+nim	ButtonTarget	knobby/button_config.html#ButtonTarget	enum ButtonTarget		14
+nim	MixerDevice	knobby/button_config.html#MixerDevice	ButtonDevice.MixerDevice		16
+nim	DeckDevice	knobby/button_config.html#DeckDevice	ButtonDevice.DeckDevice		16
+nim	ButtonDevice	knobby/button_config.html#ButtonDevice	enum ButtonDevice		16
+nim	ConfiguredAction	knobby/button_config.html#ConfiguredAction	object ConfiguredAction		18
+nim	ConfiguredButton	knobby/button_config.html#ConfiguredButton	object ConfiguredButton		22
+nim	ConfiguredMenu	knobby/button_config.html#ConfiguredMenu	object ConfiguredMenu		27
+nim	ButtonSet	knobby/button_config.html#ButtonSet	object ButtonSet		31
+nim	ButtonPaths	knobby/button_config.html#ButtonPaths	object ButtonPaths		34
+nim	ButtonConfigVersion	knobby/button_config.html#ButtonConfigVersion	const ButtonConfigVersion		38
+nim	MixerKeyCount	knobby/button_config.html#MixerKeyCount	const MixerKeyCount		39
+nim	DeckKeyCount	knobby/button_config.html#DeckKeyCount	const DeckKeyCount		40
+nim	MaxMenus	knobby/button_config.html#MaxMenus	const MaxMenus		41
+nim	MaxIdBytes	knobby/button_config.html#MaxIdBytes	const MaxIdBytes		42
+nim	MaxTitleRunes	knobby/button_config.html#MaxTitleRunes	const MaxTitleRunes		43
+nim	MaxCommandBytes	knobby/button_config.html#MaxCommandBytes	const MaxCommandBytes		44
+nim	MaxConfigBytes	knobby/button_config.html#MaxConfigBytes	const MaxConfigBytes		45
+nim	RootMenuId	knobby/button_config.html#RootMenuId	const RootMenuId		47
+nim	BackTitle	knobby/button_config.html#BackTitle	const BackTitle		49
+nim	UnassignedTitle	knobby/button_config.html#UnassignedTitle	const UnassignedTitle		50
+nim	sha256Hex	knobby/button_config.html#sha256Hex,string	proc sha256Hex(data: string): string		79
+nim	isManagedAssetPath	knobby/button_config.html#isManagedAssetPath,string	proc isManagedAssetPath(path: string): bool		173
+nim	parseButtonSet	knobby/button_config.html#parseButtonSet,JsonNode	proc parseButtonSet(config: JsonNode): ButtonSet		281
+nim	actionJson	knobby/button_config.html#actionJson,ConfiguredAction	proc actionJson(action: ConfiguredAction): JsonNode		312
+nim	canonicalButtonConfig	knobby/button_config.html#canonicalButtonConfig,JsonNode	proc canonicalButtonConfig(config: JsonNode): JsonNode		352
+nim	validateButtonConfig	knobby/button_config.html#validateButtonConfig,JsonNode	proc validateButtonConfig(config: JsonNode)		364
+nim	configRevision	knobby/button_config.html#configRevision,JsonNode	proc configRevision(config: JsonNode): string		368
+nim	configEnvelope	knobby/button_config.html#configEnvelope,JsonNode	proc configEnvelope(config: JsonNode): JsonNode		372
+nim	parseConfigEnvelope	knobby/button_config.html#parseConfigEnvelope,JsonNode	proc parseConfigEnvelope(node: JsonNode): tuple[baseRevision: string,\n    config: JsonNode]		377
+nim	defaultButtonConfig	knobby/button_config.html#defaultButtonConfig	proc defaultButtonConfig(): JsonNode		385
+nim	menuAt	knobby/button_config.html#menuAt,JsonNode,string	proc menuAt(config: JsonNode; id: string): JsonNode		404
+nim	buttonAt	knobby/button_config.html#buttonAt,JsonNode,string,string,int	proc buttonAt(config: JsonNode; menu: string; device: string; key: int): JsonNode		411
+nim	isQueuedAction	knobby/button_config.html#isQueuedAction,ConfigActionKind	proc isQueuedAction(kind: ConfigActionKind): bool		428
+nim	encodeLastApplied	knobby/button_config.html#encodeLastApplied,JsonNode	proc encodeLastApplied(config: JsonNode): string		432
+nim	decodeLastApplied	knobby/button_config.html#decodeLastApplied,string	proc decodeLastApplied(text: string): JsonNode		438
+nim	encodeConfigFile	knobby/button_config.html#encodeConfigFile,JsonNode	proc encodeConfigFile(config: JsonNode): string		448
+nim	buttonConfigDirectory	knobby/button_config.html#buttonConfigDirectory	proc buttonConfigDirectory(): string		457
+nim	buttonStateDirectory	knobby/button_config.html#buttonStateDirectory	proc buttonStateDirectory(): string		461
+nim	buttonConfigPath	knobby/button_config.html#buttonConfigPath	proc buttonConfigPath(): string		465
+nim	newButtonPaths	knobby/button_config.html#newButtonPaths	proc newButtonPaths(configDir = buttonConfigDirectory();\n               stateDir = buttonStateDirectory()): ButtonPaths		469
+nim	configPath	knobby/button_config.html#configPath,ButtonPaths	proc configPath(paths: ButtonPaths): string		473
+nim	invalidBackupPath	knobby/button_config.html#invalidBackupPath,ButtonPaths	proc invalidBackupPath(paths: ButtonPaths): string		477
+nim	assetDirectory	knobby/button_config.html#assetDirectory,ButtonPaths	proc assetDirectory(paths: ButtonPaths): string		481
+nim	preparedDirectory	knobby/button_config.html#preparedDirectory,ButtonPaths	proc preparedDirectory(paths: ButtonPaths): string		485
+nim	manifestDirectory	knobby/button_config.html#manifestDirectory,ButtonPaths	proc manifestDirectory(paths: ButtonPaths): string		489
+nim	lastAppliedPath	knobby/button_config.html#lastAppliedPath,ButtonPaths	proc lastAppliedPath(paths: ButtonPaths): string		493
+nim	guiDraftPath	knobby/button_config.html#guiDraftPath,ButtonPaths	proc guiDraftPath(paths: ButtonPaths): string		497
+nim	writeFileAtomic	knobby/button_config.html#writeFileAtomic,string,string	proc writeFileAtomic(path, content: string)		501

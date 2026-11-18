@@ -139,7 +139,7 @@
     <div class="section" id="6">
   <h1><a class="toc-backref" href="#6">Imports</a></h1>
   <dl class="item">
-    <a class="reference external" href="audio_outputs.html">audio_outputs</a>, <a class="reference external" href="bindings.html">bindings</a>, <a class="reference external" href="common.html">common</a>, <a class="reference external" href="discord_rpc.html">discord_rpc</a>, <a class="reference external" href="midi_events.html">midi_events</a>, <a class="reference external" href="runtime.html">runtime</a>
+    <a class="reference external" href="audio_outputs.html">audio_outputs</a>, <a class="reference external" href="bindings.html">bindings</a>, <a class="reference external" href="common.html">common</a>, <a class="reference external" href="discord_rpc.html">discord_rpc</a>, <a class="reference external" href="midi_events.html">midi_events</a>, <a class="reference external" href="obs_worker.html">obs_worker</a>, <a class="reference external" href="runtime.html">runtime</a>
   </dl>
 </div>
 <div class="section" id="7">
@@ -164,10 +164,10 @@
   <dl class="item">
     <div id="executeButtonAction-procs-all">
   <div id="executeButtonAction,JsonNode">
-  <dt><pre><span class="Keyword">proc</span> <a href="#executeButtonAction%2CJsonNode"><span class="Identifier">executeButtonAction</span></a><span class="Other">(</span><span class="Identifier">action</span><span class="Other">:</span> <span class="Identifier">JsonNode</span><span class="Other">)</span> {.
-    <span><span class="Other pragmadots">...</span></span><span class="pragmawrap"><span class="Identifier">raises</span><span class="Other">:</span> <span class="Other">[</span><span class="Identifier">OSError</span><span class="Other">,</span> <span class="Identifier">IOError</span><span class="Other">,</span> <span class="Identifier">ValueError</span><span class="Other">,</span> <span class="Identifier">KeyError</span><span class="Other">,</span> <span class="Identifier">Exception</span><span class="Other">]</span><span class="Other">,</span> <span class="Identifier">tags</span><span class="Other">:</span> <span class="Other">[</span>
-    <span class="Identifier">ExecIOEffect</span><span class="Other">,</span> <span class="Identifier">ReadEnvEffect</span><span class="Other">,</span> <span class="Identifier">RootEffect</span><span class="Other">,</span> <span class="Identifier">TimeEffect</span><span class="Other">,</span> <span class="Identifier">WriteIOEffect</span><span class="Other">,</span>
-    <span class="Identifier">ReadIOEffect</span><span class="Other">,</span> <span class="Identifier">ReadDirEffect</span><span class="Other">,</span> <span class="Identifier">WriteDirEffect</span><span class="Other">]</span><span class="Other">,</span> <span class="Identifier">forbids</span><span class="Other">:</span> <span class="Other">[</span><span class="Other">]</span></span>.}</pre></dt>
+  <dt><pre><span class="Keyword">proc</span> <a href="#executeButtonAction%2CJsonNode"><span class="Identifier">executeButtonAction</span></a><span class="Other">(</span><span class="Identifier">action</span><span class="Other">:</span> <span class="Identifier">JsonNode</span><span class="Other">)</span> {.<span><span class="Other pragmadots">...</span></span><span class="pragmawrap"><span class="Identifier">raises</span><span class="Other">:</span> <span class="Other">[</span><span class="Identifier">OSError</span><span class="Other">,</span> <span class="Identifier">IOError</span><span class="Other">,</span>
+    <span class="Identifier">ValueError</span><span class="Other">,</span> <span class="Identifier">KeyError</span><span class="Other">,</span> <span class="Identifier">Exception</span><span class="Other">,</span> <span class="Identifier">JsonParsingError</span><span class="Other">]</span><span class="Other">,</span> <span class="Identifier">tags</span><span class="Other">:</span> <span class="Other">[</span><span class="Identifier">ExecIOEffect</span><span class="Other">,</span>
+    <span class="Identifier">ReadEnvEffect</span><span class="Other">,</span> <span class="Identifier">RootEffect</span><span class="Other">,</span> <span class="Identifier">TimeEffect</span><span class="Other">,</span> <span class="Identifier">WriteIOEffect</span><span class="Other">,</span> <span class="Identifier">ReadIOEffect</span><span class="Other">,</span>
+    <span class="Identifier">ReadDirEffect</span><span class="Other">,</span> <span class="Identifier">WriteDirEffect</span><span class="Other">]</span><span class="Other">,</span> <span class="Identifier">forbids</span><span class="Other">:</span> <span class="Other">[</span><span class="Other">]</span></span>.}</pre></dt>
   <dd>
     
     Execute an already-resolved button action without consulting the current menu.
@@ -198,8 +198,8 @@
   <dd>
     
     Reduce a batch of events to the newest value per fader, so a burst of movement applies the final position instead of replaying the sweep.
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/actions.nim#L242" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/actions.nim#L242" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/actions.nim#L243" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/actions.nim#L243" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -214,8 +214,8 @@
   <dd>
     
     Dispatch a batch of parsed MIDI events, coalescing fader moves.
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/actions.nim#L249" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/actions.nim#L249" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/actions.nim#L250" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/actions.nim#L250" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -230,8 +230,8 @@
   <dd>
     
     Dispatch one parsed MIDI event to its bound action.
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/actions.nim#L257" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/actions.nim#L257" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/actions.nim#L258" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/actions.nim#L258" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -349,7 +349,7 @@
       <div class="twelve-columns footer">
         <span class="nim-sprite"></span>
         <br>
-        <small style="color: var(--hint);">Made with Nim. Generated: 2026-11-17 21:32:10 UTC</small>
+        <small style="color: var(--hint);">Made with Nim. Generated: 2026-11-18 04:58:34 UTC</small>
       </div>
     </div>
   </div>

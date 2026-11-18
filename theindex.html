@@ -25,7 +25,7 @@
   <div class="document" id="documentId">
     <div class="container">
       <h1 class="title">Index</h1>
-      Modules: <a href="knobby.html">knobby</a>, <a href="knobby/actions.html">knobby/actions</a>, <a href="knobby/audio_outputs.html">knobby/audio_outputs</a>, <a href="knobby/audio_status.html">knobby/audio_status</a>, <a href="knobby/bindings.html">knobby/bindings</a>, <a href="knobby/button_cli.html">knobby/button_cli</a>, <a href="knobby/button_client.html">knobby/button_client</a>, <a href="knobby/button_config.html">knobby/button_config</a>, <a href="knobby/button_media.html">knobby/button_media</a>, <a href="knobby/button_runtime.html">knobby/button_runtime</a>, <a href="knobby/common.html">knobby/common</a>, <a href="knobby/daemon_workers.html">knobby/daemon_workers</a>, <a href="knobby/discord_rpc.html">knobby/discord_rpc</a>, <a href="knobby/fader_cache.html">knobby/fader_cache</a>, <a href="knobby/ipc.html">knobby/ipc</a>, <a href="knobby/midi_events.html">knobby/midi_events</a>, <a href="knobby/midi_monitor.html">knobby/midi_monitor</a>, <a href="knobby/midi_supervisor.html">knobby/midi_supervisor</a>, <a href="knobby/razer_lighting.html">knobby/razer_lighting</a>, <a href="knobby/runtime.html">knobby/runtime</a>, <a href="knobby/status.html">knobby/status</a>, <a href="knobby/stream_deck.html">knobby/stream_deck</a>, <a href="knobby/stream_deck_page.html">knobby/stream_deck_page</a>, <a href="knobby/stream_deck_player.html">knobby/stream_deck_player</a>.<br/><p /><h2>API symbols</h2>
+      Modules: <a href="knobby.html">knobby</a>, <a href="knobby/actions.html">knobby/actions</a>, <a href="knobby/audio_outputs.html">knobby/audio_outputs</a>, <a href="knobby/audio_status.html">knobby/audio_status</a>, <a href="knobby/bindings.html">knobby/bindings</a>, <a href="knobby/button_cli.html">knobby/button_cli</a>, <a href="knobby/button_client.html">knobby/button_client</a>, <a href="knobby/button_config.html">knobby/button_config</a>, <a href="knobby/button_media.html">knobby/button_media</a>, <a href="knobby/button_runtime.html">knobby/button_runtime</a>, <a href="knobby/common.html">knobby/common</a>, <a href="knobby/daemon_workers.html">knobby/daemon_workers</a>, <a href="knobby/discord_rpc.html">knobby/discord_rpc</a>, <a href="knobby/fader_cache.html">knobby/fader_cache</a>, <a href="knobby/ipc.html">knobby/ipc</a>, <a href="knobby/midi_events.html">knobby/midi_events</a>, <a href="knobby/midi_monitor.html">knobby/midi_monitor</a>, <a href="knobby/midi_supervisor.html">knobby/midi_supervisor</a>, <a href="knobby/obs_state.html">knobby/obs_state</a>, <a href="knobby/obs_worker.html">knobby/obs_worker</a>, <a href="knobby/razer_lighting.html">knobby/razer_lighting</a>, <a href="knobby/runtime.html">knobby/runtime</a>, <a href="knobby/status.html">knobby/status</a>, <a href="knobby/stream_deck.html">knobby/stream_deck</a>, <a href="knobby/stream_deck_page.html">knobby/stream_deck_page</a>, <a href="knobby/stream_deck_player.html">knobby/stream_deck_player</a>.<br/><p /><h2>API symbols</h2>
 <dl><dt><a name="acquireOwnership" href="#acquireOwnership"><span>acquireOwnership:</span></a></dt><dd><ul class="simple">
 <li><a class="reference external"
           data-doc-search-tag="ipc: proc acquireOwnership(path: string): cint" href="knobby/ipc.html#acquireOwnership%2Cstring">ipc: proc acquireOwnership(path: string): cint</a></li>
@@ -650,6 +650,10 @@
 <li><a class="reference external"
           data-doc-search-tag="actions: proc isNewSinkInputEvent(line: string): bool" href="knobby/actions.html#isNewSinkInputEvent%2Cstring">actions: proc isNewSinkInputEvent(line: string): bool</a></li>
           </ul></dd>
+<dt><a name="isObsOperation" href="#isObsOperation"><span>isObsOperation:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="obs_state: proc isObsOperation(operation: string): bool" href="knobby/obs_state.html#isObsOperation%2Cstring">obs_state: proc isObsOperation(operation: string): bool</a></li>
+          </ul></dd>
 <dt><a name="isQueuedAction" href="#isQueuedAction"><span>isQueuedAction:</span></a></dt><dd><ul class="simple">
 <li><a class="reference external"
           data-doc-search-tag="button_config: proc isQueuedAction(kind: ConfigActionKind): bool" href="knobby/button_config.html#isQueuedAction%2CConfigActionKind">button_config: proc isQueuedAction(kind: ConfigActionKind): bool</a></li>
@@ -986,6 +990,10 @@
 <li><a class="reference external"
           data-doc-search-tag="discord_rpc: const OauthScopes" href="knobby/discord_rpc.html#OauthScopes">discord_rpc: const OauthScopes</a></li>
           </ul></dd>
+<dt><a name="ObsAction" href="#ObsAction"><span>ObsAction:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_config: ConfigActionKind.ObsAction" href="knobby/button_config.html#ObsAction">button_config: ConfigActionKind.ObsAction</a></li>
+          </ul></dd>
 <dt><a name="observeDeck" href="#observeDeck"><span>observeDeck:</span></a></dt><dd><ul class="simple">
 <li><a class="reference external"
           data-doc-search-tag="status: proc observeDeck(event: StreamDeckKeyEvent)" href="knobby/status.html#observeDeck%2CStreamDeckKeyEvent">status: proc observeDeck(event: StreamDeckKeyEvent)</a></li>
@@ -997,6 +1005,30 @@
 <dt><a name="observeMousepadAttachment" href="#observeMousepadAttachment"><span>observeMousepadAttachment:</span></a></dt><dd><ul class="simple">
 <li><a class="reference external"
           data-doc-search-tag="razer_lighting: proc observeMousepadAttachment(usbDevices = UsbDevicesPath): string" href="knobby/razer_lighting.html#observeMousepadAttachment">razer_lighting: proc observeMousepadAttachment(usbDevices = UsbDevicesPath): string</a></li>
+          </ul></dd>
+<dt><a name="obsOperationDescription" href="#obsOperationDescription"><span>obsOperationDescription:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="obs_state: proc obsOperationDescription(operation: string): string" href="knobby/obs_state.html#obsOperationDescription%2Cstring">obs_state: proc obsOperationDescription(operation: string): string</a></li>
+          </ul></dd>
+<dt><a name="obsOperationLabel" href="#obsOperationLabel"><span>obsOperationLabel:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="obs_state: proc obsOperationLabel(operation: string): string" href="knobby/obs_state.html#obsOperationLabel%2Cstring">obs_state: proc obsOperationLabel(operation: string): string</a></li>
+          </ul></dd>
+<dt><a name="ObsOperations" href="#ObsOperations"><span>ObsOperations:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="obs_state: const ObsOperations" href="knobby/obs_state.html#ObsOperations">obs_state: const ObsOperations</a></li>
+          </ul></dd>
+<dt><a name="ObsStatusFields" href="#ObsStatusFields"><span>ObsStatusFields:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="obs_state: const ObsStatusFields" href="knobby/obs_state.html#ObsStatusFields">obs_state: const ObsStatusFields</a></li>
+          </ul></dd>
+<dt><a name="obsVisualState" href="#obsVisualState"><span>obsVisualState:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="obs_state: proc obsVisualState(operation: string; status: JsonNode): string" href="knobby/obs_state.html#obsVisualState%2Cstring%2CJsonNode">obs_state: proc obsVisualState(operation: string; status: JsonNode): string</a></li>
+          </ul></dd>
+<dt><a name="ObsVisualStates" href="#ObsVisualStates"><span>ObsVisualStates:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="obs_state: const ObsVisualStates" href="knobby/obs_state.html#ObsVisualStates">obs_state: const ObsVisualStates</a></li>
           </ul></dd>
 <dt><a name="OpenClaude" href="#OpenClaude"><span>OpenClaude:</span></a></dt><dd><ul class="simple">
 <li><a class="reference external"
@@ -1101,8 +1133,10 @@
 <dt><a name="prepareButtonMedia" href="#prepareButtonMedia"><span>prepareButtonMedia:</span></a></dt><dd><ul class="simple">
 <li><a class="reference external"
           data-doc-search-tag="button_media: proc prepareButtonMedia(config: JsonNode; configDir, cacheDir, fontPath: string;
-                   timeoutMs = OperationTimeoutMs): JsonNode" href="knobby/button_media.html#prepareButtonMedia%2CJsonNode%2Cstring%2Cstring%2Cstring">button_media: proc prepareButtonMedia(config: JsonNode; configDir, cacheDir, fontPath: string;
-                   timeoutMs = OperationTimeoutMs): JsonNode</a></li>
+                   timeoutMs = OperationTimeoutMs;
+                   maxPreparedBytes = MaxPreparedBytes): JsonNode" href="knobby/button_media.html#prepareButtonMedia%2CJsonNode%2Cstring%2Cstring%2Cstring">button_media: proc prepareButtonMedia(config: JsonNode; configDir, cacheDir, fontPath: string;
+                   timeoutMs = OperationTimeoutMs;
+                   maxPreparedBytes = MaxPreparedBytes): JsonNode</a></li>
           </ul></dd>
 <dt><a name="PreparedCleanup" href="#PreparedCleanup"><span>PreparedCleanup:</span></a></dt><dd><ul class="simple">
 <li><a class="reference external"
@@ -1152,6 +1186,10 @@
 <li><a class="reference external"
           data-doc-search-tag="ipc: proc queueMessage(peer: Peer; message: JsonNode)" href="knobby/ipc.html#queueMessage%2CPeer%2CJsonNode">ipc: proc queueMessage(peer: Peer; message: JsonNode)</a></li>
           </ul></dd>
+<dt><a name="queueObsOperation" href="#queueObsOperation"><span>queueObsOperation:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="obs_worker: proc queueObsOperation(operation: string): string" href="knobby/obs_worker.html#queueObsOperation%2Cstring">obs_worker: proc queueObsOperation(operation: string): string</a></li>
+          </ul></dd>
 <dt><a name="readDeckPage" href="#readDeckPage"><span>readDeckPage:</span></a></dt><dd><ul class="simple">
 <li><a class="reference external"
           data-doc-search-tag="button_runtime: proc readDeckPage(previousGeneration: int64): JsonNode" href="knobby/button_runtime.html#readDeckPage%2Cint64">button_runtime: proc readDeckPage(previousGeneration: int64): JsonNode</a></li>
@@ -1163,6 +1201,10 @@
 <dt><a name="readKnobbyState" href="#readKnobbyState"><span>readKnobbyState:</span></a></dt><dd><ul class="simple">
 <li><a class="reference external"
           data-doc-search-tag="status: proc readKnobbyState(): StatusSnapshot" href="knobby/status.html#readKnobbyState">status: proc readKnobbyState(): StatusSnapshot</a></li>
+          </ul></dd>
+<dt><a name="readObsStatus" href="#readObsStatus"><span>readObsStatus:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="obs_state: proc readObsStatus(): JsonNode" href="knobby/obs_state.html#readObsStatus">obs_state: proc readObsStatus(): JsonNode</a></li>
           </ul></dd>
 <dt><a name="ReconnectPollIntervalMs" href="#ReconnectPollIntervalMs"><span>ReconnectPollIntervalMs:</span></a></dt><dd><ul class="simple">
 <li><a class="reference external"
@@ -1308,6 +1350,10 @@
 <li><a class="reference external"
           data-doc-search-tag="button_media: proc selectFrames(durationsMs: seq[int]; field = &quot;&quot;): seq[FrameTiming]" href="knobby/button_media.html#selectFrames%2Cseq%5Bint%5D%2Cstring">button_media: proc selectFrames(durationsMs: seq[int]; field = &quot;&quot;): seq[FrameTiming]</a></li>
           </ul></dd>
+<dt><a name="selectObsVisual" href="#selectObsVisual"><span>selectObsVisual:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="obs_state: proc selectObsVisual(entry: JsonNode; status: JsonNode): JsonNode" href="knobby/obs_state.html#selectObsVisual%2CJsonNode%2CJsonNode">obs_state: proc selectObsVisual(entry: JsonNode; status: JsonNode): JsonNode</a></li>
+          </ul></dd>
 <dt><a name="serveState" href="#serveState"><span>serveState:</span></a></dt><dd><ul class="simple">
 <li><a class="reference external"
           data-doc-search-tag="daemon_workers: proc serveState(server: LocalServer)" href="knobby/daemon_workers.html#serveState%2CLocalServer">daemon_workers: proc serveState(server: LocalServer)</a></li>
@@ -1339,6 +1385,10 @@
 <dt><a name="setMousepadPresence" href="#setMousepadPresence"><span>setMousepadPresence:</span></a></dt><dd><ul class="simple">
 <li><a class="reference external"
           data-doc-search-tag="status: proc setMousepadPresence(present: bool)" href="knobby/status.html#setMousepadPresence%2Cbool">status: proc setMousepadPresence(present: bool)</a></li>
+          </ul></dd>
+<dt><a name="setObsStatus" href="#setObsStatus"><span>setObsStatus:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="obs_state: proc setObsStatus(status: JsonNode)" href="knobby/obs_state.html#setObsStatus%2CJsonNode">obs_state: proc setObsStatus(status: JsonNode)</a></li>
           </ul></dd>
 <dt><a name="setVoiceMute" href="#setVoiceMute"><span>setVoiceMute:</span></a></dt><dd><ul class="simple">
 <li><a class="reference external"
@@ -1390,6 +1440,10 @@
 <li><a class="reference external"
           data-doc-search-tag="razer_lighting: proc startMousepadLighting()" href="knobby/razer_lighting.html#startMousepadLighting">razer_lighting: proc startMousepadLighting()</a></li>
           </ul></dd>
+<dt><a name="startObsWorker" href="#startObsWorker"><span>startObsWorker:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="obs_worker: proc startObsWorker(helper = &quot;&quot;)" href="knobby/obs_worker.html#startObsWorker%2Cstring">obs_worker: proc startObsWorker(helper = &quot;&quot;)</a></li>
+          </ul></dd>
 <dt><a name="startProgressWatchdog" href="#startProgressWatchdog"><span>startProgressWatchdog:</span></a></dt><dd><ul class="simple">
 <li><a class="reference external"
           data-doc-search-tag="common: proc startProgressWatchdog()" href="knobby/common.html#startProgressWatchdog">common: proc startProgressWatchdog()</a></li>
@@ -1397,6 +1451,10 @@
 <dt><a name="startStreamWatcher" href="#startStreamWatcher"><span>startStreamWatcher:</span></a></dt><dd><ul class="simple">
 <li><a class="reference external"
           data-doc-search-tag="actions: proc startStreamWatcher()" href="knobby/actions.html#startStreamWatcher">actions: proc startStreamWatcher()</a></li>
+          </ul></dd>
+<dt><a name="StatePlan" href="#StatePlan"><span>StatePlan:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="button_media: object StatePlan" href="knobby/button_media.html#StatePlan">button_media: object StatePlan</a></li>
           </ul></dd>
 <dt><a name="StatusSnapshot" href="#StatusSnapshot"><span>StatusSnapshot:</span></a></dt><dd><ul class="simple">
 <li><a class="reference external"
@@ -1417,6 +1475,10 @@
 <dt><a name="stopDeviceWorkers" href="#stopDeviceWorkers"><span>stopDeviceWorkers:</span></a></dt><dd><ul class="simple">
 <li><a class="reference external"
           data-doc-search-tag="daemon_workers: proc stopDeviceWorkers()" href="knobby/daemon_workers.html#stopDeviceWorkers">daemon_workers: proc stopDeviceWorkers()</a></li>
+          </ul></dd>
+<dt><a name="stopObsWorker" href="#stopObsWorker"><span>stopObsWorker:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="obs_worker: proc stopObsWorker()" href="knobby/obs_worker.html#stopObsWorker">obs_worker: proc stopObsWorker()</a></li>
           </ul></dd>
 <dt><a name="StreamDeck" href="#StreamDeck"><span>StreamDeck:</span></a></dt><dd><ul class="simple">
 <li><a class="reference external"
@@ -1518,6 +1580,10 @@
 <li><a class="reference external"
           data-doc-search-tag="button_config: const UnassignedTitle" href="knobby/button_config.html#UnassignedTitle">button_config: const UnassignedTitle</a></li>
           </ul></dd>
+<dt><a name="unavailableObsStatus" href="#unavailableObsStatus"><span>unavailableObsStatus:</span></a></dt><dd><ul class="simple">
+<li><a class="reference external"
+          data-doc-search-tag="obs_state: proc unavailableObsStatus(): JsonNode" href="knobby/obs_state.html#unavailableObsStatus">obs_state: proc unavailableObsStatus(): JsonNode</a></li>
+          </ul></dd>
 <dt><a name="UnknownFaders" href="#UnknownFaders"><span>UnknownFaders:</span></a></dt><dd><ul class="simple">
 <li><a class="reference external"
           data-doc-search-tag="fader_cache: const UnknownFaders" href="knobby/fader_cache.html#UnknownFaders">fader_cache: const UnknownFaders</a></li>
@@ -1552,7 +1618,7 @@
       <div class="twelve-columns footer">
         <span class="nim-sprite"></span>
         <br>
-        <small style="color: var(--hint);">Made with Nim. Generated: 2026-11-17 21:32:10 UTC</small>
+        <small style="color: var(--hint);">Made with Nim. Generated: 2026-11-18 04:58:34 UTC</small>
       </div>
     </div>
   </div>

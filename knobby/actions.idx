@@ -9,6 +9,6 @@ nim	startStreamWatcher	knobby/actions.html#startStreamWatcher	proc startStreamWa
 nim	parseSourceNames	knobby/actions.html#parseSourceNames,string	proc parseSourceNames(output: string): seq[string]		153
 nim	isMuteReported	knobby/actions.html#isMuteReported,string	proc isMuteReported(output: string): bool		161
 nim	executeButtonAction	knobby/actions.html#executeButtonAction,JsonNode	proc executeButtonAction(action: JsonNode)		209
-nim	finalFaderValues	knobby/actions.html#finalFaderValues,seq[MidiEvent]	proc finalFaderValues(events: seq[MidiEvent]): OrderedTable[int, int]		242
-nim	handleBatch	knobby/actions.html#handleBatch,Dispatcher,seq[MidiEvent]	proc handleBatch(dispatcher: Dispatcher; events: seq[MidiEvent])		249
-nim	handleEvent	knobby/actions.html#handleEvent,Dispatcher,MidiEvent	proc handleEvent(dispatcher: Dispatcher; event: MidiEvent)		257
+nim	finalFaderValues	knobby/actions.html#finalFaderValues,seq[MidiEvent]	proc finalFaderValues(events: seq[MidiEvent]): OrderedTable[int, int]		243
+nim	handleBatch	knobby/actions.html#handleBatch,Dispatcher,seq[MidiEvent]	proc handleBatch(dispatcher: Dispatcher; events: seq[MidiEvent])		250
+nim	handleEvent	knobby/actions.html#handleEvent,Dispatcher,MidiEvent	proc handleEvent(dispatcher: Dispatcher; event: MidiEvent)		258
