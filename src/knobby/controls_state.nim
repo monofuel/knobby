@@ -62,21 +62,21 @@ proc observeMicrophones*(microphones: openArray[AudioLevel]) {.gcsafe.} =
   ## Publish the audio worker's newest microphone observation.
   let observation = micObservation(microphones, controlClockMs())
   {.cast(gcsafe).}:
-    withLock controlsLock: micShared = observation
+    withLock controlsLock: deepCopy(micShared, observation)
 
 proc observeMicrophoneFailure*(message: string) {.gcsafe.} =
   ## Publish an audio observation failure so stale mute counts are not shown as current.
   let observation = MicObservation(observed: true, error: message,
     observedMs: controlClockMs(), updatedMs: wallMs())
   {.cast(gcsafe).}:
-    withLock controlsLock: micShared = observation
+    withLock controlsLock: deepCopy(micShared, observation)
 
 proc publishDiscordObservation*(observation: DiscordObservation) {.gcsafe.} =
   ## Replace the shared Discord observation with the worker's newest copy.
   var copy = observation
   copy.published = true
   {.cast(gcsafe).}:
-    withLock controlsLock: discordShared = copy
+    withLock controlsLock: deepCopy(discordShared, copy)
 
 proc isFreshControl(observedMs, nowMs: int64): bool =
   ## Accept an observation made within the staleness window of the reader's clock.
@@ -141,8 +141,8 @@ proc readControlStatus*(): JsonNode {.gcsafe.} =
     discord: DiscordObservation
   {.cast(gcsafe).}:
     withLock controlsLock:
-      mic = micShared
-      discord = discordShared
+      deepCopy(mic, micShared)
+      deepCopy(discord, discordShared)
   result = controlStatusJson(mic, discord, controlClockMs())
 
 proc readIndicators*(): JsonNode {.gcsafe.} =

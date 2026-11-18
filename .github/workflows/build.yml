@@ -37,3 +37,4 @@ jobs:
     - run: nim r gui/app/tools/test_minecraft_audio.nim
     - run: nim r gui/app/tools/test_setup_obs.nim
     - run: sh gui/app/tools/editor_smoke.sh
+    - run: sh gui/app/tools/overlay_smoke.sh

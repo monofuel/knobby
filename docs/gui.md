@@ -91,8 +91,8 @@ the latest unsaved readings.
   execution; actual audio volume is a separate observation.
 - **Audio:** actual default-output volume and individual matching application
   stream levels, independently of fader positions. The microphone control
-  lists real input sources and mute state. Discord's binding is shown; its
-  RPC mute state is not queried by the viewer.
+  lists real input sources and mute state. System microphone and Discord
+  controls display daemon-observed state; the viewer does not query RPC itself.
 - **Stream Deck:** the daemon's numbered page and live input state. The GUI
   never opens hidraw or changes the display.
 - **Mousepad:** physical presence and the intended OpenRazer preset. Actual

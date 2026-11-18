@@ -30,6 +30,8 @@
 - `src/knobby/daemon_workers.nim` - independent action, Stream Deck, audio, IPC, and cache workers.
 - `src/knobby/obs_worker.nim` - supervised headless OBS helper with bounded queues and no command replay.
 - `src/knobby/obs_state.nim` - authoritative OBS observations and pure state-art selection.
+- `src/knobby/discord_worker.nim`, `controls_state.nim` - isolated Discord RPC supervision and shared observed microphone/control state.
+- `src/knobby/overlay_state.nim`, `overlay_activation.nim` - transient MIDI help requests and explicit overlay service activation.
 - `src/knobby/gui_activation.nim` - activate one GUI instance through its user service.
 - `src/knobby/audio_status.nim` - pure pactl JSON parsing for the viewer.
 - `src/knobby/button_config.nim` - shared button schema, validation, and atomic storage.
@@ -37,6 +39,7 @@
 - `src/knobby/button_media.nim` - bounded FFmpeg preparation and managed artwork imports.
 - `src/knobby/stream_deck_player.nim` - active-page animation and responsive HID writes.
 - `gui/app/` - Windy/Silky viewer and button editor; `gui/` is its isolated Nimby workspace.
+- `gui/app/src/knobby_overlay.nim` - independent, passive X11 mixer legend; it starts only on Help requests.
 - `gui/app/src/obs_client.nim`, `obs_workspace.nim`, `obs_targets.nim` - authenticated OBS WebSocket control and exact Minecraft targets.
 - `gui/app/src/minecraft_window.nim`, `minecraft_audio.nim` - X11 client sizing and per-process audio-label verification.
 - `docs/obs.md` - Minecraft recording profile, submenu, setup, and live acceptance.

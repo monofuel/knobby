@@ -1,6 +1,6 @@
 import
   std/[json, locks, os, osproc, streams, strformat, strutils, tables],
-  ./[audio_outputs, bindings, common, discord_worker, midi_events, obs_worker, runtime]
+  ./[audio_outputs, bindings, common, discord_worker, midi_events, obs_worker, overlay_activation, runtime]
 
 export bindings.isSteamGame
 
@@ -210,7 +210,7 @@ proc executeButtonAction*(action: JsonNode) =
   of "discord": queueDiscordCommand(ToggleDiscordMute)
   of "discordDeafen": queueDiscordCommand(ToggleDiscordDeafen)
   of "openDiscord": openDiscord()
-  of "mixerOverlay": echo "Mixer overlay is not available yet."
+  of "mixerOverlay": activateMixerOverlay()
   of "obs": discard queueObsOperation(action["operation"].getStr())
   else: raise newException(ValueError, "Unresolved or invalid button action.")
 

@@ -12,7 +12,7 @@
       obsAudioPlugin = pkgs.obs-studio-plugins.obs-pipewire-audio-capture;
       runtimeTools = with pkgs; [ alsa-utils pulseaudio pipewire wmctrl curl systemd procps ffmpeg-headless ];
       graphics = with pkgs; [ xorg.libX11 xorg.libXcursor xorg.libXrandr xorg.libXi
-        xorg.libXinerama libGL dbus mesa ];
+        xorg.libXinerama xorg.libXext libGL dbus mesa ];
       pins = builtins.filter (line: line != "")
         (pkgs.lib.splitString "\n" (builtins.readFile ./gui/app/nimby.lock));
       dependencies = map (line:
@@ -43,6 +43,7 @@
           nim c -o:knobby-daemon src/knobby.nim
           nim c -o:knobby-assets tools/prepare_button_media.nim
           nim c -o:gui/app/dist/knobby_gui gui/app/src/knobby_gui.nim
+          nim c -o:gui/app/dist/knobby_overlay gui/app/src/knobby_overlay.nim
           nim c -o:gui/app/dist/knobby_obs gui/app/tools/knobby_obs.nim
           nim c -o:gui/app/dist/knobby-obs-setup gui/app/tools/setup_obs.nim
           runHook postBuild
@@ -63,6 +64,7 @@
           nim r gui/app/tools/test_minecraft_audio.nim
           nim r gui/app/tools/test_setup_obs.nim
           sh gui/app/tools/editor_smoke.sh
+          sh gui/app/tools/overlay_smoke.sh
           runHook postCheck
         '';
         installPhase = ''
@@ -71,14 +73,18 @@
           cp knobby-assets "$out/libexec/knobby-assets"
           cp gui/app/assets/DejaVuSans.ttf "$out/share/knobby/DejaVuSans.ttf"
           cp gui/app/dist/knobby_gui "$out/libexec/knobby-gui"
+          cp gui/app/dist/knobby_overlay "$out/libexec/knobby-overlay"
           cp gui/app/dist/knobby_obs "$out/libexec/knobby-obs"
           cp gui/app/dist/knobby-obs-setup "$out/libexec/knobby-obs-setup"
           cp -r assets/obs "$out/share/knobby/obs-icons"
+          cp -r assets/discord "$out/share/knobby/discord-icons"
           ln -s ${obsAudioPlugin} "$out/share/knobby/obs-audio-plugin"
           makeWrapper "$out/libexec/knobby" "$out/bin/knobby" \
             --prefix PATH : "${pkgs.lib.makeBinPath runtimeTools}"
           makeWrapper "$out/libexec/knobby-gui" "$out/bin/knobby-gui" \
             --prefix PATH : "${pkgs.lib.makeBinPath [pkgs.systemd pkgs.zenity]}" \
+            --prefix LD_LIBRARY_PATH : "${pkgs.lib.makeLibraryPath graphics}"
+          makeWrapper "$out/libexec/knobby-overlay" "$out/bin/knobby-overlay" \
             --prefix LD_LIBRARY_PATH : "${pkgs.lib.makeLibraryPath graphics}"
           makeWrapper "$out/libexec/knobby-assets" "$out/bin/knobby-assets" \
             --prefix PATH : "${pkgs.lib.makeBinPath [pkgs.ffmpeg-headless]}"
@@ -88,7 +94,8 @@
           makeWrapper "$out/libexec/knobby-obs-setup" "$out/bin/knobby-obs-setup" \
             --prefix PATH : "${pkgs.lib.makeBinPath runtimeTools}" \
             --prefix LD_LIBRARY_PATH : "${pkgs.lib.makeLibraryPath [pkgs.xorg.libX11]}"
-          cp docs/knobby.service docs/knobby-gui.service docs/knobby-gui.desktop "$out/share/knobby/"
+          cp docs/knobby.service docs/knobby-gui.service docs/knobby-overlay.service \
+            docs/knobby-gui.desktop "$out/share/knobby/"
           mkdir -p "$out/share/licenses/knobby"
           cp gui/app/assets/DejaVu-LICENSE.txt "$out/share/licenses/knobby/"
           ${pkgs.lib.concatMapStringsSep "\n" (dep: ''
@@ -119,6 +126,7 @@
           xorg.libXi
           xorg.libXinerama
           xorg.libXtst
+          xorg.libXext
           libGL
           dbus
           xorg.xorgserver
@@ -130,7 +138,7 @@
 
         LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath (with pkgs; [
           xorg.libX11 xorg.libXcursor xorg.libXrandr xorg.libXi
-          xorg.libXinerama xorg.libXtst libGL dbus
+          xorg.libXinerama xorg.libXtst xorg.libXext libGL dbus
         ]);
 
         shellHook = ''

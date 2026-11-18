@@ -36,6 +36,16 @@ proc rpcPair(): tuple[client: DiscordRpcClient, peer: Socket] =
     net.AF_UNIX, net.SOCK_STREAM, net.IPPROTO_IP, buffered = false)
 
 suite "RPC failure bounds":
+  test "authentication rejection is distinct from transport failure":
+    let pair = rpcPair()
+    defer:
+      pair.client.close()
+      pair.peer.close()
+    pair.peer.send(encodeFrame(FrameOp,
+      "{\"nonce\":\"1\",\"evt\":\"ERROR\",\"data\":{\"code\":4003,\"message\":\"fixture rejection\"}}"))
+    expect DiscordRpcError:
+      discard pair.client.authenticate("fixture-token")
+
   test "incomplete frames time out":
     let pair = rpcPair()
     defer:

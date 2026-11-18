@@ -1,6 +1,6 @@
 import
   std/[algorithm, json, locks, os, strutils, tables, times],
-  ./[bindings, button_config, ipc, obs_state]
+  ./[bindings, button_config, ipc, obs_state, overlay_state]
 
 type
   ButtonServices* = object
@@ -256,6 +256,7 @@ proc goHome(current: var RuntimeState) =
 
 proc route(device: ButtonDevice, key: int, pressed: bool) =
   ## Resolve one physical edge against the active menu, navigating synchronously.
+  ## Every fresh press updates the help overlay before its own action runs once.
   withState:
     if not state.initialized:
       raise newException(IOError, "Button runtime is not initialized.")
@@ -267,10 +268,12 @@ proc route(device: ButtonDevice, key: int, pressed: bool) =
       state.input[device].held[index] = true
       if device == DeckDevice and not state.deckReady:
         state.input[device].quarantined[index] = true
+        pressMixerOverlay(false)
       else:
         let
           menu = menuButtons(state.active.buttons, state.menus[device])
           button = if device == MixerDevice: menu.mixer[index] else: menu.deck[index]
+        pressMixerOverlay(button.action.kind == MixerOverlayAction)
         case button.action.kind
         of NoAction: discard
         of MenuAction: state.openMenu(button.action.target, button.action.menu)
@@ -368,6 +371,8 @@ proc buttonDescription(button: ConfiguredButton, buttons: ButtonSet): string =
       if binding.action == compiled:
         description = binding.description
     description
+  of DiscordDeafenAction, OpenDiscordAction, MixerOverlayAction:
+    namedActionDescription(button.action.kind)
 
 proc activeMixerCatalog*(): JsonNode =
   ## Describe the active mixer menu in the twelve-slot catalog shape used by status.
@@ -402,7 +407,8 @@ proc buttonRuntimeStatus*(): JsonNode =
       "historyDepth": state.history.len, "deckGeneration": state.deckGeneration,
       "deckReady": state.deckReady, "manifestPath": state.active.manifestPath,
       "busy": state.busy, "operation": newJNull(), "recent": [],
-      "lastOperationSequence": state.operationSequence, "pendingActions": state.actions.len}
+      "lastOperationSequence": state.operationSequence, "pendingActions": state.actions.len,
+      "overlay": mixerOverlayStatus()}
     if state.hasCurrent:
       result["operation"] = recordJson(state.current)
     elif state.recent.len > 0:
@@ -495,6 +501,7 @@ proc initializeButtons*(paths = newButtonPaths(), buttonServices = defaultButton
   var matches = false
   if diskExists and chosen.active.source == CanonicalSource:
     matches = true
+  resetMixerOverlay()
   withState:
     state = RuntimeState(initialized: true, paths: ownedCopy(paths),
       session: $getCurrentProcessId() & "." & $epochMs(), startupError: errors.join("\n"),

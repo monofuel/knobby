@@ -41,10 +41,10 @@ proc main() =
   run(@["nix", "build", ".#knobby", "--out-link", installDir / "current"])
   let package = installDir / "current"
   installObsPlugin(package)
-  for unit in ["knobby.service", "knobby-gui.service"]:
+  for unit in ["knobby.service", "knobby-gui.service", "knobby-overlay.service"]:
     copyFile(package / "share/knobby" / unit, unitDir / unit)
   copyFile(package / "share/knobby/knobby-gui.desktop", desktopDir / "knobby.desktop")
-  for name in ["knobby", "knobby-gui", "knobby-assets", "knobby-obs", "knobby-obs-setup"]:
+  for name in ["knobby", "knobby-gui", "knobby-overlay", "knobby-assets", "knobby-obs", "knobby-obs-setup"]:
     let launcher = binDir / name
     if symlinkExists(launcher):
       removeFile(launcher)
@@ -54,6 +54,9 @@ proc main() =
   run(@["systemctl", "--user", "daemon-reload"])
   run(@["systemctl", "--user", "enable", "knobby.service", "knobby-gui.service"])
   run(@["systemctl", "--user", "restart", "knobby.service"])
+  # The overlay has no install target and starts only on a Help press; stopping a
+  # previous build lets the next press start the new one without showing anything now.
+  run(@["systemctl", "--user", "stop", "knobby-overlay.service"])
   echo "Installed. Existing GUI processes and drafts were left running."
   echo "To load a new editor/protocol: choose Quit viewer from the tray, then run ~/.local/bin/knobby-gui."
 

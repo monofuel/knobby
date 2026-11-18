@@ -39,6 +39,8 @@ const
     'F': @["#####", "#....", "#....", "####.", "#....", "#....", "#...."],
     'I': @["###", ".#.", ".#.", ".#.", ".#.", ".#.", "###"],
     'K': @["#...#", "#..#.", "#.#..", "##...", "#.#..", "#..#.", "#...#"],
+    'H': @["#...#", "#...#", "#...#", "#####", "#...#", "#...#", "#...#"],
+    'L': @["#....", "#....", "#....", "#....", "#....", "#....", "#####"],
     'M': @["#...#", "##.##", "#.#.#", "#.#.#", "#...#", "#...#", "#...#"],
     'N': @["#...#", "##..#", "#.#.#", "#..##", "#...#", "#...#", "#...#"],
     'O': @[".###.", "#...#", "#...#", "#...#", "#...#", "#...#", ".###."],
@@ -46,7 +48,11 @@ const
     'R': @["####.", "#...#", "#...#", "####.", "#.#..", "#..#.", "#...#"],
     'S': @[".####", "#....", "#....", ".###.", "....#", "....#", "####."],
     'T': @["#####", "..#..", "..#..", "..#..", "..#..", "..#..", "..#.."],
-    'U': @["#...#", "#...#", "#...#", "#...#", "#...#", "#...#", ".###."]}.toTable
+    'U': @["#...#", "#...#", "#...#", "#...#", "#...#", "#...#", ".###."],
+    'V': @["#...#", "#...#", "#...#", "#...#", "#...#", ".#.#.", "..#.."],
+    'X': @["#...#", "#...#", ".#.#.", "..#..", ".#.#.", "#...#", "#...#"],
+    'Y': @["#...#", "#...#", ".#.#.", "..#..", "..#..", "..#..", "..#.."],
+    '/': @["....#", "....#", "...#.", "..#..", ".#...", "#....", "#...."]}.toTable
   RecordSprite = @[
     "................",
     ".....######.....",
@@ -281,7 +287,7 @@ proc fillStone(image: Image, tone: Tone) =
     image[x, LabelBandTop] = frame.shade(-80)
     image[x, LabelBandTop + 1] = frame.shade(-80)
 
-proc drawSprite(image: Image, sprite: Sprite, colors: Table[char, ColorRGBX]) =
+proc drawSprite(image: Image, sprite: Sprite, colors: Table[char, ColorRGBX], top = SpriteTop) =
   ## Draw a 16x16 sprite at a whole-pixel scale; "." stays transparent.
   let
     width = sprite[0].len * SpriteScale
@@ -292,7 +298,7 @@ proc drawSprite(image: Image, sprite: Sprite, colors: Table[char, ColorRGBX]) =
       let color = colors[symbol]
       for dy in 0..<SpriteScale:
         for dx in 0..<SpriteScale:
-          image[left + column * SpriteScale + dx, SpriteTop + row * SpriteScale + dy] = color
+          image[left + column * SpriteScale + dx, top + row * SpriteScale + dy] = color
 
 proc labelWidth(text: string): int =
   ## Measure a label in logical font pixels, including inter-glyph gaps.
@@ -365,6 +371,68 @@ proc render(icon: Icon): Image =
   result.drawSprite(icon.sprite, icon.colors)
   result.drawLabel(icon.label, icon.tone.labelColor())
 
+proc drawBadge(image: Image, text: string) =
+  ## Draw a small source label above the sprite to distinguish equal mute states.
+  var left = (Size - labelWidth(text)) div 2
+  for character in text:
+    let glyph = Font[character]
+    for row, line in glyph:
+      for column, symbol in line:
+        if symbol == '#': image[left + column, 5 + row] = rgb("#dadce2")
+    left += glyph[0].len + GlyphGap
+
+proc generateDiscordIcons() =
+  ## Generate original Discord-menu artwork using the same pixel style as OBS.
+  const
+    Directory = OutputDirectory.parentDir() / "discord"
+    Headphones = @[
+      "....########....", "...#hhrrrrrr#...", "..#hrr####rrr#..", "..#rr#....#rr#..",
+      "..#rr#....#rr#..", "..#rr#....#rr#..", ".##rr#....#rr##.", ".#rrr#....#rrr#.",
+      ".#rrr#....#rrr#.", ".#rrr#....#rrr#.", ".#rrd#....#drr#.", ".#ddd#....#ddd#.",
+      "..###......###..", "................", "................", "................"]
+    Chat = @[
+      "................", "..############..", ".#hhhhhhhhhhhh#.", ".#hrrrrrrrrrrr#.",
+      ".#rrrrrrrrrrrr#.", ".#rr##rrrr##rr#.", ".#rr##rrrr##rr#.", ".#rrrrrrrrrrrr#.",
+      ".#rrr######rrr#.", ".#rrrrrrrrrrrd#.", ".#dddddddddddd#.", "..####rr######..",
+      "......rr#.......", "......r#........", "......#.........", "................"]
+  let
+    green = palette("#0f2a0a", "#5fb83a", "#a6e67a", "#2f7a1c", [('s', "#c8cace")])
+    red = palette("#2a0605", "#d42a1e", "#ff7a5c", "#8a130d", [('s', "#8e9094"), ('x', "#f2f2f2")])
+    amber = palette("#2e1c04", "#f0a32a", "#ffe08a", "#b06a12", [('s', "#c8cace")])
+    grey = palette("#1e1f21", "#6a6c70", "#84868a", "#4c4d50")
+    purple = palette("#1c2049", "#7289da", "#c0c9ff", "#404b87")
+  createDir(Directory)
+  for (prefix, badge) in [("system", "SYS"), ("discord", "DISC")]:
+    for (suffix, label, tone, sprite, colors) in [
+        ("live", "LIVE", GreenTone, MicSprite, green),
+        ("muted", "MUTED", RedTone, MicMutedSprite, red),
+        ("mixed", "MIXED", AmberTone, MicSprite, amber),
+        ("deafened", "DEAF", RedTone, Headphones, red),
+        ("unavailable", "N/A", GreyTone, BarrierSprite, grey)]:
+      if (prefix == "system" and suffix == "deafened") or
+          (prefix == "discord" and suffix == "mixed"): continue
+      let image = newImage(Size, Size)
+      image.fillStone(tone)
+      image.drawBadge(badge)
+      image.drawSprite(sprite, colors, 12)
+      image.drawLabel(label, tone.labelColor())
+      image.writeFile(Directory / (prefix & "-" & suffix & ".png"))
+  for (name, label, badge, tone, sprite, colors) in [
+      ("menu-discord", "CHAT", "DISCORD", GreenTone, Chat, purple),
+      ("deafen-live", "HEAR", "DISC", GreenTone, Headphones, green),
+      ("deafen-muted", "DEAF", "DISC", RedTone, Headphones, red),
+      ("deafen-unavailable", "N/A", "DISC", GreyTone, BarrierSprite, grey),
+      ("open-idle", "OPEN", "DISCORD", GreyTone, Chat, purple),
+      ("open-running", "READY", "DISCORD", GreenTone, Chat, purple)]:
+    let image = newImage(Size, Size)
+    image.fillStone(tone)
+    image.drawBadge(badge)
+    image.drawSprite(sprite, colors, 12)
+    image.drawLabel(label, tone.labelColor())
+    image.writeFile(Directory / (name & ".png"))
+  render(Icon(label: "BACK", tone: GreenTone, sprite: BackSprite,
+    colors: palette("#1a1b1d", "#d9dbe0", "#ffffff", "#9a9ca0"))).writeFile(Directory / "back.png")
+
 proc main() =
   ## Regenerate the committed OBS key faces without network access or system fonts.
   createDir(OutputDirectory)
@@ -372,6 +440,7 @@ proc main() =
     for line in icon.sprite:
       doAssert line.len == icon.sprite[0].len, icon.name & " sprite rows differ in width."
     icon.render().writeFile(OutputDirectory / (icon.name & ".png"))
+  generateDiscordIcons()
 
 when isMainModule:
   main()

@@ -1,8 +1,10 @@
 import
-  std/[json, monotimes, net, os, posix, strformat, times],
+  std/[json, monotimes, net, os, osproc, posix, strformat, tempfiles, times],
   ./common
 
 type
+  DiscordRpcError* = object of IOError
+    ## An explicit RPC rejection, distinct from a broken socket or response timeout.
   DiscordRpcClient* = ref object
     socket: Socket
     recvTimeoutMs*: int
@@ -25,6 +27,7 @@ const
   DefaultRecvTimeoutMs = 5000
   MaxFrameBytes = 1024 * 1024
   MaxResponseFrames = 256
+  TokenRequestTimeoutMs = 5500
   TokenEndpoint = "https://discord.com/api/oauth2/token"
   OauthScopes* = ["rpc", "rpc.voice.read", "rpc.voice.write"]
 
@@ -119,7 +122,7 @@ proc request(client: DiscordRpcClient, cmd: string, args: JsonNode): JsonNode =
     if op == FrameOp and payload{"nonce"}.getStr() == nonce:
       if payload{"evt"}.getStr() == "ERROR":
         let errorData = payload{"data"}
-        raise newException(IOError,
+        raise newException(DiscordRpcError,
           fmt"Discord RPC error for {cmd}: {errorData}")
       return payload
   raise newException(IOError, "Discord RPC response frame limit exceeded.")
@@ -181,9 +184,13 @@ proc saveDiscordCreds*(creds: DiscordCreds) =
   }))
 
 proc requestToken(creds: DiscordCreds, grantParams: seq[string]): JsonNode =
-  ## POST a grant to the Discord OAuth token endpoint through curl.
+  ## POST a grant without holding the shared subprocess lock during network I/O.
+  let (responseFile, responsePath) = createTempFile("knobby-discord-token-", ".json")
+  responseFile.close()
+  defer: removeFile(responsePath)
   var args = @[
     "-s", "--connect-timeout", "3", "--max-time", "5", "-X", "POST", TokenEndpoint,
+    "--output", responsePath,
     "-H", "Content-Type: application/x-www-form-urlencoded",
     "--data-urlencode", fmt"client_id={creds.clientId}",
     "--data-urlencode", fmt"client_secret={creds.clientSecret}"
@@ -191,7 +198,16 @@ proc requestToken(creds: DiscordCreds, grantParams: seq[string]): JsonNode =
   for param in grantParams:
     args.add("--data-urlencode")
     args.add(param)
-  let response = parseJson(runCommand("curl", args))
+  let process = spawnCommand("curl", args, {poUsePath, poParentStreams})
+  defer: process.close()
+  let exitCode = process.waitForExit(TokenRequestTimeoutMs)
+  if exitCode == -1:
+    process.kill()
+    discard process.waitForExit()
+    raise newException(IOError, "Discord token request timed out.")
+  if exitCode != 0:
+    raise newException(IOError, "Discord token request failed: curl exited " & $exitCode & ".")
+  let response = parseJson(readFile(responsePath))
   if "access_token" notin response:
     raise newException(IOError, fmt"Discord token request failed: {response}")
   result = response
@@ -224,7 +240,7 @@ proc connectAuthenticated*(timeoutMs = DefaultRecvTimeoutMs): DiscordRpcClient =
     discard result.handshake(creds.clientId)
     try:
       discard result.authenticate(creds.accessToken)
-    except IOError:
+    except DiscordRpcError:
       refreshTokens(creds)
       discard result.authenticate(creds.accessToken)
   except CatchableError:
