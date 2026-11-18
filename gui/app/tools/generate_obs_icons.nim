@@ -1,5 +1,5 @@
 import
-  std/[os, strutils, tables],
+  std/[math, os, strutils, tables],
   pixie
 
 type
@@ -27,20 +27,28 @@ const
   LabelTop = 50
   LabelBandTop = 45
   Seed = 0x2f6e2b1'u32
-  BadgeScale = 2
-  BadgeGlyphWidth = 3
-  BadgeGlyphGap = 1
-  BadgeFont = {
-    'C': @["###", "#..", "#..", "#..", "###"],
-    'D': @["##.", "#.#", "#.#", "#.#", "##."],
-    'E': @["###", "#..", "##.", "#..", "###"],
-    'I': @["###", ".#.", ".#.", ".#.", "###"],
-    'M': @["#.#", "###", "###", "#.#", "#.#"],
-    'O': @["###", "#.#", "#.#", "#.#", "###"],
-    'R': @["##.", "#.#", "##.", "#.#", "#.#"],
-    'S': @["###", "#..", "###", "..#", "###"],
-    'T': @["###", ".#.", ".#.", ".#.", ".#."],
-    'Y': @["#.#", "#.#", ".#.", ".#.", ".#."]}.toTable
+  ChatBotMask = @[
+    "......####......",
+    "......####......",
+    ".......##.......",
+    ".......##.......",
+    "..############..",
+    ".##############.",
+    ".##############.",
+    "####..####..####",
+    "####..####..####",
+    ".##############.",
+    ".##############.",
+    ".####......####.",
+    ".##############.",
+    "..############.."]
+  SymbolCenter = (Border + LabelBandTop) div 2
+  GearCells = 16
+  GearTeeth = 8
+  GearToothHalfWidth = 0.24
+  GearBodyRadius = 5.4
+  GearToothRadius = 7.9
+  GearHoleRadius = 2.4
   Font = {
     '0': @[".###.", "#...#", "#..##", "#.#.#", "##..#", "#...#", ".###."],
     '1': @["..#..", ".##..", "..#..", "..#..", "..#..", "..#..", ".###."],
@@ -385,28 +393,106 @@ proc render(icon: Icon): Image =
   result.drawSprite(icon.sprite, icon.colors)
   result.drawLabel(icon.label, icon.tone.labelColor())
 
-proc drawBadge(image: Image, text: string) =
-  ## Draw the full scope in a distinct colour band using native pixel glyphs.
+proc outlinedSprite(mask: seq[seq[bool]]): Sprite =
+  ## Convert a padded fill mask into a sprite with outline, edge bevel, and dark enclosed holes.
   let
-    width = (text.len * (BadgeGlyphWidth + BadgeGlyphGap) - BadgeGlyphGap) * BadgeScale
-    band = if text == "SYSTEM": rgb("#205f65") else: rgb("#414c89")
-  doAssert width <= Size - 2 * Border
-  for y in Border..<16:
-    for x in Border..<Size - Border: image[x, y] = band
-  for (offset, ink) in [(1, rgb("#10131b")), (0, rgb("#f4f6ff"))]:
-    var left = (Size - width) div 2
-    for character in text:
-      for row, line in BadgeFont[character]:
-        for column, symbol in line:
-          if symbol == '#':
-            for dy in 0..<BadgeScale:
-              for dx in 0..<BadgeScale:
-                image[left + column * BadgeScale + dx + offset,
-                  5 + row * BadgeScale + dy + offset] = ink
-      left += (BadgeGlyphWidth + BadgeGlyphGap) * BadgeScale
+    height = mask.len
+    width = mask[0].len
+  var outside = newSeq[seq[bool]](height)
+  for row in 0..<height: outside[row] = newSeq[bool](width)
+  var pending = @[(0, 0)]
+  while pending.len > 0:
+    let (x, y) = pending.pop()
+    if x < 0 or y < 0 or x >= width or y >= height or outside[y][x] or mask[y][x]: continue
+    outside[y][x] = true
+    pending.add([(x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)])
+  for y in 0..<height:
+    var line = ""
+    for x in 0..<width:
+      let
+        filled = proc (dx, dy: int): bool =
+          x + dx in 0..<width and y + dy in 0..<height and mask[y + dy][x + dx]
+        open = proc (dx, dy: int): bool =
+          x + dx notin 0..<width or y + dy notin 0..<height or outside[y + dy][x + dx]
+      if mask[y][x]:
+        line.add(if open(0, -1) or open(-1, 0): 'h' elif open(0, 1) or open(1, 0): 'd' else: 'r')
+      elif not outside[y][x]:
+        line.add('e')
+      elif filled(1, 0) or filled(-1, 0) or filled(0, 1) or filled(0, -1) or
+          filled(1, 1) or filled(-1, -1) or filled(1, -1) or filled(-1, 1):
+        line.add('#')
+      else:
+        line.add('.')
+    result.add(line)
+
+proc paddedMask(columns, rows: int): seq[seq[bool]] =
+  ## Return an empty mask with a one-cell transparent margin for the outline.
+  result = newSeq[seq[bool]](rows + 2)
+  for row in 0..rows + 1: result[row] = newSeq[bool](columns + 2)
+
+proc gearSprite(): Sprite =
+  ## Build a symmetric settings gear from polar geometry.
+  var mask = paddedMask(GearCells, GearCells)
+  let center = (GearCells - 1) / 2
+  for row in 0..<GearCells:
+    for column in 0..<GearCells:
+      let
+        dx = column.float - center
+        dy = row.float - center
+        radius = hypot(dx, dy)
+        step = 2 * PI / GearTeeth
+        angle = floorMod(arctan2(dy, dx) + step / 2, step) - step / 2
+        tooth = abs(angle) * radius <= GearToothHalfWidth * GearToothRadius
+      mask[row + 1][column + 1] = radius >= GearHoleRadius and
+        (radius <= GearBodyRadius or tooth and radius <= GearToothRadius)
+  outlinedSprite(mask)
+
+proc chatBotSprite(): Sprite =
+  ## Build the original voice-chat bot face used as the Discord menu identity.
+  var mask = paddedMask(ChatBotMask[0].len, ChatBotMask.len)
+  for row, line in ChatBotMask:
+    for column, symbol in line:
+      mask[row + 1][column + 1] = symbol == '#'
+  outlinedSprite(mask)
+
+proc centeredTop(sprite: Sprite): int =
+  ## Return the top edge that vertically centers a sprite's painted rows in the symbol area.
+  var first, last = -1
+  for row, line in sprite:
+    if line.strip(chars = {'.'}).len > 0:
+      if first < 0: first = row
+      last = row
+  SymbolCenter - (first + last + 1) * SpriteScale div 2
+
+proc drawSlash(image: Image, sprite: Sprite, top: int) =
+  ## Draw a light mute slash across a sprite on its texel grid with a dark edge.
+  let
+    columns = sprite[0].len
+    rows = sprite.len
+    left = (Size - columns * SpriteScale) div 2
+    outline = rgb("#141518")
+    light = rgb("#f2f2f2")
+  for pass in 0..1:
+    for row in 0..<rows:
+      let column = columns - 2 - row * (columns - 3) div (rows - 1)
+      for offset in -2..1:
+        let edge = offset in [-2, 1]
+        if edge != (pass == 0): continue
+        let x = column + offset
+        if x notin 0..<columns: continue
+        for dy in 0..<SpriteScale:
+          for dx in 0..<SpriteScale:
+            image[left + x * SpriteScale + dx, top + row * SpriteScale + dy] =
+              if edge: outline else: light
+
+proc drawSymbol(image: Image, sprite: Sprite, colors: Table[char, ColorRGBX], slashed = false) =
+  ## Draw a large centered symbol, optionally crossed by a mute slash.
+  let top = sprite.centeredTop()
+  image.drawSprite(sprite, colors, top)
+  if slashed: image.drawSlash(sprite, top)
 
 proc generateDiscordIcons() =
-  ## Generate original Discord-menu artwork using the same pixel style as OBS.
+  ## Generate Discord-menu artwork using the same pixel style as OBS.
   const
     Directory = OutputDirectory.parentDir() / "discord"
     Headphones = @[
@@ -414,51 +500,45 @@ proc generateDiscordIcons() =
       "..#rr#....#rr#..", "..#rr#....#rr#..", ".##rr#....#rr##.", ".#rrr#....#rrr#.",
       ".#rrr#....#rrr#.", ".#rrr#....#rrr#.", ".#rrd#....#drr#.", ".#ddd#....#ddd#.",
       "..###......###..", "................", "................", "................"]
-    Chat = @[
-      "................", "..############..", ".#hhhhhhhhhhhh#.", ".#hrrrrrrrrrrr#.",
-      ".#rrrrrrrrrrrr#.", ".#rr##rrrr##rr#.", ".#rr##rrrr##rr#.", ".#rrrrrrrrrrrr#.",
-      ".#rrr######rrr#.", ".#rrrrrrrrrrrd#.", ".#dddddddddddd#.", "..####rr######..",
-      "......rr#.......", "......r#........", "................", "................"]
   let
-    green = palette("#0f2a0a", "#5fb83a", "#a6e67a", "#2f7a1c", [('s', "#c8cace")])
-    red = palette("#2a0605", "#d42a1e", "#ff7a5c", "#8a130d", [('s', "#8e9094"), ('x', "#f2f2f2")])
-    amber = palette("#2e1c04", "#f0a32a", "#ffe08a", "#b06a12", [('s', "#c8cace")])
-    grey = palette("#1e1f21", "#6a6c70", "#84868a", "#4c4d50")
-    purple = palette("#1c2049", "#7289da", "#c0c9ff", "#404b87")
+    bot = chatBotSprite()
+    green = palette("#0f2a0a", "#5fb83a", "#a6e67a", "#2f7a1c")
+    red = palette("#2a0605", "#d42a1e", "#ff7a5c", "#8a130d")
+    grey = palette("#1e1f21", "#6a6c70", "#84868a", "#4c4d50", [('e', "#2a2b2e")])
+    blurple = palette("#141633", "#5865f2", "#a3abff", "#3c45b0", [('e', "#141633")])
+    steel = palette("#16181b", "#b4b8bf", "#eceef2", "#71757c", [('e', "#16181b")])
   createDir(Directory)
-  for (prefix, badge) in [("system", "SYSTEM"), ("discord", "DISCORD")]:
-    for (suffix, label, tone, sprite, colors) in [
-        ("live", "LIVE", GreenTone, MicSprite, green),
-        ("muted", "MUTED", RedTone, MicMutedSprite, red),
-        ("mixed", "MIXED", AmberTone, MicSprite, amber),
-        ("deafened", "DEAF", RedTone, Headphones, red),
-        ("unavailable", "N/A", GreyTone, BarrierSprite, grey)]:
+  for (prefix, sprite, colors) in [("system", gearSprite(), steel), ("discord", bot, blurple)]:
+    for (suffix, label, tone, slashed) in [
+        ("live", "LIVE", GreenTone, false),
+        ("muted", "MUTED", RedTone, true),
+        ("mixed", "MIXED", AmberTone, false),
+        ("deafened", "DEAF", RedTone, true),
+        ("unavailable", "N/A", GreyTone, false)]:
       if (prefix == "system" and suffix == "deafened") or
           (prefix == "discord" and suffix == "mixed"): continue
       let image = newImage(Size, Size)
       image.fillStone(tone)
-      image.drawBadge(badge)
-      image.drawSprite(sprite, colors, 16)
+      image.drawSymbol(sprite, if tone == GreyTone: grey else: colors, slashed)
       image.drawLabel(label, tone.labelColor())
       image.writeFile(Directory / (prefix & "-" & suffix & ".png"))
-  for (name, label, badge, tone, sprite, colors) in [
-      ("menu-discord", "CHAT", "DISCORD", GreenTone, Chat, purple),
-      ("deafen-live", "HEAR", "DISCORD", GreenTone, Headphones, green),
-      ("deafen-muted", "DEAF", "DISCORD", RedTone, Headphones, red),
-      ("deafen-unavailable", "N/A", "DISCORD", GreyTone, BarrierSprite, grey),
-      ("open-idle", "OPEN", "DISCORD", GreyTone, Chat, purple),
-      ("open-running", "READY", "DISCORD", GreenTone, Chat, purple)]:
+  for (name, label, tone, sprite, colors) in [
+      ("menu-discord", "CHAT", GreenTone, bot, blurple),
+      ("deafen-live", "HEAR", GreenTone, Headphones, green),
+      ("deafen-muted", "DEAF", RedTone, Headphones, red),
+      ("deafen-unavailable", "N/A", GreyTone, Headphones, grey),
+      ("open-idle", "OPEN", GreyTone, bot, blurple),
+      ("open-running", "READY", GreenTone, bot, blurple)]:
     let image = newImage(Size, Size)
     image.fillStone(tone)
-    image.drawBadge(badge)
-    image.drawSprite(sprite, colors, 16)
+    image.drawSymbol(sprite, colors, name == "deafen-muted")
     image.drawLabel(label, tone.labelColor())
     image.writeFile(Directory / (name & ".png"))
   render(Icon(label: "BACK", tone: GreenTone, sprite: BackSprite,
     colors: palette("#1a1b1d", "#d9dbe0", "#ffffff", "#9a9ca0"))).writeFile(Directory / "back.png")
 
 proc main() =
-  ## Regenerate the committed OBS key faces without network access or system fonts.
+  ## Regenerate the committed key faces without network access or system fonts.
   createDir(OutputDirectory)
   for icon in icons():
     for line in icon.sprite:
