@@ -1,0 +1,348 @@
+import
+  std/[json, os, osproc, streams, strtabs, strutils, tables, tempfiles],
+  obs_client, obs_workspace, ./fake_obs
+
+const
+  MinecraftWindow = "4194307\r\nMinecraft* 1.21.4 - Singleplayer\r\nMinecraft* 1.21.4"
+  WikiWindow = "62914561\r\nMinecraft Wiki - Mozilla Firefox\r\nfirefox"
+  TerminalWindow = "71303169\r\nfish\r\nAlacritty"
+  MinecraftApp = "Minecraft* 1.21.4"
+  JavaApp = "java"
+  BridgeBinaryTimeoutMs = 60000
+
+type
+  Harness = ref object
+    fake: FakeObs
+    bridge: ObsBridge
+    lines: seq[JsonNode]
+    launches, focuses: int
+    running: bool
+    port: int
+
+proc windowItems(values: varargs[string]): JsonNode =
+  ## Build xcomposite capture_window property items.
+  result = newJArray()
+  for value in values:
+    result.add(%*{"itemName": value.split("\r\n")[1], "itemValue": value,
+      "itemEnabled": true})
+
+proc appItems(names: varargs[string]): JsonNode =
+  ## Build application audio property items.
+  result = newJArray()
+  for name in names:
+    result.add(%*{"itemName": name, "itemValue": name, "itemEnabled": true})
+
+proc newHarness(minecraft = true, port = 0): Harness =
+  ## Start a fake OBS and a bridge whose effects are recorded.
+  let harness = Harness(fake: newFakeObs("pw"))
+  harness.port = if port == 0: harness.fake.port else: port
+  harness.fake.settings["Minecraft Video"] = %*{"capture_window": TerminalWindow}
+  harness.fake.settings["Minecraft Audio"] = %*{"TargetName": JavaApp}
+  if minecraft:
+    harness.fake.items["Minecraft Video"] = windowItems(WikiWindow, MinecraftWindow)
+    harness.fake.items["Minecraft Audio"] = appItems(JavaApp, MinecraftApp)
+  else:
+    harness.fake.items["Minecraft Video"] = windowItems(WikiWindow, TerminalWindow)
+    harness.fake.items["Minecraft Audio"] = appItems(JavaApp)
+  var hooks: ObsHooks
+  hooks.loadSettings = proc (): tuple[url, password: string] {.gcsafe.} =
+    ("ws://127.0.0.1:" & $harness.port, "pw")
+  hooks.obsRunning = proc (): bool {.gcsafe.} = harness.running
+  hooks.launchObs = proc () {.gcsafe.} =
+    inc harness.launches
+  hooks.focusObs = proc () {.gcsafe.} =
+    inc harness.focuses
+  hooks.emit = proc (line: JsonNode) {.gcsafe.} =
+    harness.lines.add(line)
+  hooks.log = proc (message: string) {.gcsafe.} =
+    discard
+  harness.bridge = newObsBridge(hooks)
+  harness.bridge.start()
+  result = harness
+
+proc close(harness: Harness) =
+  ## Stop the bridge and fake server.
+  harness.bridge.stop()
+  harness.fake.stop()
+  pumpFor(50)
+
+proc resultFor(harness: Harness, id: int): JsonNode =
+  ## Wait for the result line of one command.
+  let found = pump(proc (): bool =
+    for line in harness.lines:
+      if line["type"].getStr() == "result" and line["id"] == %id:
+        return true)
+  doAssert found, "no result for command " & $id
+  for line in harness.lines:
+    if line["type"].getStr() == "result" and line["id"] == %id:
+      return line
+
+proc command(harness: Harness, id: int, operation: string): JsonNode =
+  ## Submit one stdin command line and wait for its result.
+  harness.bridge.submitLine($(%*{"id": id, "operation": operation}))
+  result = harness.resultFor(id)
+
+proc waitStatus(harness: Harness, check: proc (status: ObsStatus): bool): bool =
+  ## Wait until the bridge status satisfies check.
+  pump(proc (): bool = check(harness.bridge.status))
+
+proc ready(harness: Harness): bool =
+  ## Wait for a connected, resynced, ready workspace.
+  harness.waitStatus(proc (status: ObsStatus): bool =
+    status.connected and status.workspaceReady and status.minecraftReady)
+
+proc testRecordWithActualState() =
+  ## Bind Minecraft, start and stop recording from actual state, and report events.
+  let harness = newHarness()
+  defer: harness.close()
+  doAssert harness.ready()
+  doAssert harness.fake.settings["Minecraft Video"]["capture_window"].getStr() ==
+    MinecraftWindow
+  doAssert harness.fake.settings["Minecraft Audio"]["TargetName"].getStr() ==
+    MinecraftApp
+  doAssert harness.bridge.status.micMuted
+  doAssert harness.command(1, "recordToggle")["ok"].getBool()
+  doAssert harness.fake.recording
+  doAssert harness.waitStatus(proc (status: ObsStatus): bool =
+    status.recording and not status.transitioning)
+  doAssert harness.command(2, "pauseToggle")["ok"].getBool()
+  doAssert harness.waitStatus(proc (status: ObsStatus): bool = status.paused)
+  doAssert harness.command(3, "pauseToggle")["ok"].getBool()
+  doAssert harness.waitStatus(proc (status: ObsStatus): bool =
+    status.recording and not status.paused)
+  doAssert harness.command(4, "recordToggle")["ok"].getBool()
+  doAssert not harness.fake.recording
+  doAssert harness.waitStatus(proc (status: ObsStatus): bool = not status.recording)
+  doAssert harness.fake.count("StartRecord") == 1
+  doAssert harness.fake.count("StopRecord") == 1
+  doAssert harness.fake.count("ToggleRecord") == 0
+  var statusLines = 0
+  for line in harness.lines:
+    if line["type"].getStr() == "status":
+      inc statusLines
+      for field in ["connected", "workspaceReady", "minecraftReady", "recording",
+          "paused", "micMuted", "transitioning"]:
+        doAssert line[field].kind == JBool
+      doAssert line["error"].kind == JString
+  doAssert statusLines > 0
+
+proc testExternalStateIsAuthoritative() =
+  ## Stop a recording OBS started on its own and flip the actual mic state.
+  let harness = newHarness()
+  defer: harness.close()
+  harness.fake.recording = true
+  harness.fake.micMuted = false
+  doAssert harness.ready()
+  doAssert harness.waitStatus(proc (status: ObsStatus): bool =
+    status.recording and not status.micMuted)
+  doAssert harness.command(1, "recordToggle")["ok"].getBool()
+  doAssert harness.fake.count("StartRecord") == 0
+  doAssert harness.fake.count("StopRecord") == 1
+  doAssert harness.command(2, "micToggle")["ok"].getBool()
+  doAssert harness.fake.micMuted
+  doAssert harness.fake.requestData[^1]["inputName"].getStr() == ObsMicName
+  doAssert harness.waitStatus(proc (status: ObsStatus): bool = status.micMuted)
+  let pause = harness.command(3, "pauseToggle")
+  doAssert not pause["ok"].getBool()
+  doAssert "not recording" in pause["error"].getStr()
+
+proc testMinecraftAbsent() =
+  ## Never fall back to another window or all Java; still allow stopping.
+  let harness = newHarness(minecraft = false)
+  defer: harness.close()
+  doAssert harness.waitStatus(proc (status: ObsStatus): bool =
+    status.connected and status.workspaceReady)
+  pumpFor(100)
+  doAssert not harness.bridge.status.minecraftReady
+  doAssert harness.fake.count("SetInputSettings") == 0
+  let start = harness.command(1, "recordToggle")
+  doAssert not start["ok"].getBool()
+  doAssert "Minecraft is not running" in start["error"].getStr()
+  doAssert harness.fake.count("StartRecord") == 0
+  harness.fake.recording = true
+  doAssert harness.command(2, "recordToggle")["ok"].getBool()
+  doAssert harness.fake.count("StopRecord") == 1
+
+proc testWorkspaceMismatch() =
+  ## Refuse controls outside the Minecraft profile and report why.
+  let harness = newHarness()
+  defer: harness.close()
+  harness.fake.profile = "Untitled"
+  harness.fake.recording = true
+  doAssert harness.waitStatus(proc (status: ObsStatus): bool =
+    status.connected and "profile" in status.error)
+  doAssert not harness.bridge.status.workspaceReady
+  doAssert harness.bridge.status.recording
+  for (id, operation) in [(1, "recordToggle"), (2, "pauseToggle"), (3, "micToggle")]:
+    let response = harness.command(id, operation)
+    doAssert not response["ok"].getBool()
+    doAssert "Untitled" in response["error"].getStr()
+  doAssert harness.fake.count("StopRecord") == 0
+  doAssert harness.fake.count("SetInputMute") == 0
+  harness.fake.profile = ObsProfileName
+  harness.fake.inputs.setLen(2)
+  doAssert harness.waitStatus(proc (status: ObsStatus): bool =
+    ObsMicName in status.error)
+  doAssert not harness.bridge.status.workspaceReady
+
+proc testOpenPreservesActiveOutput() =
+  ## Focus without switching while recording; activate the project only when idle.
+  let harness = newHarness()
+  defer: harness.close()
+  harness.fake.profile = "Untitled"
+  harness.fake.collection = "Untitled"
+  harness.fake.programScene = "Scene"
+  harness.fake.recording = true
+  doAssert harness.waitStatus(proc (status: ObsStatus): bool = status.connected)
+  doAssert harness.command(1, "open")["ok"].getBool()
+  doAssert harness.focuses == 1
+  doAssert harness.fake.profile == "Untitled"
+  doAssert harness.fake.count("SetCurrentProfile") == 0
+  doAssert harness.fake.count("SetCurrentSceneCollection") == 0
+  harness.fake.recording = false
+  harness.fake.streaming = true
+  doAssert harness.command(2, "open")["ok"].getBool()
+  doAssert harness.fake.count("SetCurrentProfile") == 0
+  harness.fake.streaming = false
+  doAssert harness.command(3, "open")["ok"].getBool()
+  doAssert harness.focuses == 3
+  doAssert harness.fake.profile == ObsProfileName
+  doAssert harness.fake.collection == ObsCollectionName
+  doAssert harness.fake.programScene == ObsSceneName
+  doAssert harness.launches == 0
+
+proc testOffline() =
+  ## Report unavailability, reject controls, and launch or focus OBS for open.
+  let harness = newHarness(port = closedPort())
+  defer: harness.close()
+  doAssert harness.waitStatus(proc (status: ObsStatus): bool =
+    not status.connected and status.error.len > 0)
+  let status = harness.bridge.status
+  doAssert not (status.recording or status.workspaceReady or status.minecraftReady)
+  for (id, operation) in [(1, "recordToggle"), (2, "pauseToggle"), (3, "micToggle")]:
+    let response = harness.command(id, operation)
+    doAssert not response["ok"].getBool()
+    doAssert "not connected" in response["error"].getStr()
+  doAssert harness.command(4, "open")["ok"].getBool()
+  doAssert harness.launches == 1
+  harness.running = true
+  doAssert harness.command(5, "open")["ok"].getBool()
+  doAssert harness.launches == 1
+  doAssert harness.focuses == 1
+  doAssert harness.fake.requests.len == 0
+  let before = harness.lines.len
+  pumpFor(HeartbeatMs + 300)
+  doAssert harness.lines.len > before, "heartbeat continues while offline"
+
+proc testDisconnectNoReplay() =
+  ## Report an unknown outcome on disconnect and never resend after reconnecting.
+  let harness = newHarness()
+  defer: harness.close()
+  doAssert harness.ready()
+  harness.fake.hangupOn = @["StartRecord"]
+  let response = harness.command(1, "recordToggle")
+  doAssert not response["ok"].getBool()
+  doAssert "unknown" in response["error"].getStr()
+  harness.fake.hangupOn = @[]
+  doAssert harness.waitStatus(proc (status: ObsStatus): bool = not status.connected)
+  doAssert harness.ready()
+  pumpFor(300)
+  doAssert harness.fake.count("StartRecord") == 1
+  doAssert harness.fake.identifies == 2
+
+proc testCommandValidation() =
+  ## Reject malformed lines, unknown operations, and backlog overflow.
+  let harness = newHarness()
+  defer: harness.close()
+  doAssert harness.ready()
+  harness.bridge.submitLine("{nope")
+  harness.bridge.submitLine("[1]")
+  harness.bridge.submitLine("""{"id": 7}""")
+  harness.bridge.submitLine("""{"id": 8, "operation": "startStream"}""")
+  for id in 100 ..< 100 + MaxCommandBacklog + 1:
+    harness.bridge.submitLine($(%*{"id": id, "operation": "micToggle"}))
+  let errors = block:
+    var found: seq[string]
+    for line in harness.lines:
+      if line["type"].getStr() == "result":
+        found.add(line["error"].getStr())
+    found
+  doAssert errors.len == 5, $errors
+  doAssert "valid JSON" in errors[0]
+  doAssert "object" in errors[1]
+  doAssert "operation" in errors[2]
+  doAssert "startStream" in errors[3]
+  doAssert "backlog" in errors[4]
+  doAssert harness.resultFor(100 + MaxCommandBacklog - 1)["ok"].getBool()
+
+proc testBridgeProcess() =
+  ## Run the CLI against a private config: request output and bridge stdin framing.
+  let directory = createTempDir("knobby_obs_", "")
+  defer: removeDir(directory)
+  let fake = newFakeObs("pw")
+  defer: fake.stop()
+  let configDir = directory / "obs-studio/plugin_config/obs-websocket"
+  createDir(configDir)
+  writeFile(configDir / "config.json", $(%*{"auth_required": true,
+    "server_password": "pw", "server_port": fake.port}))
+  let binary = directory / "knobby_obs"
+  let build = execCmdEx("nim c --hints:off -o:" & quoteShell(binary) & " " &
+    quoteShell(currentSourcePath().parentDir() / "knobby_obs.nim"))
+  doAssert build.exitCode == 0, build.output
+  var environment = newStringTable()
+  for key, value in envPairs():
+    environment[key] = value
+  environment["XDG_CONFIG_HOME"] = directory
+
+  let request = startProcess(binary, args = ["request", "GetRecordStatus"],
+    env = environment, options = {})
+  doAssert pump(proc (): bool = not request.running, BridgeBinaryTimeoutMs)
+  let output = request.outputStream.readAll()
+  doAssert request.peekExitCode() == 0
+  doAssert parseJson(output)["outputActive"].getBool() == false
+  doAssert "pw" notin output
+  request.close()
+
+  fake.stop()
+  let bridge = startProcess(binary, args = ["bridge"], env = environment,
+    options = {})
+  bridge.inputStream.write(repeat('x', 1024 * 1024 + 10) & "\n")
+  bridge.inputStream.write("""{"id": "a", "operation": "micToggle"}""" & "\n")
+  bridge.inputStream.close()
+  doAssert pump(proc (): bool = not bridge.running, BridgeBinaryTimeoutMs)
+  doAssert bridge.peekExitCode() == 0
+  var results: seq[JsonNode]
+  for line in bridge.outputStream.readAll().splitLines():
+    if line.len > 0:
+      let parsed = parseJson(line)
+      if parsed["type"].getStr() == "result":
+        results.add(parsed)
+  bridge.close()
+  doAssert results.len == 2, $results
+  doAssert results[0]["id"].kind == JNull
+  doAssert "1 MiB" in results[0]["error"].getStr()
+  doAssert results[1]["id"].getStr() == "a"
+  doAssert not results[1]["ok"].getBool()
+
+proc main() =
+  ## Run bridge tests against a local fake OBS server.
+  doAssert isMinecraftItem("xcomposite_input", "", MinecraftWindow)
+  doAssert not isMinecraftItem("xcomposite_input", "", WikiWindow)
+  doAssert not isMinecraftItem("pipewire_audio_application_capture", JavaApp, JavaApp)
+  doAssert not isMinecraftItem("pipewire_audio_application_capture",
+    "Minecraft Launcher", "Minecraft Launcher")
+  doAssert isMinecraftItem("pipewire_audio_application_capture", MinecraftApp,
+    MinecraftApp)
+  doAssert minecraftTargetProperty("pulse_output_capture") == ""
+  testRecordWithActualState()
+  testExternalStateIsAuthoritative()
+  testMinecraftAbsent()
+  testWorkspaceMismatch()
+  testOpenPreservesActiveOutput()
+  testOffline()
+  testDisconnectNoReplay()
+  testCommandValidation()
+  testBridgeProcess()
+
+when isMainModule:
+  main()
