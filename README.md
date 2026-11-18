@@ -1,5 +1,7 @@
 # Knobby
 
+![Knobby's Stream Deck OBS controls alongside OBS capturing Minecraft](docs/screenshots/knobby-obs.png)
+
 Knobby puts Linux audio on physical faders. An Arduino MIDI mixer controls
 master, browser, music, and game volume without opening a volume panel or
 leaving the app you're using. Its buttons launch apps and toggle microphone
