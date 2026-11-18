@@ -81,6 +81,8 @@ proc main() =
   doAssert not mapped(display, window), "Background startup mapped a window."
   sleep(250)
   doAssert not mapped(display, window), "Missing tray host opened a window."
+  activateExisting(runtimePath("knobby-gui", "activate.sock"), WaitMs)
+  waitFor(proc (): bool = mapped(display, window), "Initial activation did not show the window.")
   var clients: seq[Process]
   for _ in 0..1: clients.add(startProcess(binary, options = {poParentStreams}))
   for client in clients:
