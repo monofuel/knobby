@@ -1,5 +1,6 @@
 import
-  std/[asyncdispatch, asyncnet, base64, json, os, tables],
+  std/[asyncdispatch, asyncnet, base64, json, nativesockets, net, os, sha1,
+    strutils, sysrand, tables, uri],
   crunchy, ws
 
 const
@@ -16,6 +17,12 @@ const
   DefaultObsPort = 4455
   ObsConfigRelativePath = "obs-studio/plugin_config/obs-websocket/config.json"
   MaxMessageBytes = 1024 * 1024
+  WebSocketVersion = "13"
+  WebSocketKeyBytes = 16
+  WebSocketAcceptGuid = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
+  DefaultWebSocketPort = 80
+  MaxHandshakeLineBytes = 8192
+  MaxHandshakeHeaders = 64
   AuthFailedCloseCode = 4009
   OpHello = 0
   OpIdentify = 1
@@ -271,33 +278,112 @@ proc readLoop(client: ObsClient) {.async.} =
     else:
       client.handleMessage(message.data)
 
-proc connectObs*(url, password: string,
-    onEvent: ObsEventHandler = nil): Future[ObsClient] {.async.} =
-  ## Connect and identify with OBS WebSocket 5, bounding each phase to 3 seconds.
-  let connecting = newWebSocket(url, ObsSubprotocol)
+proc webSocketAccept(key: string): string =
+  ## Compute the RFC 6455 Sec-WebSocket-Accept value for a client key.
+  let digest = Sha1Digest(secureHash(key & WebSocketAcceptGuid))
+  result = base64.encode(digest)
+
+proc headerHasToken(value, token: string): bool =
+  ## Check whether a comma-separated header value contains a token, ignoring case.
+  for part in value.split(','):
+    if cmpIgnoreCase(part.strip(), token) == 0:
+      return true
+
+proc ensureNotAbandoned(socket: AsyncSocket) =
+  ## Stop an upgrade whose socket was closed after its timeout.
+  if socket.isClosed():
+    raise connectionError("The OBS WebSocket upgrade was abandoned.")
+
+proc readHandshakeLine(socket: AsyncSocket): Future[string] {.async.} =
+  ## Read one bounded HTTP response line, failing if OBS hangs up mid-response.
+  socket.ensureNotAbandoned()
+  result = await socket.recvLine(maxLength = MaxHandshakeLineBytes)
+  if result.len == 0:
+    raise connectionError("OBS closed the connection during the WebSocket upgrade.")
+
+proc upgrade(socket: AsyncSocket, uri: Uri, port: Port, key: string) {.async.} =
+  ## Connect the caller-owned socket and complete the client WebSocket upgrade.
+  await socket.connect(uri.hostname, port)
+  let
+    path = (if uri.path.len > 0: uri.path else: "/") &
+      (if uri.query.len > 0: "?" & uri.query else: "")
+    request = "GET " & path & " HTTP/1.1\c\L" &
+      "Host: " & uri.hostname & ":" & $port & "\c\L" &
+      "Upgrade: websocket\c\L" &
+      "Connection: Upgrade\c\L" &
+      "Sec-WebSocket-Key: " & key & "\c\L" &
+      "Sec-WebSocket-Version: " & WebSocketVersion & "\c\L" &
+      "Sec-WebSocket-Protocol: " & ObsSubprotocol & "\c\L\c\L"
+  socket.ensureNotAbandoned()
+  await socket.send(request)
+  let status = (await socket.readHandshakeLine()).splitWhitespace()
+  if status.len < 2 or not status[0].startsWith("HTTP/1.") or status[1] != "101":
+    raise connectionError("OBS refused the WebSocket upgrade: " & status.join(" "))
+  var headers = initTable[string, string]()
+  while true:
+    let line = await socket.readHandshakeLine()
+    if line == "\c\L":
+      break
+    if headers.len >= MaxHandshakeHeaders:
+      raise connectionError("OBS sent too many WebSocket upgrade headers.")
+    let separator = line.find(':')
+    if separator <= 0:
+      raise connectionError("OBS sent a malformed WebSocket upgrade header.")
+    headers[line[0 ..< separator].strip().toLowerAscii()] =
+      line[separator + 1 .. ^1].strip()
+  if cmpIgnoreCase(headers.getOrDefault("upgrade"), "websocket") != 0 or
+      not headerHasToken(headers.getOrDefault("connection"), "upgrade"):
+    raise connectionError("OBS did not upgrade the connection to a WebSocket.")
+  if headers.getOrDefault("sec-websocket-accept") != webSocketAccept(key):
+    raise connectionError("OBS sent an invalid Sec-WebSocket-Accept value.")
+  if headers.getOrDefault("sec-websocket-protocol") != ObsSubprotocol:
+    raise connectionError("OBS did not accept the " & ObsSubprotocol &
+      " WebSocket subprotocol.")
+
+proc openWebSocket(url: string, timeoutMs: int): Future[WebSocket] {.async.} =
+  ## Open an upgraded WebSocket, closing its only socket on any failure or timeout.
+  let uri = parseUri(url)
+  if uri.scheme != "ws" or uri.hostname.len == 0:
+    raise connectionError("Unsupported OBS WebSocket URL " & url &
+      "; expected ws://host:port.")
+  let
+    port = Port(if uri.port.len > 0: parseInt(uri.port) else: DefaultWebSocketPort)
+    domain = if uri.hostname.isIpAddress() and
+        uri.hostname.parseIpAddress().family == IpAddressFamily.IPv6: AF_INET6
+      else: AF_INET
+    key = base64.encode(urandom(WebSocketKeyBytes))
+    socket = newAsyncSocket(domain)
+    upgrading = socket.upgrade(uri, port, key)
   var opened = false
   try:
-    opened = await withTimeout(connecting, ObsRequestTimeoutMs)
+    opened = await withTimeout(upgrading, timeoutMs)
   except CatchableError:
+    socket.close()
     raise connectionError("Could not connect to OBS at " & url & ": " &
       getCurrentExceptionMsg())
   if not opened:
-    connecting.addCallback(proc () {.gcsafe.} =
-      if not connecting.failed:
-        connecting.read().hangup())
+    # Closing unregisters the descriptor and fails the abandoned connect or read.
+    socket.close()
     raise newException(ObsTimeoutError, "OBS at " & url &
-      " did not accept the WebSocket within " & $ObsRequestTimeoutMs & " ms.")
+      " did not accept the WebSocket within " & $timeoutMs & " ms.")
+  result = WebSocket(tcpSocket: socket, version: parseInt(WebSocketVersion),
+    key: key, protocol: ObsSubprotocol, readyState: Open, masked: true)
+
+proc connectObs*(url, password: string, onEvent: ObsEventHandler = nil,
+    timeoutMs = ObsRequestTimeoutMs): Future[ObsClient] {.async.} =
+  ## Connect and identify with OBS WebSocket 5, bounding each phase to timeoutMs.
+  ## Every failure closes the connection's socket before raising.
   let client = ObsClient(
     onEvent: onEvent,
-    socket: connecting.read(),
+    socket: await openWebSocket(url, timeoutMs),
     password: password,
     identified: newFuture[void]("obs.identified"),
     open: true
   )
   asyncCheck client.readLoop()
-  if not await withTimeout(client.identified, ObsRequestTimeoutMs):
+  if not await withTimeout(client.identified, timeoutMs):
     client.shutdown("OBS did not identify the session within " &
-      $ObsRequestTimeoutMs & " ms.")
+      $timeoutMs & " ms.")
     raise newException(ObsTimeoutError, client.closeMessage)
   client.identified.read()
   result = client
