@@ -27,7 +27,7 @@
 - `src/knobby/status.nim` - locked authoritative state shared by daemon workers.
 - `src/knobby/fader_cache.nim` - atomic, rate-limited last-known fader display cache.
 - `src/knobby/ipc.nim` - bounded nonblocking local sockets and versioned framing.
-- `src/knobby/daemon_workers.nim` - independent action, Stream Deck, audio, IPC, and cache workers.
+- `src/knobby/daemon_workers.nim` - independent button, fader, Stream Deck, audio, IPC, and cache workers.
 - `src/knobby/obs_worker.nim` - supervised headless OBS helper with bounded queues and no command replay.
 - `src/knobby/obs_state.nim` - authoritative OBS observations and pure state-art selection.
 - `src/knobby/discord_worker.nim`, `controls_state.nim` - isolated Discord RPC supervision and shared observed microphone/control state.

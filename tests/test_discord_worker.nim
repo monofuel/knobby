@@ -112,6 +112,42 @@ suite "Discord worker":
     check fake.sets == @[%*{"mute": false}]
     check not worker.status(1100)["muted"].getBool()
 
+  test "slow successful queries cannot dispatch expired presses":
+    let fake = newFakeDiscord()
+    var
+      clock = 1000'i64
+      backend = fake.transport()
+      slow = false
+    let getVoice = backend.getVoice
+    backend.clock = proc (): int64 = clock
+    backend.getVoice = proc (): JsonNode =
+      if slow: clock += CommandMaxAgeMs + 1
+      getVoice()
+    var worker = newDiscordWorker(backend, nil, nil)
+    worker.step(clock)
+    queueDiscordCommand(ToggleDiscordMute, clock)
+    slow = true
+    worker.step(clock)
+    check fake.sets.len == 0
+    check worker.observation.observedMs == clock
+
+  test "each queued press checks the current clock after earlier commands":
+    let fake = newFakeDiscord()
+    var
+      clock = 1000'i64
+      backend = fake.transport()
+    let setVoice = backend.setVoice
+    backend.clock = proc (): int64 = clock
+    backend.setVoice = proc (settings: JsonNode): JsonNode =
+      clock += CommandMaxAgeMs + 1
+      setVoice(settings)
+    var worker = newDiscordWorker(backend, nil, nil)
+    worker.step(clock)
+    queueDiscordCommand(ToggleDiscordMute, clock)
+    queueDiscordCommand(ToggleDiscordDeafen, clock)
+    worker.step(clock)
+    check fake.sets.len == 1
+
   test "unmuting while deafened also undeafens, and deafen toggles only deaf":
     let fake = newFakeDiscord()
     var worker = newWorker(fake)
@@ -276,5 +312,6 @@ suite "Discord app helpers":
 
   test "process presence matches the installed client name":
     check isDiscordProcessName("Discord\n")
+    check isDiscordProcessName(".Discord-wrappe\n")
     check not isDiscordProcessName("discord-canary")
     check not isDiscordProcessName("Discordo")

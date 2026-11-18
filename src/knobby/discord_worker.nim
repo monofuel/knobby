@@ -18,6 +18,7 @@ type
     setVoice*: proc (settings: JsonNode): JsonNode
     disconnect*: proc ()
     appRunning*: proc (): bool
+    clock*: proc (): int64
   DiscordWorker* = object
     transport*: DiscordTransport
     publish*: proc (observation: DiscordObservation)
@@ -41,6 +42,7 @@ const
   DiscordLaunchCommand* = "Discord"
   DiscordWindowClass* = "discord"
   DiscordProcessName = "Discord"
+  DiscordWrappedProcessName = ".Discord-wrappe"
 
 var
   queueLock: Lock
@@ -84,7 +86,7 @@ proc setDiscordAccepting*(ready: bool, reason = ""): int {.gcsafe.} =
 
 proc isDiscordProcessName*(comm: string): bool =
   ## Report whether a /proc comm value names the installed Discord client.
-  comm.strip() == DiscordProcessName
+  comm.strip() in [DiscordProcessName, DiscordWrappedProcessName]
 
 proc discordProcessRunning*(): bool =
   ## Report whether any process named Discord is running.
@@ -135,6 +137,10 @@ proc newDiscordWorker*(transport: DiscordTransport,
     log: proc (message: string)): DiscordWorker =
   ## Create a disconnected worker that attempts its first connection immediately.
   DiscordWorker(transport: transport, publish: publish, log: log, backoffMs: InitialBackoffMs)
+
+proc clockMs(worker: DiscordWorker, fallback: int64): int64 =
+  ## Re-read production time after blocking calls while allowing deterministic test clocks.
+  if worker.transport.clock.isNil: fallback else: worker.transport.clock()
 
 proc applyVoice(worker: var DiscordWorker, data: JsonNode, nowMs: int64) =
   ## Record observed mute and deafen flags, keeping absent fields unknown.
@@ -191,7 +197,9 @@ proc poll(worker: var DiscordWorker, nowMs: int64) =
   worker.nextPollMs = nowMs + DiscordPollMs
   try:
     let data = worker.transport.getVoice()
-    worker.applyVoice(data, nowMs)
+    let receivedMs = worker.clockMs(nowMs)
+    worker.applyVoice(data, receivedMs)
+    worker.nextPollMs = receivedMs + DiscordPollMs
   except CatchableError as error:
     worker.dropConnection("Discord voice status failed: " & error.msg, nowMs)
 
@@ -234,8 +242,9 @@ proc sendToggle(worker: var DiscordWorker, command: DiscordCommand, nowMs: int64
   if failure.len > 0:
     worker.dropConnection("Discord " & $command & " failed and was not retried: " & failure, nowMs)
   elif reported.hasVoiceState():
-    worker.applyVoice(reported, nowMs)
-    worker.nextPollMs = nowMs + DiscordPollMs
+    let receivedMs = worker.clockMs(nowMs)
+    worker.applyVoice(reported, receivedMs)
+    worker.nextPollMs = receivedMs + DiscordPollMs
   else:
     worker.poll(nowMs)
 
@@ -248,7 +257,11 @@ proc execute(worker: var DiscordWorker, queuedCommand: QueuedDiscordCommand, now
     worker.poll(nowMs)
     if worker.connected:
       if worker.observation.muteKnown and worker.observation.deafKnown:
-        worker.sendToggle(command, nowMs)
+        let dispatchMs = worker.clockMs(nowMs)
+        if dispatchMs - queuedCommand.queuedMs > CommandMaxAgeMs:
+          worker.note("Discord " & $command & " dropped after waiting too long.")
+        else:
+          worker.sendToggle(command, dispatchMs)
       else:
         worker.note("Discord " & $command & " ignored: mute and deafen state unknown.")
 
@@ -262,7 +275,7 @@ proc step*(worker: var DiscordWorker, nowMs: int64) =
   if worker.connected:
     for queuedCommand in takeDiscordCommands():
       if worker.connected:
-        worker.execute(queuedCommand, nowMs)
+        worker.execute(queuedCommand, worker.clockMs(nowMs))
     if worker.connected and nowMs >= worker.nextPollMs:
       worker.poll(nowMs)
   if not worker.publish.isNil:
@@ -302,6 +315,7 @@ proc rpcTransport*(): DiscordTransport =
       client = nil
       closing.close()
   result.appRunning = discordProcessRunning
+  result.clock = controlClockMs
 
 proc writeDiscordLog(message: string) =
   ## Write a Discord lifecycle message to the service log.

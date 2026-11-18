@@ -1,8 +1,35 @@
 import
-  std/[json, monotimes, strutils, times, unittest],
+  std/[json, monotimes, os, strutils, tempfiles, times, unittest],
   knobby/common
 
+const
+  HelperWaitMs = 5000
+  ParallelCommandLimitMs = 400
+
+proc waitingHelper(marker: string) {.thread.} =
+  ## Wait on a harmless subprocess while the test probes another worker's responsiveness.
+  discard runAudioCommand("/bin/sh", @["-c", "echo ready > \"$1\"; sleep 0.7", "fixture", marker])
+
+proc parallelCommandLatency(): int64 =
+  ## Measure a fast command after a different worker has started waiting on a helper.
+  let directory = createTempDir("knobby-parallel-audio-", "")
+  defer: removeDir(directory)
+  let marker = directory / "ready"
+  var worker: Thread[string]
+  createThread(worker, waitingHelper, marker)
+  defer: joinThread(worker)
+  let deadline = getMonoTime() + initDuration(milliseconds = HelperWaitMs)
+  while not fileExists(marker) and getMonoTime() < deadline: sleep(5)
+  if not fileExists(marker): raise newException(IOError, "Parallel command fixture did not start.")
+  let started = getMonoTime()
+  let output = runAudioCommand("/bin/sh", @["-c", "echo ready"])
+  result = (getMonoTime() - started).inMilliseconds
+  if output != "ready\n": raise newException(IOError, "Parallel command fixture did not answer.")
+
 suite "bounded audio commands":
+  test "a waiting desktop helper cannot hold the audio subprocess lock":
+    check parallelCommandLatency() < ParallelCommandLimitMs
+
   test "captures output larger than a pipe buffer":
     let output = runAudioCommand("/bin/sh",
       @["-c", "i=0; while [ $i -lt 10000 ]; do echo abcdefghijklmnop; i=$((i+1)); done"])

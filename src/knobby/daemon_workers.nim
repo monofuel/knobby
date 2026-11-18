@@ -27,7 +27,7 @@ const
 var
   actionLock: Lock
   pending: PendingActions
-  actionThread, deckThread, audioThread, stateThread: Thread[void]
+  actionThread, faderThread, deckThread, audioThread, stateThread: Thread[void]
   persistenceThread: Thread[FaderPositions]
   persistenceStopping: Atomic[bool]
 
@@ -72,8 +72,7 @@ proc queueActions*(events: openArray[MidiEvent]) =
     withLock actionLock: pending.enqueue(faders)
 
 proc runActions() {.thread.} =
-  ## Own action dispatch; Discord toggles are handed to the Discord worker's bounded queue.
-  let dispatcher = newDispatcher()
+  ## Dispatch button actions independently of physical faders and Discord RPC I/O.
   while not shouldStop():
     for captured in takeButtonActions():
       try:
@@ -82,6 +81,12 @@ proc runActions() {.thread.} =
       except CatchableError as error:
         setComponentError("actions", error.msg)
         stderr.writeLine("Button action failed: " & error.msg)
+    sleep(WorkerPollMs)
+
+proc runFaders() {.thread.} =
+  ## Own coalesced fader dispatch so app launchers and desktop helpers cannot stall volume changes.
+  let dispatcher = newDispatcher()
+  while not shouldStop():
     var events: seq[MidiEvent]
     {.cast(gcsafe).}:
       withLock actionLock: events = pending.drain()
@@ -279,6 +284,7 @@ proc startDeviceWorkers*() =
   pending = emptyActions()
   persistenceStopping.store(false)
   createThread(actionThread, runActions)
+  createThread(faderThread, runFaders)
   createThread(deckThread, runDeck)
   createThread(audioThread, runAudio)
   createThread(stateThread, runStateServer)
@@ -289,6 +295,7 @@ proc stopDeviceWorkers*() =
   requestStop()
   persistenceStopping.store(true)
   joinThread(actionThread)
+  joinThread(faderThread)
   joinThread(deckThread)
   joinThread(audioThread)
   joinThread(stateThread)

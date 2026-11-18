@@ -36,16 +36,19 @@ proc refreshProbeLatency(): int64 =
     directory = createTempDir("knobby-token-refresh-", "")
     previousPath = getEnv("PATH")
     previousConfig = getEnv("XDG_CONFIG_HOME")
+    previousRuntime = getEnv("XDG_RUNTIME_DIR")
     ready = directory / "ready"
   defer:
     putEnv("PATH", previousPath)
     putEnv("XDG_CONFIG_HOME", previousConfig)
+    putEnv("XDG_RUNTIME_DIR", previousRuntime)
     delEnv(ReadyVariable)
     removeDir(directory)
   copyFile(getAppFilename(), directory / "curl")
   setFilePermissions(directory / "curl", {fpUserRead, fpUserWrite, fpUserExec})
   putEnv("PATH", directory & ":" & previousPath)
   putEnv("XDG_CONFIG_HOME", directory / "config")
+  putEnv("XDG_RUNTIME_DIR", directory / "runtime")
   putEnv(ReadyVariable, ready)
   var worker: Thread[void]
   createThread(worker, refreshFixture)

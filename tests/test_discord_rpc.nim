@@ -42,7 +42,7 @@ suite "RPC failure bounds":
       pair.client.close()
       pair.peer.close()
     pair.peer.send(encodeFrame(FrameOp,
-      "{\"nonce\":\"1\",\"evt\":\"ERROR\",\"data\":{\"code\":4003,\"message\":\"fixture rejection\"}}"))
+      "{\"nonce\":\"1\",\"evt\":\"ERROR\",\"data\":{\"code\":4009,\"message\":\"fixture rejection\"}}"))
     expect DiscordRpcError:
       discard pair.client.authenticate("fixture-token")
 

@@ -44,54 +44,65 @@ const
   AudioCommandTimeoutMs = 1000
   AudioCommandPollMs = 5
 
-proc runAudioCommand*(command: string, args: seq[string]): string =
-  ## Return stdout within a deadline, draining stderr separately and retaining it on failure.
+proc spawnAudioCommand(command: string, args: seq[string]): Process =
+  ## Serialize pipe creation and prevent later children from inheriting this command's handles.
   withLock spawnLock:
-    let
-      process = startProcess(command, args = args,
-        options = {poUsePath})
-      started = getMonoTime()
-      handles = [process.outputHandle.cint, process.errorHandle.cint]
-    defer:
-      if running(process):
-        kill(process)
-      discard waitForExit(process)
-      close(process)
-    for handle in handles:
-      let flags = fcntl(handle, F_GETFL, 0)
-      if flags < 0 or fcntl(handle, F_SETFL, flags or O_NONBLOCK) < 0:
-        raiseOSError(osLastError())
-    var
-      buffer: array[4096, char]
-      captured: array[2, string]
-      ended: array[2, bool]
-    while not (ended[0] and ended[1]):
-      var received = false
-      for pipe, handle in handles:
-        if ended[pipe]: continue
-        let size = posix.read(handle, addr buffer[0], buffer.len)
-        if size > 0:
-          received = true
-          for index in 0..<int(size):
-            captured[pipe].add(buffer[index])
-        elif size == 0:
-          ended[pipe] = true
-        elif errno != EAGAIN and errno != EINTR:
+    result = startProcess(command, args = args, options = {poUsePath})
+    try:
+      for handle in [result.inputHandle.cint, result.outputHandle.cint, result.errorHandle.cint]:
+        let flags = fcntl(handle, F_GETFD, 0)
+        if flags < 0 or fcntl(handle, F_SETFD, flags or FD_CLOEXEC) < 0:
           raiseOSError(osLastError())
-      if (getMonoTime() - started).inMilliseconds >= AudioCommandTimeoutMs:
-        raise newException(OSError, command & " " & args.join(" ") &
-          ": timed out after " & $AudioCommandTimeoutMs & " ms.")
-      if not received and not (ended[0] and ended[1]):
-        sleep(AudioCommandPollMs)
-    while running(process):
-      if (getMonoTime() - started).inMilliseconds >= AudioCommandTimeoutMs:
-        raise newException(OSError, command & " " & args.join(" ") & ": timed out.")
-      sleep(AudioCommandPollMs)
-    let exitCode = waitForExit(process)
-    if exitCode != 0:
+    except CatchableError:
+      if result.running(): result.kill()
+      discard result.waitForExit()
+      result.close()
+      raise
+
+proc runAudioCommand*(command: string, args: seq[string]): string =
+  ## Capture bounded stdout/stderr without holding other workers behind process I/O.
+  let
+    process = spawnAudioCommand(command, args)
+    started = getMonoTime()
+    handles = [process.outputHandle.cint, process.errorHandle.cint]
+  defer:
+    if running(process): kill(process)
+    discard waitForExit(process)
+    close(process)
+  for handle in handles:
+    let flags = fcntl(handle, F_GETFL, 0)
+    if flags < 0 or fcntl(handle, F_SETFL, flags or O_NONBLOCK) < 0:
+      raiseOSError(osLastError())
+  var
+    buffer: array[4096, char]
+    captured: array[2, string]
+    ended: array[2, bool]
+  while not (ended[0] and ended[1]):
+    var received = false
+    for pipe, handle in handles:
+      if ended[pipe]: continue
+      let size = posix.read(handle, addr buffer[0], buffer.len)
+      if size > 0:
+        received = true
+        for index in 0..<int(size): captured[pipe].add(buffer[index])
+      elif size == 0:
+        ended[pipe] = true
+      elif errno != EAGAIN and errno != EINTR:
+        raiseOSError(osLastError())
+    if (getMonoTime() - started).inMilliseconds >= AudioCommandTimeoutMs:
       raise newException(OSError, command & " " & args.join(" ") &
-        ": exit " & $exitCode & ": " & captured[0].strip() & "\n" & captured[1].strip())
-    result = move(captured[0])
+        ": timed out after " & $AudioCommandTimeoutMs & " ms.")
+    if not received and not (ended[0] and ended[1]):
+      sleep(AudioCommandPollMs)
+  while running(process):
+    if (getMonoTime() - started).inMilliseconds >= AudioCommandTimeoutMs:
+      raise newException(OSError, command & " " & args.join(" ") & ": timed out.")
+    sleep(AudioCommandPollMs)
+  let exitCode = waitForExit(process)
+  if exitCode != 0:
+    raise newException(OSError, command & " " & args.join(" ") &
+      ": exit " & $exitCode & ": " & captured[0].strip() & "\n" & captured[1].strip())
+  result = move(captured[0])
 
 
 const

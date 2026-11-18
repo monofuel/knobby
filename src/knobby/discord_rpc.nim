@@ -185,7 +185,11 @@ proc saveDiscordCreds*(creds: DiscordCreds) =
 
 proc requestToken(creds: DiscordCreds, grantParams: seq[string]): JsonNode =
   ## POST a grant without holding the shared subprocess lock during network I/O.
-  let (responseFile, responsePath) = createTempFile("knobby-discord-token-", ".json")
+  let
+    runtimeDirectory = getEnv("XDG_RUNTIME_DIR")
+    directory = if runtimeDirectory.len > 0: runtimeDirectory / "knobby" else: getTempDir()
+  createDir(directory)
+  let (responseFile, responsePath) = createTempFile("knobby-discord-token-", ".json", directory)
   responseFile.close()
   defer: removeFile(responsePath)
   var args = @[
@@ -199,11 +203,14 @@ proc requestToken(creds: DiscordCreds, grantParams: seq[string]): JsonNode =
     args.add("--data-urlencode")
     args.add(param)
   let process = spawnCommand("curl", args, {poUsePath, poParentStreams})
-  defer: process.close()
+  defer:
+    if process.running():
+      process.kill()
+      discard process.waitForExit()
+    process.close()
+  let started = getMonoTime()
   let exitCode = process.waitForExit(TokenRequestTimeoutMs)
-  if exitCode == -1:
-    process.kill()
-    discard process.waitForExit()
+  if exitCode == 28 or (getMonoTime() - started).inMilliseconds >= TokenRequestTimeoutMs:
     raise newException(IOError, "Discord token request timed out.")
   if exitCode != 0:
     raise newException(IOError, "Discord token request failed: curl exited " & $exitCode & ".")
