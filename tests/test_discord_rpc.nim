@@ -1,5 +1,5 @@
 import
-  std/[net, nativesockets, posix, unittest],
+  std/[json, monotimes, net, nativesockets, posix, strutils, times, unittest],
   knobby/discord_rpc
 
 suite "uint32 little-endian codec":
@@ -75,3 +75,65 @@ suite "RPC failure bounds":
     pair.peer.send(frames)
     expect IOError:
       discard pair.client.getVoiceSettings()
+
+const
+  TransportBoundMs = 2000
+  StalledPayloadBytes = 8 * 1024 * 1024
+
+proc elapsedMs(started: MonoTime): int64 =
+  ## Return milliseconds elapsed since the start time.
+  result = (getMonoTime() - started).inMilliseconds
+
+suite "transport failures are bounded":
+  test "request to a closed peer fails without spinning or SIGPIPE":
+    let pair = rpcPair()
+    defer: pair.client.close()
+    pair.peer.close()
+    let started = getMonoTime()
+    expect CatchableError:
+      discard pair.client.getVoiceSettings()
+    check started.elapsedMs() < TransportBoundMs
+
+  test "peer closing after a partial header fails promptly":
+    let pair = rpcPair()
+    defer:
+      pair.client.close()
+      pair.peer.close()
+    pair.peer.send(encodeUint32Le(FrameOp) & "\x10")
+    doAssert shutdown(pair.peer.getFd(), SHUT_WR) == 0
+    let started = getMonoTime()
+    expect IOError:
+      discard pair.client.getVoiceSettings()
+    check started.elapsedMs() < TransportBoundMs
+
+  test "peer closing after a partial payload fails promptly":
+    let pair = rpcPair()
+    defer:
+      pair.client.close()
+      pair.peer.close()
+    pair.peer.send(encodeUint32Le(FrameOp) & encodeUint32Le(64) & "{\"nonce\"")
+    doAssert shutdown(pair.peer.getFd(), SHUT_WR) == 0
+    let started = getMonoTime()
+    expect IOError:
+      discard pair.client.getVoiceSettings()
+    check started.elapsedMs() < TransportBoundMs
+
+  test "idle peer response times out":
+    let pair = rpcPair()
+    defer:
+      pair.client.close()
+      pair.peer.close()
+    let started = getMonoTime()
+    expect IOError:
+      discard pair.client.getVoiceSettings()
+    check started.elapsedMs() < TransportBoundMs
+
+  test "peer that stops reading cannot stall a send":
+    let pair = rpcPair()
+    defer:
+      pair.client.close()
+      pair.peer.close()
+    let started = getMonoTime()
+    expect IOError:
+      discard pair.client.setVoiceSettings(%*{"padding": repeat('x', StalledPayloadBytes)})
+    check started.elapsedMs() < TransportBoundMs

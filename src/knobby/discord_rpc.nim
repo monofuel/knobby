@@ -1,5 +1,5 @@
 import
-  std/[json, monotimes, net, os, osproc, posix, strformat, tempfiles, times],
+  std/[json, monotimes, nativesockets, net, os, osproc, posix, strformat, tempfiles, times],
   ./common
 
 type
@@ -7,7 +7,7 @@ type
     ## An explicit RPC rejection, distinct from a broken socket or response timeout.
   DiscordRpcClient* = ref object
     socket: Socket
-    recvTimeoutMs*: int
+    recvTimeoutMs*: int  ## Deadline for one whole request: send plus response.
     nonceCounter: int
 
   DiscordCreds* = object
@@ -67,7 +67,9 @@ proc findDiscordSocketPath*(): string =
       return path
 
 proc newDiscordRpcClient*(socket: Socket, timeoutMs = DefaultRecvTimeoutMs): DiscordRpcClient =
-  ## Wrap a connected socket with a bounded RPC response timeout.
+  ## Wrap a connected socket with a bounded RPC response timeout. The socket
+  ## becomes nonblocking so every read and write is bounded by poll deadlines.
+  socket.getFd().setBlocking(false)
   result = DiscordRpcClient(socket: socket, recvTimeoutMs: timeoutMs)
 
 proc connectDiscordRpc*(): DiscordRpcClient =
@@ -84,20 +86,64 @@ proc close*(client: DiscordRpcClient) =
   ## Close the IPC connection.
   client.socket.close()
 
-proc recvExactly(client: DiscordRpcClient, size: int, deadline: MonoTime): string =
-  ## Read exactly the requested number of bytes from the socket.
-  while result.len < size:
-    let remaining = (deadline - getMonoTime()).inMilliseconds
-    if remaining <= 0:
-      raise newException(IOError, "Discord RPC response deadline exceeded.")
-    let chunk = client.socket.recv(size - result.len, int(remaining))
-    if chunk.len == 0:
-      raise newException(IOError, "Discord IPC socket closed.")
-    result.add(chunk)
+proc remainingMs(deadline: MonoTime): int =
+  ## Return the whole milliseconds left before the deadline.
+  result = int((deadline - getMonoTime()).inMilliseconds)
 
-proc sendFrame(client: DiscordRpcClient, op: int, payload: JsonNode) =
-  ## Send one IPC frame.
-  client.socket.send(encodeFrame(op, $payload))
+proc waitReady(client: DiscordRpcClient, events: cshort, deadline: MonoTime) =
+  ## Wait until the socket is ready for the events or has hung up, raising
+  ## IOError once the deadline passes.
+  var ready = false
+  while not ready:
+    let remaining = deadline.remainingMs()
+    if remaining <= 0:
+      raise newException(IOError, "Discord RPC deadline exceeded.")
+    var fds = [TPollfd(fd: client.socket.getFd().cint, events: events)]
+    let count = poll(addr fds[0], 1, cint(remaining))
+    if count < 0 and osLastError().int32 != EINTR:
+      raise newException(IOError, "Discord IPC poll failed: " & osErrorMsg(osLastError()))
+    ready = count > 0
+
+proc isRetryable(error: OSErrorCode): bool =
+  ## Report whether a nonblocking socket call should wait and try again.
+  result = error.int32 in [EINTR, EAGAIN, EWOULDBLOCK]
+
+proc recvExactly(client: DiscordRpcClient, size: int, deadline: MonoTime): string =
+  ## Read exactly the requested number of bytes before the deadline. Each read
+  ## is nonblocking, so end of stream and peer resets raise instead of looping.
+  result = newString(size)
+  var received = 0
+  while received < size:
+    client.waitReady(POLLIN, deadline)
+    let count = recv(client.socket.getFd(), addr result[received],
+      size - received, 0)
+    if count == 0:
+      raise newException(IOError, "Discord IPC socket closed.")
+    if count < 0:
+      let error = osLastError()
+      if not error.isRetryable():
+        raise newException(IOError, "Discord IPC receive failed: " & osErrorMsg(error))
+    else:
+      received += count
+
+proc sendAll(client: DiscordRpcClient, data: string, deadline: MonoTime) =
+  ## Write all bytes before the deadline without SIGPIPE. Each write is
+  ## nonblocking, so a closed or stalled reader raises instead of spinning.
+  var written = 0
+  while written < data.len:
+    client.waitReady(POLLOUT, deadline)
+    let count = send(client.socket.getFd(), unsafeAddr data[written],
+      data.len - written, MSG_NOSIGNAL)
+    if count < 0:
+      let error = osLastError()
+      if not error.isRetryable():
+        raise newException(IOError, "Discord IPC send failed: " & osErrorMsg(error))
+    else:
+      written += count
+
+proc sendFrame(client: DiscordRpcClient, op: int, payload: JsonNode, deadline: MonoTime) =
+  ## Send one IPC frame before the deadline.
+  client.sendAll(encodeFrame(op, $payload), deadline)
 
 proc recvFrame(client: DiscordRpcClient, deadline: MonoTime): (int, JsonNode) =
   ## Receive one IPC frame as its opcode and parsed payload.
@@ -113,8 +159,8 @@ proc request(client: DiscordRpcClient, cmd: string, args: JsonNode): JsonNode =
   ## unrelated dispatch events and raising on an error response.
   inc client.nonceCounter
   let nonce = $client.nonceCounter
-  client.sendFrame(FrameOp, %*{"cmd": cmd, "args": args, "nonce": nonce})
   let deadline = getMonoTime() + initDuration(milliseconds = client.recvTimeoutMs)
+  client.sendFrame(FrameOp, %*{"cmd": cmd, "args": args, "nonce": nonce}, deadline)
   for frame in 0..<MaxResponseFrames:
     let (op, payload) = client.recvFrame(deadline)
     if op == CloseOp:
@@ -129,9 +175,9 @@ proc request(client: DiscordRpcClient, cmd: string, args: JsonNode): JsonNode =
 
 proc handshake*(client: DiscordRpcClient, clientId: string): JsonNode =
   ## Perform the IPC handshake and return the READY dispatch payload.
-  client.sendFrame(HandshakeOp, %*{"v": RpcVersion, "client_id": clientId})
-  let (op, payload) = client.recvFrame(getMonoTime() +
-    initDuration(milliseconds = client.recvTimeoutMs))
+  let deadline = getMonoTime() + initDuration(milliseconds = client.recvTimeoutMs)
+  client.sendFrame(HandshakeOp, %*{"v": RpcVersion, "client_id": clientId}, deadline)
+  let (op, payload) = client.recvFrame(deadline)
   if op != FrameOp:
     raise newException(IOError, fmt"Discord rejected the handshake: {payload}")
   result = payload
