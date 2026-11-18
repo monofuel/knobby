@@ -36,6 +36,20 @@ type
     display*: XDisplay
     root*: XId
     screen*: cint
+  XErrorEvent* = object
+    kind*: cint
+    display*: XDisplay
+    resourceId*: XId
+    serial*: culong
+    errorCode*, requestCode*, minorCode*: uint8
+  XErrorHandler* = proc (display: XDisplay, event: ptr XErrorEvent): cint {.cdecl.}
+  ClientErrorTrap = object
+    display: XDisplay
+    previous: XErrorHandler
+    probing: XId
+    vanished: bool
+    unexpected: XErrorEvent
+    failed: bool
 
 const
   LibX11 = "libX11.so(|.6)"
@@ -56,6 +70,11 @@ const
   MaxPropertyLongs = clong(4096)
   StrutPartialFields = 12
   StrutFields = 4
+  BadWindow = 3'u8
+  GetPropertyRequest = 20'u8
+  FrameReadyProperty* = "_KNOBBY_OVERLAY_FRAME"
+
+var clientErrorTrap: ClientErrorTrap
 
 {.push cdecl, importc, dynlib: LibX11.}
 proc XOpenDisplay(name: cstring): XDisplay
@@ -78,6 +97,8 @@ proc XGetWindowProperty(display: XDisplay, window: XId, property: Atom, offset, 
   delete: cint, requested: Atom, actualType: ptr Atom, actualFormat: ptr cint,
   count, remaining: ptr culong, data: ptr pointer): cint
 proc XFree(data: pointer): cint
+proc XDeleteProperty(display: XDisplay, window: XId, property: Atom): cint
+proc XSetErrorHandler*(handler: XErrorHandler): XErrorHandler
 proc XMoveWindow(display: XDisplay, window: XId, x, y: cint): cint
 proc XRaiseWindow(display: XDisplay, window: XId): cint
 proc XQueryTree(display: XDisplay, window: XId, root, parent: ptr XId,
@@ -85,6 +106,8 @@ proc XQueryTree(display: XDisplay, window: XId, root, parent: ptr XId,
 proc XGetImage(display: XDisplay, drawable: XId, x, y: cint, width, height: cuint,
   planes: culong, format: cint): ptr XImage
 {.pop.}
+
+proc glXGetCurrentDisplay(): XDisplay {.cdecl, importc, dynlib: "libGL.so(|.1)".}
 
 {.push cdecl, importc, dynlib: LibXext.}
 proc XShapeQueryExtension(display: XDisplay, eventBase, errorBase: ptr cint): cint
@@ -166,23 +189,61 @@ proc monitors*(x11: OverlayX11): seq[Monitor] =
       bounds: PixelRect(x: info.x, y: info.y, width: info.width, height: info.height)))
     if not name.isNil: discard XFree(name)
 
+proc trapClientErrors(display: XDisplay, event: ptr XErrorEvent): cint {.cdecl.} =
+  ## Record client-discovery errors without raising through Xlib's C callback.
+  ## Errors from other connections, such as Windy's, still reach their own handler.
+  let trap = clientErrorTrap.addr
+  if event.display != trap.display:
+    if not trap.previous.isNil:
+      result = trap.previous(display, event)
+  elif event.errorCode == BadWindow and event.requestCode == GetPropertyRequest and
+      event.resourceId == trap.probing and trap.probing != 0:
+    trap.vanished = true
+  elif not trap.failed:
+    trap.unexpected = event[]
+    trap.failed = true
+
+proc clientStrut(x11: OverlayX11, client: XId, partial, full: Atom,
+    width, height: int): seq[Strut] =
+  ## Read one client's strut, returning nothing when the client vanished meanwhile.
+  clientErrorTrap.probing = client
+  clientErrorTrap.vanished = false
+  let values = x11.longs(client, partial, XaCardinal)
+  if clientErrorTrap.vanished:
+    return
+  if values.len >= StrutPartialFields:
+    result.add(Strut(left: values[0], right: values[1], top: values[2], bottom: values[3],
+      leftStartY: values[4], leftEndY: values[5], rightStartY: values[6], rightEndY: values[7],
+      topStartX: values[8], topEndX: values[9], bottomStartX: values[10], bottomEndX: values[11]))
+  else:
+    let legacy = x11.longs(client, full, XaCardinal)
+    if legacy.len >= StrutFields and not clientErrorTrap.vanished:
+      result.add(Strut(left: legacy[0], right: legacy[1], top: legacy[2], bottom: legacy[3],
+        leftEndY: height - 1, rightEndY: height - 1, topEndX: width - 1, bottomEndX: width - 1))
+
 proc struts*(x11: OverlayX11): seq[Strut] =
   ## Read panel reservations from managed clients, preferring partial struts.
+  ## Clients listed in _NET_CLIENT_LIST may be destroyed before their properties are read;
+  ## those are skipped, and any other X error is raised after the previous handler returns.
   let
     (width, height) = x11.rootSize()
     partial = x11.atom("_NET_WM_STRUT_PARTIAL")
     full = x11.atom("_NET_WM_STRUT")
-  for client in x11.longs(x11.root, x11.atom("_NET_CLIENT_LIST"), XaWindow):
-    let values = x11.longs(XId(client), partial, XaCardinal)
-    if values.len >= StrutPartialFields:
-      result.add(Strut(left: values[0], right: values[1], top: values[2], bottom: values[3],
-        leftStartY: values[4], leftEndY: values[5], rightStartY: values[6], rightEndY: values[7],
-        topStartX: values[8], topEndX: values[9], bottomStartX: values[10], bottomEndX: values[11]))
-    else:
-      let legacy = x11.longs(XId(client), full, XaCardinal)
-      if legacy.len >= StrutFields:
-        result.add(Strut(left: legacy[0], right: legacy[1], top: legacy[2], bottom: legacy[3],
-          leftEndY: height - 1, rightEndY: height - 1, topEndX: width - 1, bottomEndX: width - 1))
+  x11.sync()
+  clientErrorTrap = ClientErrorTrap(display: x11.display)
+  clientErrorTrap.previous = XSetErrorHandler(trapClientErrors)
+  try:
+    for client in x11.longs(x11.root, x11.atom("_NET_CLIENT_LIST"), XaWindow):
+      result.add(x11.clientStrut(XId(client), partial, full, width, height))
+    clientErrorTrap.probing = 0
+    x11.sync()
+  finally:
+    discard XSetErrorHandler(clientErrorTrap.previous)
+    clientErrorTrap.display = nil
+  if clientErrorTrap.failed:
+    let error = clientErrorTrap.unexpected
+    raise newException(IOError, "X error " & $error.errorCode & " for request " &
+      $error.requestCode & " on resource " & $error.resourceId & " while reading panel struts.")
 
 proc overlayPlacement*(x11: OverlayX11): tuple[monitor: Monitor, x, y: int] =
   ## Place the overlay at the bottom center of the primary monitor's usable area.
@@ -237,6 +298,20 @@ proc move*(x11: OverlayX11, window: XId, x, y: int) =
   ## Move an override-redirect window directly.
   discard XMoveWindow(x11.display, window, x.cint, y.cint)
   discard XFlush(x11.display)
+
+proc markFrameReady*(x11: OverlayX11, window: XId) =
+  ## Publish that the current GL frame reached the X server, for isolated acceptance checks.
+  ## The renderer's own GLX connection is synced first so the frame precedes the marker.
+  discard XSync(glXGetCurrentDisplay(), 0)
+  var ready = [clong(1)]
+  discard XChangeProperty(x11.display, window, x11.atom(FrameReadyProperty), XaCardinal, 32,
+    PropModeReplace, ready[0].addr, ready.len.cint)
+  x11.sync()
+
+proc clearFrameReady*(x11: OverlayX11, window: XId) =
+  ## Withdraw the frame marker so the next mapping must present a new frame.
+  discard XDeleteProperty(x11.display, window, x11.atom(FrameReadyProperty))
+  x11.sync()
 
 proc stacking*(x11: OverlayX11): seq[XId] =
   ## Return the root's children from bottom to top.

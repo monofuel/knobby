@@ -57,6 +57,8 @@ const
   PropModeReplace = cint(0)
   XaAtom = Atom(4)
   XaCardinal = Atom(6)
+  XaWindow = Atom(33)
+  PlacementSettleMs = 1200
   StateIntervalMs = 50
   ShowLimitMs = 1500
   HideLimitMs = 700
@@ -86,6 +88,7 @@ proc XSetSelectionOwner(display: XDisplay, selection: Atom, owner: XId, time: cu
 proc XChangeProperty(display: XDisplay, window: XId, property, kind: Atom, format, mode: cint,
   data: pointer, count: cint): cint
 proc XSetWMNormalHints(display: XDisplay, window: XId, hints: ptr XSizeHints)
+proc XMoveWindow(display: XDisplay, window: XId, x, y: cint): cint
 {.pop.}
 
 {.push cdecl, importc, dynlib: "libXrandr.so(|.2)".}
@@ -266,6 +269,50 @@ proc createFixture(x11: OverlayX11): Fixture =
   discard XMapWindow(x11.display, result.dock)
   x11.sync()
 
+proc checkPixel(image: Image, x, y: int, expected: ColorRGBX, message: string) =
+  ## Fail with the actual and expected pixel values at one screenshot position.
+  let actual = image[x, y]
+  check actual == expected, message & " At (" & $x & ", " & $y & ") expected " & $expected &
+    " but found " & $actual & "."
+
+var recordedErrors: int
+
+proc recordError(display: XDisplay, event: ptr XErrorEvent): cint {.cdecl.} =
+  ## Count X errors that reach the test's own handler instead of the struts trap.
+  inc recordedErrors
+
+proc setClients(x11: OverlayX11, clients: seq[int]) =
+  ## Replace the root _NET_CLIENT_LIST and wait for the server to apply it.
+  var values: seq[clong]
+  for client in clients: values.add(clong(client))
+  x11.setProperty(x11.root, "_NET_CLIENT_LIST", XaWindow, values)
+  x11.sync()
+
+proc listStaleClient(x11: OverlayX11): tuple[original: seq[int], stale: XId] =
+  ## Append a destroyed window id to _NET_CLIENT_LIST, returning the original list.
+  result.original = x11.longs(x11.root, x11.atom("_NET_CLIENT_LIST"), XaWindow)
+  result.stale = XCreateSimpleWindow(x11.display, x11.root, 0, 0, 1, 1, 0, 0, 0)
+  discard XDestroyWindow(x11.display, result.stale)
+  x11.setClients(result.original & @[result.stale.int])
+
+proc restoreClients(x11: OverlayX11, original: seq[int]) =
+  ## Restore the window manager's client list after a stale-client check.
+  x11.setClients(original)
+  check x11.longs(x11.root, x11.atom("_NET_CLIENT_LIST"), XaWindow) == original,
+    "The client list was not restored."
+
+proc checkStaleClients(x11: OverlayX11, expected: seq[Strut]) =
+  ## Put a destroyed window in _NET_CLIENT_LIST and require strut discovery to skip it.
+  let (original, stale) = x11.listStaleClient()
+  let previous = XSetErrorHandler(recordError)
+  check x11.struts() == expected, "A destroyed client changed the discovered struts."
+  check recordedErrors == 0, "A vanished client error escaped the struts trap."
+  discard XMoveWindow(x11.display, stale, 0, 0)
+  check x11.struts() == expected, "A destroyed client changed the discovered struts."
+  check recordedErrors == 1, "An error from before discovery must reach the outer handler, not the trap."
+  check XSetErrorHandler(previous) == recordError, "Strut discovery did not restore the error handler."
+  x11.restoreClients(original)
+
 proc covered(x11: OverlayX11, window: XId, x, y: int): bool =
   ## Report whether a root point lies inside a window's top-level frame.
   let
@@ -379,6 +426,9 @@ proc main() =
   check daemon.pump(x11, fixture, ShowLimitMs, proc (): bool = x11.viewable(overlay)),
     "The overlay did not appear after a help request."
   let shownMs = monotonicMs() - requestedMs
+  check daemon.pump(x11, fixture, ShowLimitMs, proc (): bool =
+    x11.longs(overlay, x11.atom(FrameReadyProperty), XaCardinal) == @[1]),
+    "The mapped overlay never reported a presented frame."
   check daemon.pump(x11, fixture, MoveLimitMs, proc (): bool =
     let a = x11.attributes(overlay)
     (a.x.int, a.y.int) == (ExpectedX, ExpectedY)), "The overlay is not at the bottom center of DP-1."
@@ -402,13 +452,21 @@ proc main() =
     origin = (ExtraScreenshotMargin, ExtraScreenshotMargin)
     cards = overlayCards(nil)
   discard x11.screenshot(0, 0, ScreenWidth, ScreenHeight, directory / "overlay-desktop.png")
-  check shot[origin[0] + CardWidth + CardGap div 2, origin[1] + CardHeight div 2] == FixtureRgb,
-    "The gap between cards must show the application below."
-  check shot[2, 2] == FixtureRgb, "The space around the cards must show the application below."
-  check shot[origin[0] + 1, origin[1] + 1] == rgbx(107, 187, 176, 255), "Card border must be opaque."
-  check shot[origin[0] + CardWidth - 4, origin[1] + CardHeight - 4] == rgbx(19, 22, 28, 255),
-    "Without a compositor the card fill must be opaque."
+  shot.checkPixel(origin[0] + CardWidth + CardGap div 2, origin[1] + CardHeight div 2, FixtureRgb,
+    "The gap between cards must show the application below.")
+  shot.checkPixel(2, 2, FixtureRgb, "The space around the cards must show the application below.")
+  shot.checkPixel(origin[0] + 1, origin[1] + 1, rgbx(107, 187, 176, 255), "Card border must be opaque.")
+  shot.checkPixel(origin[0] + CardWidth - 4, origin[1] + CardHeight - 4, rgbx(19, 22, 28, 255),
+    "Without a compositor the card fill must be opaque.")
   shot.checkGlyph(cards[0], "Grok", "Body", atlas, texture, origin)
+
+  let fixtureStruts = x11.struts()
+  x11.checkStaleClients(fixtureStruts)
+  let staleClients = x11.listStaleClient()
+  discard daemon.pump(x11, fixture, PlacementSettleMs)
+  check process.running and x11.viewable(overlay), "A destroyed listed client stopped the renderer."
+  x11.restoreClients(staleClients.original)
+  check x11.struts() == fixtureStruts, "Restoring the client list changed the fixture struts."
 
   let
     cardPoint = (ExpectedX + CardWidth div 2, ExpectedY + CardHeight div 2)

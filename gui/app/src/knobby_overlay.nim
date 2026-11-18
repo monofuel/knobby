@@ -11,7 +11,7 @@ type
     sk: Silky
     x11: OverlayX11
     id: XId
-    argb, translucent, shown: bool
+    argb, translucent, shown, frameReady: bool
     placed: tuple[x, y: int]
     nextPlacementMs, nextStackingMs, nextCompositorMs: int64
 
@@ -147,7 +147,8 @@ proc show(overlay: Overlay, nowMs: int64) =
   ## Map the overlay above other windows without focusing or activating it.
   overlay.place()
   overlay.translucent = overlay.argb and overlay.x11.compositorPresent()
-  overlay.x11.sync()
+  overlay.x11.clearFrameReady(overlay.id)
+  overlay.frameReady = false
   overlay.window.visible = true
   overlay.shown = true
   overlay.x11.keepAbove(overlay.id)
@@ -173,6 +174,9 @@ proc tick(overlay: Overlay, catalog: JsonNode, nowMs: int64) =
     overlay.nextCompositorMs = nowMs + CompositorIntervalMs
   overlay.sk.render(overlay.window, catalog, overlay.translucent)
   overlay.window.swapBuffers()
+  if not overlay.frameReady:
+    overlay.x11.markFrameReady(overlay.id)
+    overlay.frameReady = true
 
 proc smokeCatalog(): JsonNode =
   ## Describe the compiled bindings plus a long label and an unassigned slot for isolated checks.
