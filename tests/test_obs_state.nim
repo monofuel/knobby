@@ -3,10 +3,10 @@ import
   knobby/obs_state
 
 proc status(connected = true, workspaceReady = true, recording = false,
-    paused = false, micMuted: JsonNode = %false): JsonNode =
+    paused = false, micMuted: JsonNode = %false, minecraftReady = true): JsonNode =
   ## Build a helper-shaped OBS status snapshot.
   result = %*{"connected": connected, "workspaceReady": workspaceReady,
-    "minecraftReady": true, "recording": recording, "paused": paused,
+    "minecraftReady": minecraftReady, "recording": recording, "paused": paused,
     "transitioning": false, "error": ""}
   if not micMuted.isNil:
     result["micMuted"] = micMuted
@@ -64,6 +64,21 @@ suite "OBS state":
       check isObsOperation(operation)
       check obsOperationDescription(operation).len > 0
     check not isObsOperation("stream")
+
+  test "missing Minecraft blocks idle recording but keeps actual output state":
+    let notReady = status(minecraftReady = false)
+    check obsVisualState("recordToggle", notReady) == "unavailable"
+    check obsVisualState("pauseToggle", notReady) == "unavailable"
+    check obsVisualState("recordToggle",
+      status(recording = true, minecraftReady = false)) == "recording"
+    check obsVisualState("recordToggle",
+      status(recording = true, paused = true, minecraftReady = false)) == "paused"
+    check obsVisualState("pauseToggle",
+      status(recording = true, minecraftReady = false)) == "recording"
+    check obsVisualState("pauseToggle",
+      status(recording = true, paused = true, minecraftReady = false)) == "paused"
+    check obsVisualState("micToggle", notReady) == ""
+    check obsVisualState("open", notReady) == ""
 
   test "selection returns a prepared variant or the base entry":
     let entry = variantEntry()

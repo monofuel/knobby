@@ -1,9 +1,9 @@
 import
   std/[asyncdispatch, deques, json, monotimes, strutils],
-  ./obs_client
+  ./[obs_client, minecraft_window]
 
 const
-  ObsBridgeOperations* = ["recordToggle", "pauseToggle", "micToggle", "open"]
+  ObsBridgeOperations* = ["recordToggle", "pauseToggle", "micToggle", "open", "minecraft1080"]
   MaxCommandBacklog* = 16
   ReconnectDelayMs* = 1000
   HeartbeatMs* = 1000
@@ -36,6 +36,8 @@ type
     obsRunning*: proc (): bool {.gcsafe.}
     launchObs*: proc () {.gcsafe.}
     focusObs*: proc () {.gcsafe.}
+    audioTarget*: proc (): string {.gcsafe.}
+    videoTarget*: proc (): string {.gcsafe.}
     emit*: proc (line: JsonNode) {.gcsafe.}
     log*: proc (message: string) {.gcsafe.}
 
@@ -201,7 +203,7 @@ proc workspaceError(snapshot: WorkspaceSnapshot): string =
     result = "OBS input \"" & ObsMicName & "\" is missing."
 
 proc bindMinecraftInput*(client: ObsClient, inputName,
-    inputKind: string): Future[bool] {.async.} =
+    inputKind: string, exactTarget = ""): Future[bool] {.async.} =
   ## Point an input at Minecraft when it is present; never fall back to another target.
   ## Returns whether the input now targets Minecraft.
   let property = minecraftTargetProperty(inputKind)
@@ -212,6 +214,19 @@ proc bindMinecraftInput*(client: ObsClient, inputName,
     settings = await client.request("GetInputSettings",
       %*{"inputName": inputName})
     current = settings{"inputSettings"}{property}
+  if exactTarget.len > 0:
+    if inputKind == "pipewire_audio_application_capture":
+      let values = settings{"inputSettings"}
+      if current.getStr() != exactTarget or values{"CaptureMode"}.getInt() != 0 or
+          values{"ExceptApp"}.getBool() or values{"MatchPriorty"}.getInt() != 1:
+        discard await client.request("SetInputSettings", %*{"inputName": inputName,
+          "inputSettings": {"TargetName": exactTarget, "CaptureMode": 0,
+            "ExceptApp": false, "MatchPriorty": 1}, "overlay": true})
+    elif current.getStr() != exactTarget:
+      discard await client.request("SetInputSettings", %*{"inputName": inputName,
+        "inputSettings": {property: exactTarget}, "overlay": true})
+    return true
+  let
     listed = await client.request("GetInputPropertiesListPropertyItems",
       %*{"inputName": inputName, "propertyName": property})
   var matches: seq[JsonNode]
@@ -219,7 +234,8 @@ proc bindMinecraftInput*(client: ObsClient, inputName,
       "GetInputPropertiesListPropertyItems"):
     let value = item{"itemValue"}
     if item{"itemEnabled"}.getBool(true) and value != nil and
-        isMinecraftItem(inputKind, item{"itemName"}.getStr(), value.getStr()):
+        (if exactTarget.len > 0: value.getStr() == exactTarget
+         else: isMinecraftItem(inputKind, item{"itemName"}.getStr(), value.getStr())):
       matches.add(value)
   if matches.len > 0:
     result = true
@@ -229,6 +245,29 @@ proc bindMinecraftInput*(client: ObsClient, inputName,
         "inputSettings": {property: matches[0]},
         "overlay": true
       })
+
+proc bindGameAudio(bridge: ObsBridge, kind: string) {.async.} =
+  ## Require the dedicated Minecraft stream label before enabling application capture.
+  let client = bridge.client
+  try:
+    let target = if bridge.hooks.audioTarget == nil: "" else: bridge.hooks.audioTarget()
+    if not await client.bindMinecraftInput(ObsAudioName, kind, target):
+      raise newException(ObsCommandError, "Minecraft audio is not available.")
+  except CatchableError as error:
+    if client.isOpen:
+      let settings = await client.request("GetInputSettings", %*{"inputName": ObsAudioName})
+      let values = settings{"inputSettings"}
+      if values{"TargetName"}.getStr().len > 0 or
+          values{"CaptureMode"}.getInt() != 0 or values{"ExceptApp"}.getBool():
+        discard await client.request("SetInputSettings", %*{"inputName": ObsAudioName,
+          "inputSettings": {"TargetName": "", "CaptureMode": 0, "ExceptApp": false}, "overlay": true})
+    raise newException(ObsCommandError, error.msg)
+
+proc bindGameVideo(bridge: ObsBridge, kind: string): Future[bool] {.async.} =
+  ## Bind the actual X11 client without enumerating OBS property lists.
+  let target = if bridge.hooks.videoTarget == nil: "" else: bridge.hooks.videoTarget()
+  if bridge.hooks.videoTarget != nil and target.len == 0: return false
+  return await bridge.client.bindMinecraftInput(ObsVideoName, kind, target)
 
 proc log(bridge: ObsBridge, message: string) =
   ## Write a diagnostic once until a different diagnostic replaces it.
@@ -255,6 +294,12 @@ proc setOffline(bridge: ObsBridge, message: string) =
 proc handleEvent(bridge: ObsBridge, eventType: string, data: JsonNode) =
   ## Apply authoritative OBS state events and schedule a confirming resync.
   case eventType
+  of "CurrentProfileChanging", "CurrentProfileChanged",
+      "CurrentSceneCollectionChanging", "CurrentSceneCollectionChanged",
+      "CurrentProgramSceneChanged":
+    inc bridge.stateEpoch
+    bridge.status.workspaceReady = false
+    bridge.status.minecraftReady = false
   of "RecordStateChanged":
     inc bridge.stateEpoch
     case data{"outputState"}.getStr()
@@ -300,26 +345,28 @@ proc resync(bridge: ObsBridge) {.async.} =
     readOk = false
     disconnected = false
     minecraftReady = false
+    workspaceReady = false
     error = ""
   try:
     snapshot = await client.readWorkspace()
     readOk = true
     error = snapshot.workspaceError()
+    workspaceReady = error.len == 0
     if error.len == 0:
-      minecraftReady = await client.bindMinecraftInput(ObsVideoName,
-        snapshot.videoKind)
-      discard await client.bindMinecraftInput(ObsAudioName, snapshot.audioKind)
+      minecraftReady = await bridge.bindGameVideo(snapshot.videoKind)
+      await bridge.bindGameAudio(snapshot.audioKind)
   except ObsConnectionError:
     # The connection supervisor reports disconnects.
     disconnected = true
   except ObsError:
     error = getCurrentExceptionMsg()
+    minecraftReady = false
   if disconnected or client != bridge.client or not client.isOpen:
     discard
   elif epoch != bridge.stateEpoch:
     bridge.resyncWanted = true
   else:
-    bridge.status.workspaceReady = error.len == 0
+    bridge.status.workspaceReady = workspaceReady
     bridge.status.minecraftReady = minecraftReady
     bridge.status.error = error
     if readOk:
@@ -359,9 +406,13 @@ proc toggleRecording(bridge: ObsBridge) {.async.} =
       error = snapshot.workspaceError()
     if error.len > 0:
       raise newException(ObsCommandError, error)
-    if not await client.bindMinecraftInput(ObsVideoName, snapshot.videoKind):
+    let scene = await client.request("GetCurrentProgramScene")
+    if scene{"currentProgramSceneName"}.getStr() != ObsSceneName:
+      raise newException(ObsCommandError, "Select the Minecraft scene before recording.")
+    if not await bridge.bindGameVideo(snapshot.videoKind):
       raise newException(ObsCommandError,
         "Minecraft is not running, so recording was not started.")
+    await bridge.bindGameAudio(snapshot.audioKind)
     discard await client.request("StartRecord")
 
 proc togglePause(bridge: ObsBridge) {.async.} =
@@ -425,6 +476,8 @@ proc runOperation*(bridge: ObsBridge, operation: string) {.async.} =
     await bridge.toggleMic()
   of "open":
     await bridge.openObs()
+  of "minecraft1080":
+    discard resizeMinecraft1080()
   else:
     raise newException(ObsCommandError, "Unknown OBS operation \"" &
       operation & "\".")
@@ -437,7 +490,7 @@ proc execute(bridge: ObsBridge, command: BridgeCommand) {.async.} =
   except ObsConnectionError:
     error = "OBS disconnected; the outcome of " & command.operation &
       " is unknown: " & getCurrentExceptionMsg()
-  except ObsError, OSError, IOError:
+  except ObsError, OSError, IOError, MinecraftWindowError:
     # Launcher and window commands fail with OSError; report them per command.
     error = getCurrentExceptionMsg()
   bridge.hooks.emit(resultJson(command.id, error))
@@ -447,7 +500,7 @@ proc submitCommand*(bridge: ObsBridge, id: JsonNode, operation: string) =
   ## Queue a command or reject it immediately; offline commands are never deferred.
   if operation notin ObsBridgeOperations:
     bridge.hooks.emit(resultJson(id, "Unknown OBS operation \"" & operation & "\"."))
-  elif operation != "open" and not bridge.client.isOpen:
+  elif operation notin ["open", "minecraft1080"] and not bridge.client.isOpen:
     bridge.hooks.emit(resultJson(id, "OBS is not connected."))
   elif bridge.commands.len >= MaxCommandBacklog:
     bridge.hooks.emit(resultJson(id, "The OBS command backlog is full."))

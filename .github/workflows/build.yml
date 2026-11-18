@@ -31,4 +31,9 @@ jobs:
     - run: cd gui && /tmp/nimby create && cd app && /tmp/nimby sync nimby.lock
     - run: sh gui/app/tools/smoke.sh
     - run: nim r gui/app/tools/test_button_media.nim
+    - run: nim r gui/app/tools/test_obs_client.nim
+    - run: nim r gui/app/tools/test_obs_bridge.nim
+    - run: nim r gui/app/tools/test_minecraft_window.nim
+    - run: nim r gui/app/tools/test_minecraft_audio.nim
+    - run: nim r gui/app/tools/test_setup_obs.nim
     - run: sh gui/app/tools/editor_smoke.sh

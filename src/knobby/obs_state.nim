@@ -2,7 +2,7 @@ import
   std/[json, locks]
 
 const
-  ObsOperations* = ["recordToggle", "pauseToggle", "micToggle", "open"]
+  ObsOperations* = ["recordToggle", "pauseToggle", "micToggle", "open", "minecraft1080"]
   ObsVisualStates* = ["recording", "paused", "muted", "unavailable"]
   ObsStatusFields* = ["connected", "workspaceReady", "minecraftReady",
     "recording", "paused", "micMuted", "transitioning", "error"]
@@ -54,6 +54,7 @@ proc obsOperationLabel*(operation: string): string =
   of "pauseToggle": "Pause"
   of "micToggle": "Mic"
   of "open": "Open OBS"
+  of "minecraft1080": "Minecraft 1080p"
   else: operation
 
 proc obsOperationDescription*(operation: string): string =
@@ -63,6 +64,7 @@ proc obsOperationDescription*(operation: string): string =
   of "pauseToggle": "Pause or resume the OBS recording."
   of "micToggle": "Mute or unmute the OBS Commentary microphone."
   of "open": "Open or focus OBS."
+  of "minecraft1080": "Resize the Minecraft window content to 1920 by 1080 pixels."
   else: "Unknown OBS operation " & operation & "."
 
 proc flag(status: JsonNode, field: string): bool =
@@ -83,6 +85,7 @@ proc obsVisualState*(operation: string, status: JsonNode): string =
     if not ready: result = UnavailableState
     elif status.flag("paused"): result = PausedState
     elif status.flag("recording"): result = RecordingState
+    elif not status.flag("minecraftReady"): result = UnavailableState
   of "pauseToggle":
     if not ready or not status.flag("recording"): result = UnavailableState
     elif status.flag("paused"): result = PausedState

@@ -1,6 +1,6 @@
 import
   std/[asyncdispatch, json, os, posix, strutils, times],
-  obs_client, obs_workspace
+  obs_client, obs_workspace, obs_targets
 
 const
   Usage = """Usage:
@@ -69,6 +69,7 @@ type
 
   OnlineSetup = ref object
     client: ObsClient
+    liveTargets: bool
     changes: seq[string]
     log: SetupLog
 
@@ -357,16 +358,26 @@ proc ensureAudioRouting(setup: OnlineSetup, inputName: string,
 proc bindTarget(setup: OnlineSetup, inputName, inputKind: string): Future[bool] {.async.} =
   ## Point one input at a running Minecraft, reporting whether it is bound.
   await setup.client.requireIdle()
-  result = await setup.client.bindMinecraftInput(inputName, inputKind)
+  if setup.liveTargets:
+    var target = ""
+    if inputKind == VideoKind:
+      target = minecraftVideoTarget()
+    else:
+      try: target = minecraftAudioTarget()
+      except ObsError as error: setup.log(error.msg)
+    if target.len > 0:
+      result = await setup.client.bindMinecraftInput(inputName, inputKind, target)
+  else:
+    result = await setup.client.bindMinecraftInput(inputName, inputKind)
   if not result:
     setup.log("Minecraft is not running; \"" & inputName &
       "\" keeps its target until the Knobby bridge binds it.")
 
-proc prepareOnline*(client: ObsClient, log: SetupLog = logStderr):
+proc prepareOnline*(client: ObsClient, log: SetupLog = logStderr, liveTargets = false):
     Future[OnlineReport] {.async.} =
   ## Provision the Minecraft AI Demos profile and collection through OBS.
   ## Other profiles and collections are never modified or removed.
-  let setup = OnlineSetup(client: client, log: log)
+  let setup = OnlineSetup(client: client, log: log, liveTargets: liveTargets)
   await client.requireIdle()
   await setup.ensureProfile()
   await setup.ensureCollection()
@@ -466,7 +477,9 @@ proc recordingIniValues*(recordDir: string): seq[IniValue] =
     ("AdvOut", "RecAudioEncoder", RecordAudioEncoderId),
     ("AdvOut", "RecUseRescale", "false"),
     ("AdvOut", "RecTracks", $recorded),
-    ("Video", "AutoRemux", "true")
+    ("Video", "AutoRemux", "true"),
+    ("Audio", "SampleRate", "48000"),
+    ("Audio", "ChannelSetup", "Stereo")
   ]
   for track in 1..TrackCount:
     if (recorded and (1 shl (track - 1))) != 0:
@@ -480,6 +493,8 @@ proc recordEncoderJson*(existing, renderDevice: string): string =
   settings["vaapi_device"] = %renderDevice
   settings["rate_control"] = %RecordRateControl
   settings["qp"] = %RecordQp
+  settings["profile"] = %100
+  settings["keyint_sec"] = %2
   result = settings.pretty() & "\n"
 
 proc findProfileDir*(configDir, profileName: string): string =
@@ -602,7 +617,7 @@ proc runPrepareOnline() =
     settings = loadObsSettings()
     client = waitFor connectObs(settings.url, settings.password)
   try:
-    let report = waitFor client.prepareOnline()
+    let report = waitFor client.prepareOnline(liveTargets = true)
     if report.changes.len == 0:
       logStderr("OBS already matches the Minecraft AI Demos setup.")
     stdout.writeLine($ %*{

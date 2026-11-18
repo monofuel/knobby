@@ -7,8 +7,13 @@ const
   WikiWindow = "62914561\r\nMinecraft Wiki - Mozilla Firefox\r\nfirefox"
   TerminalWindow = "71303169\r\nfish\r\nAlacritty"
   MinecraftApp = "Minecraft* 1.21.4"
+  MinecraftAudioLabel = "knobby-minecraft-audio"
   JavaApp = "java"
+  AmbiguousWindow = "Multiple Minecraft windows are open."
+  AudioGuardFailure = "Minecraft audio is not isolated to the game process."
   BridgeBinaryTimeoutMs = 60000
+  # Longer than the bridge's periodic resync interval.
+  CleanResyncWaitMs = 2500
 
 type
   Harness = ref object
@@ -18,6 +23,8 @@ type
     launches, focuses: int
     running: bool
     port: int
+    videoTarget, audioTarget: string
+    videoError, audioError: string
 
 proc windowItems(values: varargs[string]): JsonNode =
   ## Build xcomposite capture_window property items.
@@ -32,9 +39,12 @@ proc appItems(names: varargs[string]): JsonNode =
   for name in names:
     result.add(%*{"itemName": name, "itemValue": name, "itemEnabled": true})
 
-proc newHarness(minecraft = true, port = 0): Harness =
+proc newHarness(minecraft = true, port = 0, targets = false): Harness =
   ## Start a fake OBS and a bridge whose effects are recorded.
-  let harness = Harness(fake: newFakeObs("pw"))
+  ## With targets, exact video and audio targets come from harness fields, and a
+  ## non-empty error field makes that hook raise ObsError instead.
+  let harness = Harness(fake: newFakeObs("pw"), videoTarget: MinecraftWindow,
+    audioTarget: MinecraftAudioLabel)
   harness.port = if port == 0: harness.fake.port else: port
   harness.fake.settings["Minecraft Video"] = %*{"capture_window": TerminalWindow}
   harness.fake.settings["Minecraft Audio"] = %*{"TargetName": JavaApp}
@@ -56,6 +66,15 @@ proc newHarness(minecraft = true, port = 0): Harness =
     harness.lines.add(line)
   hooks.log = proc (message: string) {.gcsafe.} =
     discard
+  if targets:
+    hooks.videoTarget = proc (): string {.gcsafe.} =
+      if harness.videoError.len > 0:
+        raise newException(ObsError, harness.videoError)
+      harness.videoTarget
+    hooks.audioTarget = proc (): string {.gcsafe.} =
+      if harness.audioError.len > 0:
+        raise newException(ObsError, harness.audioError)
+      harness.audioTarget
   harness.bridge = newObsBridge(hooks)
   harness.bridge.start()
   result = harness
@@ -324,6 +343,123 @@ proc testBridgeProcess() =
   doAssert results[1]["id"].getStr() == "a"
   doAssert not results[1]["ok"].getBool()
 
+proc testExactTargetsSkipPropertyLists() =
+  ## Bind exact targets without the list request that crashed OBS 32.1.2.
+  let harness = newHarness(targets = true)
+  defer: harness.close()
+  harness.fake.hangupOn = @["GetInputPropertiesListPropertyItems"]
+  harness.fake.settings["Minecraft Audio"] = %*{"TargetName": JavaApp,
+    "CaptureMode": 1, "ExceptApp": true, "MatchPriorty": 0}
+  doAssert harness.ready()
+  doAssert harness.fake.settings["Minecraft Video"]["capture_window"].getStr() ==
+    MinecraftWindow
+  let audio = harness.fake.settings["Minecraft Audio"]
+  doAssert audio["TargetName"].getStr() == MinecraftAudioLabel
+  doAssert audio["CaptureMode"].getInt() == 0
+  doAssert not audio["ExceptApp"].getBool()
+  doAssert audio["MatchPriorty"].getInt() == 1
+  doAssert harness.command(1, "recordToggle")["ok"].getBool()
+  doAssert harness.fake.recording
+  pumpFor(300)
+  doAssert harness.fake.count("GetInputPropertiesListPropertyItems") == 0
+  doAssert harness.fake.identifies == 1
+
+proc testWindowErrorsStayInHelper() =
+  ## Report missing and ambiguous windows as errors while the helper keeps running.
+  let harness = newHarness(targets = true)
+  defer: harness.close()
+  harness.videoTarget = ""
+  harness.audioError = "No Minecraft window is open."
+  doAssert harness.waitStatus(proc (status: ObsStatus): bool =
+    status.connected and status.workspaceReady and
+      "No Minecraft window" in status.error)
+  doAssert not harness.bridge.status.minecraftReady
+  let missing = harness.command(1, "recordToggle")
+  doAssert not missing["ok"].getBool()
+  doAssert "Minecraft is not running" in missing["error"].getStr()
+  harness.videoError = AmbiguousWindow
+  harness.audioError = AmbiguousWindow
+  doAssert harness.waitStatus(proc (status: ObsStatus): bool =
+    status.connected and AmbiguousWindow in status.error)
+  doAssert not harness.bridge.status.minecraftReady
+  let ambiguous = harness.command(2, "recordToggle")
+  doAssert not ambiguous["ok"].getBool()
+  doAssert AmbiguousWindow in ambiguous["error"].getStr()
+  doAssert harness.command(3, "micToggle")["ok"].getBool()
+  doAssert harness.fake.count("StartRecord") == 0
+  doAssert harness.fake.count("GetInputPropertiesListPropertyItems") == 0
+  doAssert harness.fake.identifies == 1
+  harness.videoError = ""
+  harness.audioError = ""
+  harness.videoTarget = MinecraftWindow
+  doAssert harness.ready()
+
+proc testAudioGuardFailureWhileRecording() =
+  ## Keep actual recording state visible and stop/pause usable when audio is unsafe.
+  let harness = newHarness(targets = true)
+  defer: harness.close()
+  harness.fake.recording = true
+  harness.fake.paused = true
+  harness.audioError = AudioGuardFailure
+  doAssert harness.waitStatus(proc (status: ObsStatus): bool =
+    status.connected and AudioGuardFailure in status.error)
+  let status = harness.bridge.status
+  doAssert status.workspaceReady
+  doAssert not status.minecraftReady
+  doAssert status.recording and status.paused
+  doAssert harness.command(1, "pauseToggle")["ok"].getBool()
+  doAssert not harness.fake.paused
+  doAssert harness.waitStatus(proc (status: ObsStatus): bool =
+    status.recording and not status.paused and AudioGuardFailure in status.error)
+  doAssert harness.command(2, "pauseToggle")["ok"].getBool()
+  doAssert harness.fake.paused
+  doAssert harness.command(3, "recordToggle")["ok"].getBool()
+  doAssert not harness.fake.recording
+  doAssert harness.waitStatus(proc (status: ObsStatus): bool =
+    not status.recording and not status.paused and status.workspaceReady and
+      AudioGuardFailure in status.error)
+  let start = harness.command(4, "recordToggle")
+  doAssert not start["ok"].getBool()
+  doAssert AudioGuardFailure in start["error"].getStr()
+  doAssert harness.fake.count("StartRecord") == 0
+  doAssert harness.fake.count("StopRecord") == 1
+
+proc testStartRefusals() =
+  ## Refuse to start without the audio input or outside the Minecraft program scene.
+  let harness = newHarness(targets = true)
+  defer: harness.close()
+  doAssert harness.ready()
+  harness.fake.programScene = "Scene"
+  let scene = harness.command(1, "recordToggle")
+  doAssert not scene["ok"].getBool()
+  doAssert "Minecraft scene" in scene["error"].getStr()
+  harness.fake.programScene = ObsSceneName
+  harness.fake.inputs = @[("Minecraft Video", "xcomposite_input"),
+    ("Commentary", "pulse_input_capture")]
+  let missing = harness.command(2, "recordToggle")
+  doAssert not missing["ok"].getBool()
+  doAssert ObsAudioName in missing["error"].getStr()
+  doAssert harness.fake.count("StartRecord") == 0
+  doAssert not harness.fake.recording
+
+proc testAudioCleanupWithEmptyTarget() =
+  ## Reset capture mode and exclusion even when the audio target name is already empty.
+  let harness = newHarness(targets = true)
+  defer: harness.close()
+  harness.fake.settings["Minecraft Audio"] = %*{"TargetName": "",
+    "CaptureMode": 1, "ExceptApp": true}
+  harness.audioError = AudioGuardFailure
+  doAssert harness.waitStatus(proc (status: ObsStatus): bool =
+    status.connected and AudioGuardFailure in status.error)
+  let audio = harness.fake.settings["Minecraft Audio"]
+  doAssert audio["TargetName"].getStr() == ""
+  doAssert audio["CaptureMode"].getInt() == 0
+  doAssert not audio["ExceptApp"].getBool()
+  let writes = harness.fake.count("SetInputSettings")
+  pumpFor(CleanResyncWaitMs)
+  doAssert harness.fake.count("SetInputSettings") == writes,
+    "clean settings are not rewritten on every resync"
+
 proc main() =
   ## Run bridge tests against a local fake OBS server.
   doAssert isMinecraftItem("xcomposite_input", "", MinecraftWindow)
@@ -342,6 +478,11 @@ proc main() =
   testOffline()
   testDisconnectNoReplay()
   testCommandValidation()
+  testExactTargetsSkipPropertyLists()
+  testWindowErrorsStayInHelper()
+  testAudioGuardFailureWhileRecording()
+  testStartRefusals()
+  testAudioCleanupWithEmptyTarget()
   testBridgeProcess()
 
 when isMainModule:

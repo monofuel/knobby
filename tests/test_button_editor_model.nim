@@ -377,7 +377,7 @@ suite "Button editor model":
     for operation in ObsOperations:
       model.setObsOperation(operation)
       check model.selected().obsOperation() == operation and model.validation == ""
-    check model.draft.describeAction(model.selected()) == "OBS: Open OBS"
+    check model.draft.describeAction(model.selected()) == "OBS: Minecraft 1080p"
     expect ValueError: model.setObsOperation("startStream")
     model.setObsOperation("micToggle")
     model.setActionKind(CommandAction)

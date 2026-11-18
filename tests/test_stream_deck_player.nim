@@ -405,7 +405,8 @@ suite "Configured Stream Deck sessions":
     page["keys"]["3"] = %*{"normal": [{"path": huge, "durationMs": 100}], "pressed": good}
     page["keys"]["4"] = %*{"normal": [{"path": corrupt, "durationMs": 100}], "pressed": good}
     page["keys"]["5"] = %*{"normal": [{"path": "relative.jpg", "durationMs": 100}]}
-    page["keys"]["6"] = %*{"normal": [{"path": good, "durationMs": 0}]}
+    page["keys"]["6"] = %*{"normal": [{"path": good, "durationMs": 0},
+      {"path": good, "durationMs": 100}]}
     page["keys"]["7"] = %*{"builtinNumber": 99}
     page["keys"].delete("8")
     page["keys"]["16"] = %*{"builtinNumber": 1}
@@ -426,6 +427,30 @@ suite "Configured Stream Deck sessions":
     check diagnostics[].len == 7
     check diagnostics[].join("\n").contains("absent.jpg")
     check diagnostics[].join("\n").contains("unknown key \"16\"")
+
+  test "prepared static images accept zero duration and still support held keys":
+    let
+      directory = getTempDir() / "knobby-player-static-prepared"
+      fake = newFakeDeck()
+      diagnostics = new seq[string]
+    createDir(directory)
+    defer: removeDir(directory)
+    let
+      normal = writeJpeg(directory, "normal.jpg")
+      pressed = writeJpeg(directory, "pressed.jpg", 128)
+      pages = new seq[JsonNode]
+      calls = new seq[int64]
+    pages[].add(framePage(1, "root", [normal], pressed, durationMs = 0))
+    fake.inputs = @[TimedReport(atMs: 150, report: keyReport([0])),
+      TimedReport(atMs: 250, report: keyReport([]))]
+    runConfiguredSession(newStreamDeck(fake.transport()), proc (): bool = fake.nowMs >= 400,
+      ignoreKey, pageReader(pages, calls), nil, fake.fakeOptions(diagnostics))
+    let images = fake.uploads()
+    var keyImages: seq[string]
+    for image in images:
+      if image.key == 0: keyImages.add(image.jpeg)
+    check keyImages == @[readFile(normal), readFile(pressed), readFile(normal)]
+    check diagnostics[].len == 0
 
   test "frames are loaded once per generation and reused by the next generation":
     let
@@ -523,9 +548,9 @@ proc obsPage(base, basePressed, recording, recordingPressed: string,
     frames: openArray[string]): JsonNode =
   ## Build a page with a recordToggle key 1 and an animated key 2.
   result = framePage(1, "obs", frames, frames[0], key = 2)
-  result["keys"]["1"] = %*{"normal": [{"path": base, "durationMs": FrameMs}],
+  result["keys"]["1"] = %*{"normal": [{"path": base, "durationMs": 0}],
     "pressed": basePressed, "obsOperation": "recordToggle",
-    "states": {"recording": {"normal": [{"path": recording, "durationMs": FrameMs}],
+    "states": {"recording": {"normal": [{"path": recording, "durationMs": 0}],
       "pressed": recordingPressed}}}
 
 suite "OBS indicators":

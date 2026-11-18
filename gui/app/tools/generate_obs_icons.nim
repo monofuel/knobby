@@ -28,6 +28,9 @@ const
   LabelBandTop = 45
   Seed = 0x2f6e2b1'u32
   Font = {
+    '0': @[".###.", "#...#", "#..##", "#.#.#", "##..#", "#...#", ".###."],
+    '1': @["..#..", ".##..", "..#..", "..#..", "..#..", "..#..", ".###."],
+    '8': @[".###.", "#...#", "#...#", ".###.", "#...#", "#...#", ".###."],
     'A': @[".###.", "#...#", "#...#", "#####", "#...#", "#...#", "#...#"],
     'B': @["####.", "#...#", "#...#", "####.", "#...#", "#...#", "####."],
     'C': @[".###.", "#...#", "#....", "#....", "#....", "#...#", ".###."],
@@ -338,6 +341,7 @@ proc icons(): seq[Icon] =
     muted = palette("#2a0605", "#d42a1e", "#ff7a5c", "#8a130d", [('x', "#f2f2f2"), ('s', "#8e9094")])
   @[
     Icon(name: "menu-obs", label: "OBS", tone: GreenTone, sprite: CameraSprite, colors: camera),
+    Icon(name: "minecraft-1080", label: "1080", tone: GreenTone, sprite: OpenSprite, colors: openFace),
     Icon(name: "back", label: "BACK", tone: GreenTone, sprite: BackSprite, colors: pale),
     Icon(name: "record-idle", label: "REC", tone: GreenTone, sprite: RecordRingSprite, colors: ring),
     Icon(name: "record-recording", label: "REC", tone: RedTone, sprite: RecordSprite, colors: redstone),

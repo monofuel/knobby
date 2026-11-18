@@ -1,7 +1,7 @@
 import
   std/[asyncdispatch, json, os, posix, strutils],
   knobby/common,
-  obs_client, obs_workspace
+  obs_client, obs_workspace, obs_targets
 
 const
   Usage = """Usage:
@@ -105,6 +105,8 @@ proc runBridge() =
     obsRunning: obsRunning,
     launchObs: launchObs,
     focusObs: focusObs,
+    audioTarget: minecraftAudioTarget,
+    videoTarget: minecraftVideoTarget,
     emit: emitLine,
     log: logLine
   ))

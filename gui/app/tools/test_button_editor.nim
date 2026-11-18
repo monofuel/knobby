@@ -1,12 +1,17 @@
 import
   std/[atomics, json, locks, os, osproc, strutils],
   pixie,
-  knobby/[button_client, button_config, button_runtime, ipc, status],
+  knobby/[button_client, button_config, button_media, button_runtime, common, ipc, status],
   ../src/[button_editor_model, smoke_input]
 
 const
-  DeckAssets = currentSourcePath().parentDir().parentDir().parentDir().parentDir() /
-    "assets" / "stream_deck"
+  RepositoryAssets = currentSourcePath().parentDir().parentDir().parentDir().parentDir() / "assets"
+  DeckAssets = RepositoryAssets / "stream_deck"
+  ObsArtAssets = RepositoryAssets / "obs"
+  ObsArtSources = [("default", "record-idle.png"), ("recording", "record-recording.png"),
+    ("paused", "record-paused.png"), ("muted", "mic-muted.png"), ("unavailable", "unavailable.png")]
+  ObsArtMenu = "obs-art"
+  ObsArtManifestName = "obs-art.json"
   FramePaths = [DeckAssets / "3-normal.jpg", DeckAssets / "4-normal.jpg"]
   PressedPath = DeckAssets / "4-pressed.jpg"
   FrameMs = 150
@@ -35,6 +40,39 @@ var
   failedReloads: Atomic[int]
 
 initLock(requestLock)
+
+proc obsArtManifestPath(): string {.gcsafe.} =
+  ## Locate the prepared OBS art manifest inside the smoke run's private state directory.
+  getEnv("XDG_STATE_HOME") / ObsArtManifestName
+
+proc loadObsArt(): JsonNode {.gcsafe.} =
+  ## Return prepared OBS art by state when the art smoke is enabled, or nil for numbered fixtures.
+  if fileExists(obsArtManifestPath()): parseFile(obsArtManifestPath()) else: nil
+
+proc prepareObsArt(directory: string) =
+  ## Render the committed OBS PNGs through the real media pipeline and record their frames by state.
+  let
+    configDir = directory / "obs-art"
+    cacheDir = configDir / "prepared"
+  createDir(cacheDir)
+  var deck = newJArray()
+  for index, (state, file) in ObsArtSources:
+    deck.add(%*{"key": index + 1, "title": state, "action": {"kind": "none"},
+      "visual": {"image": importButtonAsset(ObsArtAssets / file, configDir), "showTitle": false}})
+  let
+    config = %*{"version": 1, "root": ObsArtMenu,
+      "menus": [{"id": ObsArtMenu, "title": "OBS art", "deck": deck}]}
+    keys = prepareButtonMedia(config, configDir, cacheDir, knobbyFontPath())["menus"][ObsArtMenu]
+  var art = newJObject()
+  for index, (state, file) in ObsArtSources:
+    art[state] = keys[$(index + 1)]
+  for (state, file) in ObsArtSources:
+    for (other, otherFile) in ObsArtSources:
+      if state < other:
+        doAssert readImage(art[state]["normal"][0]["path"].getStr()).data !=
+          readImage(art[other]["normal"][0]["path"].getStr()).data,
+          "Prepared OBS art for " & state & " and " & other & " is identical."
+  writeFile(obsArtManifestPath(), $art)
 
 proc fixturePrepare(config: JsonNode): JsonNode {.gcsafe.} =
   ## Describe fixture media for a candidate: built-in numbers, animated images, and a forced failure.
@@ -65,12 +103,17 @@ proc fixturePrepare(config: JsonNode): JsonNode {.gcsafe.} =
             {"path": FramePaths[1], "durationMs": FrameMs}],
           "pressed": PressedPath}
       if entry{"action"}{"kind"}.getStr() == $ObsAction and keys.hasKey($entry["key"].getInt()):
-        let prepared = keys[$entry["key"].getInt()]
+        let
+          prepared = keys[$entry["key"].getInt()]
+          art = loadObsArt()
         prepared["obsOperation"] = entry["action"]["operation"]
+        if not art.isNil:
+          prepared["normal"] = art["default"]["normal"]
+          prepared["pressed"] = art["default"]["pressed"]
         for (state, number) in StateFrames:
           if not visual{"states"}.isNil and visual["states"].hasKey(state):
             if not prepared.hasKey("states"): prepared["states"] = newJObject()
-            prepared["states"][state] = %*{
+            prepared["states"][state] = if not art.isNil: art[state] else: %*{
               "normal": [{"path": DeckAssets / ($number & "-normal.jpg"), "durationMs": 0}],
               "pressed": DeckAssets / ($number & "-pressed.jpg")}
     result["menus"][menu["id"].getStr()] = keys
@@ -350,6 +393,8 @@ proc main() =
   doAssert buttonRuntimeStatus()["revision"].getStr() == configRevision(reapplied)
   doAssert not fileExists(draftPath()), "A successful apply must remove the draft."
 
+  if getEnv("KNOBBY_OBS_ART_SMOKE") == "1":
+    prepareObsArt(directory)
   var obsConfig = requireConfigResult(requestConfig("config.get"))["envelope"]
   let obsImage = fixtureImport(fixture)
   for menu in obsConfig["config"]["menus"]:
@@ -377,7 +422,16 @@ proc main() =
   let
     obsDirectory = directory / "obs"
     obsDraft = readDraft(draftPath())
-    stateFrame = proc (number: int, kind = "normal"): string = DeckAssets / ($number & "-" & kind & ".jpg")
+    obsArt = loadObsArt()
+    stateFrame = proc (state: string, kind = "normal"): string =
+      if not obsArt.isNil:
+        if kind == "pressed": obsArt[state]["pressed"].getStr()
+        else: obsArt[state]["normal"][0]["path"].getStr()
+      else:
+        var number = 0
+        for (name, frame) in StateFrames:
+          if name == state: number = frame
+        DeckAssets / ($number & "-" & kind & ".jpg")
   doAssert not obsDraft.isNil, "OBS edits were not autosaved."
   let
     draftObsKey = obsDraft["config"].deckEntry(RootMenuId, ObsKey)
@@ -388,16 +442,18 @@ proc main() =
   doAssert isManagedAssetPath(draftObsKey["visual"]["states"]["unavailable"].getStr())
   doAssert draftPauseKey["action"] == %*{"kind": "obs", "operation": "pauseToggle"}
   validateButtonConfig(obsDraft["config"])
-  checkPreview(obsDirectory, "obs-live-recording", "liveArt:6", [stateFrame(5)])
-  checkPreview(obsDirectory, "obs-live-recording", "liveDetail:Normal", [stateFrame(5)])
-  checkPreview(obsDirectory, "obs-live-recording", "liveDetail:Pressed", [stateFrame(5, "pressed")])
-  checkPreview(obsDirectory, "obs-live-paused", "liveArt:6", [stateFrame(6)])
-  checkPreview(obsDirectory, "obs-draft-paused", "preview:6", [stateFrame(6)])
-  checkPreview(obsDirectory, "obs-draft-paused", "detailPreview:Normal", [stateFrame(6)])
-  checkPreview(obsDirectory, "obs-draft-paused", "detailPreview:Pressed", [stateFrame(6, "pressed")])
-  checkPreview(obsDirectory, "obs-draft-unavailable", "preview:6", [stateFrame(9)])
-  checkPreview(obsDirectory, "obs-live-after", "liveArt:6", [stateFrame(6)])
-  checkPreview(obsDirectory, "obs-live-after", "liveDetail:Pressed", [stateFrame(6, "pressed")])
+  checkPreview(obsDirectory, "obs-live-recording", "liveArt:6", [stateFrame("recording")])
+  checkPreview(obsDirectory, "obs-live-recording", "liveDetail:Normal", [stateFrame("recording")])
+  checkPreview(obsDirectory, "obs-live-recording", "liveDetail:Pressed", [stateFrame("recording", "pressed")])
+  checkPreview(obsDirectory, "obs-live-paused", "liveArt:6", [stateFrame("paused")])
+  checkPreview(obsDirectory, "obs-draft-paused", "preview:6", [stateFrame("paused")])
+  checkPreview(obsDirectory, "obs-draft-paused", "detailPreview:Normal", [stateFrame("paused")])
+  checkPreview(obsDirectory, "obs-draft-paused", "detailPreview:Pressed", [stateFrame("paused", "pressed")])
+  checkPreview(obsDirectory, "obs-draft-unavailable", "preview:6", [stateFrame("unavailable")])
+  checkPreview(obsDirectory, "obs-live-after", "liveArt:6", [stateFrame("paused")])
+  checkPreview(obsDirectory, "obs-live-after", "liveDetail:Pressed", [stateFrame("paused", "pressed")])
+  if not obsArt.isNil:
+    checkPreview(obsDirectory, "obs-editor", "preview:6", [stateFrame("default")])
   removeFile(smokeControlPath(ObsPausedName))
   withLock requestLock:
     for kind in requestKinds:

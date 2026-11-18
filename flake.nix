@@ -9,7 +9,8 @@
     let
       system = "x86_64-linux";
       pkgs = nixpkgs.legacyPackages.${system};
-      runtimeTools = with pkgs; [ alsa-utils pulseaudio wmctrl curl systemd procps ffmpeg-headless ];
+      obsAudioPlugin = pkgs.obs-studio-plugins.obs-pipewire-audio-capture;
+      runtimeTools = with pkgs; [ alsa-utils pulseaudio pipewire wmctrl curl systemd procps ffmpeg-headless ];
       graphics = with pkgs; [ xorg.libX11 xorg.libXcursor xorg.libXrandr xorg.libXi
         xorg.libXinerama libGL dbus mesa ];
       pins = builtins.filter (line: line != "")
@@ -42,6 +43,8 @@
           nim c -o:knobby-daemon src/knobby.nim
           nim c -o:knobby-assets tools/prepare_button_media.nim
           nim c -o:gui/app/dist/knobby_gui gui/app/src/knobby_gui.nim
+          nim c -o:gui/app/dist/knobby_obs gui/app/tools/knobby_obs.nim
+          nim c -o:gui/app/dist/knobby-obs-setup gui/app/tools/setup_obs.nim
           runHook postBuild
         '';
         doCheck = true;
@@ -54,6 +57,11 @@
           export FONTCONFIG_FILE="${pkgs.makeFontsConf { fontDirectories = [ pkgs.dejavu_fonts ]; }}"
           sh gui/app/tools/smoke.sh
           nim r gui/app/tools/test_button_media.nim
+          nim r gui/app/tools/test_obs_client.nim
+          nim r gui/app/tools/test_obs_bridge.nim
+          nim r gui/app/tools/test_minecraft_window.nim
+          nim r gui/app/tools/test_minecraft_audio.nim
+          nim r gui/app/tools/test_setup_obs.nim
           sh gui/app/tools/editor_smoke.sh
           runHook postCheck
         '';
@@ -63,6 +71,10 @@
           cp knobby-assets "$out/libexec/knobby-assets"
           cp gui/app/assets/DejaVuSans.ttf "$out/share/knobby/DejaVuSans.ttf"
           cp gui/app/dist/knobby_gui "$out/libexec/knobby-gui"
+          cp gui/app/dist/knobby_obs "$out/libexec/knobby-obs"
+          cp gui/app/dist/knobby-obs-setup "$out/libexec/knobby-obs-setup"
+          cp -r assets/obs "$out/share/knobby/obs-icons"
+          ln -s ${obsAudioPlugin} "$out/share/knobby/obs-audio-plugin"
           makeWrapper "$out/libexec/knobby" "$out/bin/knobby" \
             --prefix PATH : "${pkgs.lib.makeBinPath runtimeTools}"
           makeWrapper "$out/libexec/knobby-gui" "$out/bin/knobby-gui" \
@@ -70,6 +82,12 @@
             --prefix LD_LIBRARY_PATH : "${pkgs.lib.makeLibraryPath graphics}"
           makeWrapper "$out/libexec/knobby-assets" "$out/bin/knobby-assets" \
             --prefix PATH : "${pkgs.lib.makeBinPath [pkgs.ffmpeg-headless]}"
+          makeWrapper "$out/libexec/knobby-obs" "$out/bin/knobby-obs" \
+            --prefix PATH : "${pkgs.lib.makeBinPath runtimeTools}" \
+            --prefix LD_LIBRARY_PATH : "${pkgs.lib.makeLibraryPath [pkgs.xorg.libX11]}"
+          makeWrapper "$out/libexec/knobby-obs-setup" "$out/bin/knobby-obs-setup" \
+            --prefix PATH : "${pkgs.lib.makeBinPath runtimeTools}" \
+            --prefix LD_LIBRARY_PATH : "${pkgs.lib.makeLibraryPath [pkgs.xorg.libX11]}"
           cp docs/knobby.service docs/knobby-gui.service docs/knobby-gui.desktop "$out/share/knobby/"
           mkdir -p "$out/share/licenses/knobby"
           cp gui/app/assets/DejaVu-LICENSE.txt "$out/share/licenses/knobby/"
@@ -82,7 +100,7 @@
         '';
       };
     in {
-      packages.${system} = { inherit knobby; default = knobby; };
+      packages.${system} = { inherit knobby; default = knobby; obs-audio-plugin = obsAudioPlugin; };
       checks.${system}.knobby = knobby;
       devShells.${system}.default = pkgs.mkShell {
         name = "knobby-dev";

@@ -28,6 +28,8 @@
 - `src/knobby/fader_cache.nim` - atomic, rate-limited last-known fader display cache.
 - `src/knobby/ipc.nim` - bounded nonblocking local sockets and versioned framing.
 - `src/knobby/daemon_workers.nim` - independent action, Stream Deck, audio, IPC, and cache workers.
+- `src/knobby/obs_worker.nim` - supervised headless OBS helper with bounded queues and no command replay.
+- `src/knobby/obs_state.nim` - authoritative OBS observations and pure state-art selection.
 - `src/knobby/gui_activation.nim` - activate one GUI instance through its user service.
 - `src/knobby/audio_status.nim` - pure pactl JSON parsing for the viewer.
 - `src/knobby/button_config.nim` - shared button schema, validation, and atomic storage.
@@ -35,6 +37,9 @@
 - `src/knobby/button_media.nim` - bounded FFmpeg preparation and managed artwork imports.
 - `src/knobby/stream_deck_player.nim` - active-page animation and responsive HID writes.
 - `gui/app/` - Windy/Silky viewer and button editor; `gui/` is its isolated Nimby workspace.
+- `gui/app/src/obs_client.nim`, `obs_workspace.nim`, `obs_targets.nim` - authenticated OBS WebSocket control and exact Minecraft targets.
+- `gui/app/src/minecraft_window.nim`, `minecraft_audio.nim` - X11 client sizing and per-process audio-label verification.
+- `docs/obs.md` - Minecraft recording profile, submenu, setup, and live acceptance.
 - `examples/` - midi_monitor and audio_outputs demos (see README.md).
 - `docs/example_out.txt` - real capture of every button and fader; the
   reference for parser behavior and test cases.

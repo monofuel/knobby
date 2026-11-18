@@ -1,6 +1,6 @@
 import
   std/[json, locks, times],
-  ./[audio_status, bindings, button_runtime, fader_cache, ipc, midi_events, stream_deck]
+  ./[audio_status, bindings, button_runtime, fader_cache, ipc, midi_events, obs_state, stream_deck]
 
 type
   MixerStatus* = object
@@ -23,6 +23,7 @@ type
     faderStreams*: array[3, seq[AudioLevel]]
     audioUpdatedMs*: int64
     buttonConfig*: JsonNode
+    obs*: JsonNode
 
 const
   StatusVersion* = ProtocolVersion
@@ -62,6 +63,7 @@ proc readKnobbyState*(): StatusSnapshot =
       deepCopy(result, shared)
   result.updatedMs = nowMs()
   result.buttonConfig = buttonRuntimeStatus()
+  result.obs = readObsStatus()
   if result.buttonConfig{"initialized"}.getBool():
     result.catalog = activeMixerCatalog()
 
@@ -142,6 +144,8 @@ proc encodeState*(state: StatusSnapshot): JsonNode =
   var snapshot = state
   if snapshot.buttonConfig.isNil:
     snapshot.buttonConfig = newJObject()
+  if snapshot.obs.isNil:
+    snapshot.obs = unavailableObsStatus()
   %snapshot
 
 proc encodeSnapshot*(state: MixerStatus, session: string, timeMs: int64): string =

@@ -11,6 +11,24 @@ proc run(args: seq[string]) =
   if code != 0:
     raise newException(IOError, args[0] & " exited with status " & $code)
 
+proc installObsPlugin(package: string) =
+  ## Link the pinned application-audio plugin without replacing an unrelated installation.
+  let
+    root = getConfigDir() / "obs-studio/plugins/linux-pipewire-audio"
+    marker = root / ".knobby-managed"
+    plugin = package / "share/knobby/obs-audio-plugin"
+  if dirExists(root) and not fileExists(marker):
+    raise newException(IOError, "An unmanaged OBS audio plugin already exists: " & root)
+  createDir(root / "bin/64bit")
+  for (source, target) in [
+      (plugin / "lib/obs-plugins/linux-pipewire-audio.so", root / "bin/64bit/linux-pipewire-audio.so"),
+      (plugin / "share/obs/obs-plugins/linux-pipewire-audio", root / "data")]:
+    if symlinkExists(target): removeFile(target)
+    elif fileExists(target) or dirExists(target):
+      raise newException(IOError, "Refusing to replace an unrelated OBS plugin file: " & target)
+    createSymlink(source, target)
+  writeFile(marker, "Knobby manages these plugin links.\n")
+
 proc main() =
   ## Build and verify before switching the rooted installation and enabling services.
   let
@@ -22,10 +40,11 @@ proc main() =
   for path in [installDir, unitDir, binDir, desktopDir]: createDir(path)
   run(@["nix", "build", ".#knobby", "--out-link", installDir / "current"])
   let package = installDir / "current"
+  installObsPlugin(package)
   for unit in ["knobby.service", "knobby-gui.service"]:
     copyFile(package / "share/knobby" / unit, unitDir / unit)
   copyFile(package / "share/knobby/knobby-gui.desktop", desktopDir / "knobby.desktop")
-  for name in ["knobby", "knobby-gui", "knobby-assets"]:
+  for name in ["knobby", "knobby-gui", "knobby-assets", "knobby-obs", "knobby-obs-setup"]:
     let launcher = binDir / name
     if symlinkExists(launcher):
       removeFile(launcher)

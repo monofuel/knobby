@@ -13,7 +13,7 @@ type
     ## A window-manager client with its client-area geometry in root coordinates.
     id*: uint64
     instance*, class*, title*: string
-    x*, y*, width*, height*: int
+    x*, y*, width*, height*, processId*: int
     states*: set[WindowState]
 
   XWindow = culong
@@ -221,6 +221,8 @@ proc readTitle(session: XSession, window: XWindow): string =
 proc describeWindow(session: XSession, id: XWindow): ClientWindow =
   ## Snapshot a client's identity, client-area geometry, and blocking states.
   result.id = id.uint64
+  let pids = session.readLongs(id, session.atom("_NET_WM_PID"), XAtom(6), 1).values
+  if pids.len == 1: result.processId = pids[0].int
   let names = parseWmClass(session.readProperty(id, session.wmClass, AnyPropertyType,
     MaxTextBytes div 4).data)
   result.instance = names.instance

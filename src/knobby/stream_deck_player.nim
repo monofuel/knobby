@@ -187,7 +187,8 @@ proc frameVisual(page: var DeckPage, previous: DeckPage, entry: JsonNode,
       raise newException(ValueError, prefix & "durationMs must be an integer")
     durations.add(duration.getInt())
     result.normal.add(page.addFile(previous, framePath(frame{"path"}, prefix & "path")))
-  result.ends = frameEnds(durations)
+  result.ends = if durations.len == 1 and durations[0] == 0: @[1]
+    else: frameEnds(durations)
   result.pressed =
     if entry.hasKey("pressed"): page.addFile(previous, framePath(entry["pressed"], prefix & "pressed"))
     else: result.normal[0]

@@ -19,7 +19,7 @@ type
     message*: JsonNode
 
 const
-  ProtocolVersion* = 2
+  ProtocolVersion* = 3
   MaxFrameBytes* = 1024 * 1024
   PeerTimeoutMs* = 2000
   MaxPeers = 8

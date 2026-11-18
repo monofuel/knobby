@@ -1,7 +1,7 @@
 import
   std/[atomics, json, locks, os, strutils],
   ./[actions, audio_status, bindings, button_config, button_media, button_runtime,
-    common, fader_cache, ipc, midi_events, razer_lighting, runtime, status, stream_deck]
+    common, fader_cache, ipc, midi_events, obs_state, obs_worker, razer_lighting, runtime, status, stream_deck]
 
 from ./stream_deck_player import runConfiguredSession
 
@@ -185,6 +185,17 @@ proc serveState*(server: LocalServer) =
         request.peer.queueMessage(message)
       elif request.message{"type"}.getStr().startsWith("config."):
         request.peer.queueMessage(processConfigRequest(request.message))
+      elif request.message{"type"}.getStr() == "obs.status":
+        request.peer.queueMessage(%*{"version": ProtocolVersion, "type": "result",
+          "ok": true, "obs": readObsStatus()})
+      elif request.message{"type"}.getStr() == "obs.command":
+        try:
+          let id = queueObsOperation(request.message{"operation"}.getStr())
+          request.peer.queueMessage(%*{"version": ProtocolVersion, "type": "result",
+            "ok": true, "queued": true, "id": id})
+        except IOError, ValueError:
+          request.peer.queueMessage(%*{"version": ProtocolVersion, "type": "result",
+            "ok": false, "error": getCurrentExceptionMsg()})
       else: request.peer.close()
     var comparable = snapshot
     comparable.updatedMs = 0
@@ -260,6 +271,7 @@ proc startDeviceWorkers*() =
   except IOError, OSError, ValueError:
     stderr.writeLine("Fader cache ignored: " & getCurrentExceptionMsg())
   initializeState($getCurrentProcessId() & "-" & $nowMs(), saved)
+  startObsWorker()
   pending = emptyActions()
   persistenceStopping.store(false)
   createThread(actionThread, runActions)
@@ -277,4 +289,5 @@ proc stopDeviceWorkers*() =
   joinThread(audioThread)
   joinThread(stateThread)
   joinThread(persistenceThread)
+  stopObsWorker()
   stopButtonWorker()

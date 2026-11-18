@@ -454,7 +454,7 @@ proc testRecordingValues() =
   doAssert values["Video.AutoRemux"] == "true"
   let encoder = parseJson(recordEncoderJson("{\"bf\": 2, \"qp\": 30}", "/dev/dri/renderD128"))
   doAssert encoder == %*{"bf": 2, "qp": 20, "rate_control": "CQP",
-    "vaapi_device": "/dev/dri/renderD128"}
+    "vaapi_device": "/dev/dri/renderD128", "profile": 100, "keyint_sec": 2}
 
 proc mode(path: string): int =
   ## Return a file's permission bits.
@@ -518,7 +518,7 @@ proc testConfigureOffline() =
   doAssert iniValue(ini, "AdvOut", "RecEncoder") == "ffmpeg_vaapi_tex"
   doAssert iniValue(ini, "Video", "AutoRemux") == "true"
   doAssert parseJson(readFile(encoderPath)) == %*{"vaapi_device": "/dev/null",
-    "rate_control": "CQP", "qp": 20}
+    "rate_control": "CQP", "qp": 20, "profile": 100, "keyint_sec": 2}
   doAssert readFile(iniPath & ".knobby-backup-s1") == ProjectIni
   doAssert not fileExists(encoderPath & ".knobby-backup-s1")
   for path in [iniPath, encoderPath, iniPath & ".knobby-backup-s1"]:

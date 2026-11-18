@@ -68,6 +68,9 @@ mute state and the mousepad's intended lighting preset. [Button configuration](d
 covers the editor, animated images, linked Back navigation, and the shared JSON
 workflow for text editors and AI tools.
 
+The [OBS submenu](docs/obs.md) provides Minecraft recording, pause, commentary
+mute, and a button to resize Minecraft to 1080p, with live state artwork.
+
 The viewer uses Windy and Silky and can stay in the system tray. See
 [GUI setup](docs/gui.md) for installing its separate dependencies and launching it.
 The background daemon continues independently when the viewer exits.
@@ -92,7 +95,7 @@ nim r examples/stream_deck.nim
 
 It reconnects after unplugging. Ctrl+C restores the Elgato logo and exits.
 See the [Stream Deck notes](docs/stream-deck.md) for hardware details. This
-page is also run by the daemon; its keys have no desktop actions. Stop the
+demo has no desktop actions; the daemon uses configured menus and actions. Stop the
 daemon before running the standalone display demo so only one writer owns it.
 
 ## Background service
