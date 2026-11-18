@@ -4,7 +4,7 @@ import
   silky/[allocator, atlas, contexts, textboxes, widgets],
   silky/internal/inputs,
   silky/drawers/ogl,
-  knobby/[bindings, button_client, button_config, ipc, obs_state],
+  knobby/[bindings, button_client, button_config, controls_state, ipc, obs_state],
   ./button_editor_model
 
 type
@@ -25,7 +25,7 @@ type
   PreviewPage = object
     sources: array[16, PreviewSource]
     manifestPath, menu: string
-    obsStatus: string
+    indicators: string
     pressedKey: int
   SlotPixels = object
     generation, page: int
@@ -55,6 +55,7 @@ type
     saver: DraftSaver
     status*: JsonNode
     obsStatus*: JsonNode
+    controlStatus*: JsonNode
     statusRevision: string
     opened*, recovered: bool
     importPath, newMenuTitle: string
@@ -188,17 +189,17 @@ proc blankPixels(): seq[ColorRGBX] =
 proc draftVariant(entry: JsonNode, state: string): JsonNode =
   ## Return the prepared variant the editor's chosen state shows, or the base entry.
   result = entry
-  if not entry.isNil and state in obsStates(entry{"obsOperation"}.getStr()):
+  if not entry.isNil and state in entry.manifestStates():
     let variant = entry{"states"}{state}
     if not variant.isNil and variant.kind == JObject: result = variant
 
 proc menuPage(manifest: JsonNode, menu: string, selectedKey: int, state = NormalState,
     status: JsonNode = nil): PreviewPage =
-  ## Translate one manifest menu into player sources, choosing OBS variants by live status or draft state.
+  ## Translate one manifest menu into player sources, choosing status variants by live indicators or draft state.
   let keys = manifest{"menus"}{menu}
   proc shown(entry: JsonNode): JsonNode =
     ## Resolve live keys exactly as the Deck player does; draft keys follow the editor's state.
-    if status.isNil: draftVariant(entry, state) else: selectObsVisual(entry, status)
+    if status.isNil: draftVariant(entry, state) else: selectKeyVisual(entry, status)
   proc source(entry: JsonNode, pressed: bool): PreviewSource =
     ## Convert one manifest key into frames, using compiled art for built-in numbers.
     if entry.isNil: return
@@ -225,7 +226,8 @@ proc resolveLivePage(page: var PreviewPage, cachedPath: var string, cached: var 
       cachedPath = page.manifestPath
     if cached{"menus"}{page.menu}.isNil:
       raise newException(ValueError, "Active manifest has no menu " & page.menu & ".")
-    let status = if page.obsStatus.len == 0: unavailableObsStatus() else: parseJson(page.obsStatus)
+    let status = if page.indicators.len == 0: %*{"obs": unavailableObsStatus(),
+      "controls": unavailableControlStatus()} else: parseJson(page.indicators)
     page.sources = cached.menuPage(page.menu, page.pressedKey, status = status).sources
   except CatchableError as failure:
     cachedPath = ""
@@ -444,10 +446,18 @@ proc liveDeckSource(editor: ButtonEditor): tuple[manifestPath, menu: string] =
   if editor.status.isNil or editor.status.kind != JObject: return
   (editor.status{"manifestPath"}.getStr(), editor.status{"deckMenu"}.getStr())
 
-proc liveObsSignature(editor: ButtonEditor): string =
-  ## Summarize the visual state of every OBS operation, so heartbeats alone never republish the page.
+proc indicators*(editor: ButtonEditor): JsonNode =
+  ## Combine the daemon's OBS and control status exactly as the Deck player reads them.
+  %*{"obs": if editor.obsStatus.isNil: newJNull() else: editor.obsStatus,
+    "controls": if editor.controlStatus.isNil: newJNull() else: editor.controlStatus}
+
+proc liveStatusSignature(editor: ButtonEditor): string =
+  ## Summarize the visual state of every status action, so heartbeats alone never republish the page.
+  let indicators = editor.indicators()
   for operation in ObsOperations:
-    result.add(operation & "=" & obsVisualState(operation, editor.obsStatus) & ";")
+    result.add(operation & "=" & actionVisualState("obs", operation, indicators) & ";")
+  for kind in ControlActionKinds:
+    result.add(kind & "=" & actionVisualState(kind, "", indicators) & ";")
 
 proc publishPreviewPage(editor: ButtonEditor, view: PreviewView) =
   ## Send the visible view's frames to the player, or an empty page so hidden views stay idle.
@@ -459,7 +469,7 @@ proc publishPreviewPage(editor: ButtonEditor, view: PreviewView) =
       of LivePreview:
         if live.manifestPath.len == 0 or live.menu.len == 0: ""
         else: "live/" & live.manifestPath & "/" & live.menu & "/" & $editor.liveKey & "/" &
-          editor.liveObsSignature()
+          editor.liveStatusSignature()
       of DraftPreview:
         if editor.manifest.isNil or editor.model.device != DeckDevice: ""
         else: "draft/" & editor.model.menu & "/" & $editor.model.key & "/" & $editor.previewEdits &
@@ -469,7 +479,7 @@ proc publishPreviewPage(editor: ButtonEditor, view: PreviewView) =
   var page = PreviewPage()
   if key.len > 0 and view == LivePreview:
     page = PreviewPage(manifestPath: live.manifestPath, menu: live.menu, pressedKey: editor.liveKey,
-      obsStatus: if editor.obsStatus.isNil: "" else: $editor.obsStatus)
+      indicators: $editor.indicators())
   elif key.len > 0:
     page = editor.manifest.menuPage(editor.model.menu, editor.model.key, editor.model.visualState)
   withLock playerLock:
@@ -511,14 +521,17 @@ proc drawPreview*(sk: Silky, editor: ButtonEditor, slot: int, position: Vec2) =
   else:
     sk.drawRect(position, vec2(PreviewSize, PreviewSize), Black)
 
-proc liveObsState*(editor: ButtonEditor, entry: JsonNode): string =
-  ## Return the visual state the live Deck shows for an OBS key, from the daemon's actual status.
-  let operation = entry.obsOperation()
-  if operation.len > 0: obsVisualState(operation, editor.obsStatus) else: NormalState
+proc hasLiveStatus*(entry: JsonNode): bool =
+  ## Report whether a configured slot's action has observed status.
+  entry.actionKind() == ObsAction or entry{"action"}{"kind"}.getStr().isControlAction()
 
-proc liveObsDescription*(editor: ButtonEditor, entry: JsonNode): string =
-  ## Explain the live OBS or Minecraft key using the daemon's authoritative status.
-  obsStatusDescription(entry.obsOperation(), editor.obsStatus)
+proc liveKeyState*(editor: ButtonEditor, entry: JsonNode): string =
+  ## Return the visual state the live Deck shows for a status key, from the daemon's actual status.
+  actionVisualState(entry{"action"}{"kind"}.getStr(), entry.obsOperation(), editor.indicators())
+
+proc liveKeyDescription*(editor: ButtonEditor, entry: JsonNode): string =
+  ## Explain a live OBS, Minecraft, microphone, or Discord key using the daemon's authoritative status.
+  actionStatusDescription(entry{"action"}{"kind"}.getStr(), entry.obsOperation(), editor.indicators())
 
 proc liveDeckReady*(editor: ButtonEditor): bool =
   ## Report whether the daemon published an active Deck manifest the live view can show.
@@ -1017,7 +1030,7 @@ proc drawDetails(sk: Silky, window: Window, editor: ButtonEditor, x, height: flo
         statusHeight = sk.atlas.fonts["Small"].lineHeight.ceil + 10
       y += max(statusHeight, sk.label(message, x, y, width, "Small",
         if decodeError.len > 0 or editor.previewError.len > 0: Danger else: Muted) + 10)
-    let states = obsStates(entry.obsOperation())
+    let states = entry.entryStates()
     if states.len > 0:
       heading("Preview state")
       let chipWidth = floor((width - Gap) / 2)
@@ -1028,7 +1041,8 @@ proc drawDetails(sk: Silky, window: Window, editor: ButtonEditor, x, height: flo
             stateLabel(state), active = model.visualState == state):
           editor.applyEdit: editor.model.selectVisualState(state)
       y += ((states.len + 2) div 2).float32 * (ChipHeight + 6) + 2
-      y += sk.label("Previews the draft only; OBS is not changed.", x, y, width, "Small", Muted) + 12
+      y += sk.label("Previews the draft only; OBS and controls are not changed.", x, y, width,
+        "Small", Muted) + 12
   if locked:
     y += sk.label("Key 1 is always Back in submenus. It returns linked devices to the menu they came from.",
       x, y, width, "Body", Muted) + 14
@@ -1283,7 +1297,7 @@ proc handleReply(editor: ButtonEditor, reply: ConfigReply) =
     model[].selectMenu(if model.draft.findMenu(previousMenu).isNil: target.menu else: previousMenu)
     model[].selectDevice(previousDevice)
     model[].selectKey(previousKey)
-    if previousState in obsStates(model[].selected().obsOperation()):
+    if previousState in model[].selected().entryStates():
       model[].selectVisualState(previousState)
 
 proc schedule(editor: ButtonEditor, view: PreviewView) =
@@ -1324,10 +1338,11 @@ proc schedule(editor: ButtonEditor, view: PreviewView) =
       editor.previewRequestedEdits = edits
 
 proc updateEditor*(sk: Silky, editor: ButtonEditor, status: JsonNode, obsStatus: JsonNode,
-    view: PreviewView) =
+    controlStatus: JsonNode, view: PreviewView) =
   ## Process finished jobs, autosave, schedule work, and refresh the visible view's preview pixels.
   editor.status = status
   editor.obsStatus = obsStatus
+  editor.controlStatus = controlStatus
   if view == DraftPreview and not editor.model.loaded and not editor.busy and
       LoadJob notin editor.queued and editor.model.error.len == 0:
     editor.request(LoadJob)

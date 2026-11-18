@@ -1,7 +1,8 @@
 import
   std/[atomics, json, locks, os, strutils],
   ./[actions, audio_status, bindings, button_config, button_media, button_runtime,
-    common, fader_cache, ipc, midi_events, obs_state, obs_worker, razer_lighting, runtime, status, stream_deck]
+    common, controls_state, discord_worker, fader_cache, ipc, midi_events, obs_state, obs_worker,
+    razer_lighting, runtime, status, stream_deck]
 
 from ./stream_deck_player import runConfiguredSession
 
@@ -71,7 +72,7 @@ proc queueActions*(events: openArray[MidiEvent]) =
     withLock actionLock: pending.enqueue(faders)
 
 proc runActions() {.thread.} =
-  ## Own action dispatch and Discord RPC state exclusively on this worker.
+  ## Own action dispatch; Discord toggles are handed to the Discord worker's bounded queue.
   let dispatcher = newDispatcher()
   while not shouldStop():
     for captured in takeButtonActions():
@@ -159,8 +160,10 @@ proc runAudio() {.thread.} =
         for index in 0..2:
           if stream.matchesFader(index + 17, steam): targets[index].add(stream)
       setAudioState(audio, targets)
+      observeMicrophones(audio.microphones)
     except CatchableError as error:
       setComponentError("audio", error.msg)
+      observeMicrophoneFailure(error.msg)
     var present = false
     try:
       present = observeMousepadAttachment().len > 0
@@ -272,6 +275,7 @@ proc startDeviceWorkers*() =
     stderr.writeLine("Fader cache ignored: " & getCurrentExceptionMsg())
   initializeState($getCurrentProcessId() & "-" & $nowMs(), saved)
   startObsWorker()
+  startDiscordWorker()
   pending = emptyActions()
   persistenceStopping.store(false)
   createThread(actionThread, runActions)
@@ -290,4 +294,5 @@ proc stopDeviceWorkers*() =
   joinThread(stateThread)
   joinThread(persistenceThread)
   stopObsWorker()
+  stopDiscordWorker()
   stopButtonWorker()

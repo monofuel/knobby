@@ -1,6 +1,6 @@
 import
   std/[json, locks, os, osproc, streams, strformat, strutils, tables],
-  ./[audio_outputs, bindings, common, discord_rpc, midi_events, obs_worker, runtime]
+  ./[audio_outputs, bindings, common, discord_worker, midi_events, obs_worker, runtime]
 
 export bindings.isSteamGame
 
@@ -188,23 +188,15 @@ proc launchFfxiv() =
     echo fmt"Launching FFXIV: {FfxivLaunchCommand}"
     launchDetached(FfxivLaunchCommand)
 
-proc pressDiscordMute() =
-  ## Toggle Discord's own self-mute through RPC so the muted icon shows in
-  ## Discord, skipping cleanly when Discord or credentials are absent.
-  if not discordCredsExist():
-    echo fmt"Button 8: no Discord RPC credentials at {discordCredsPath()}; " &
-      "run examples/discord_auth.nim first."
-    return
-  if findDiscordSocketPath().len == 0:
-    echo "Button 8: Discord is not running."
-    return
-  try:
-    let muted = toggleDiscordMute()
-    let stateLabel = if muted: "muted" else: "unmuted"
-    echo fmt"Button 8: Discord {stateLabel}"
-  except CatchableError as error:
-    # A Discord hiccup must not take the whole daemon down with it.
-    echo fmt"Button 8: Discord mute failed: {error.msg}"
+proc openDiscord() =
+  ## Focus the Discord window by its exact WM_CLASS, or start the installed
+  ## client detached; this is the only path that launches Discord.
+  let window = discordWindowId(runAudioCommand("wmctrl", @["-lx"]))
+  if window.len > 0:
+    discard runAudioCommand("wmctrl", @["-i", "-a", window])
+  else:
+    echo fmt"Launching Discord: {DiscordLaunchCommand}"
+    launchDetached(DiscordLaunchCommand)
 
 proc executeButtonAction*(action: JsonNode) =
   ## Execute an already-resolved button action without consulting the current menu.
@@ -215,7 +207,10 @@ proc executeButtonAction*(action: JsonNode) =
   of "claude": launchDetached(ClaudeCommand)
   of "ffxiv": launchFfxiv()
   of "microphones": toggleMicMute()
-  of "discord": pressDiscordMute()
+  of "discord": queueDiscordCommand(ToggleDiscordMute)
+  of "discordDeafen": queueDiscordCommand(ToggleDiscordDeafen)
+  of "openDiscord": openDiscord()
+  of "mixerOverlay": echo "Mixer overlay is not available yet."
   of "obs": discard queueObsOperation(action["operation"].getStr())
   else: raise newException(ValueError, "Unresolved or invalid button action.")
 
@@ -236,7 +231,10 @@ proc pressButton(note: int) =
     except OSError as error:
       echo "Microphone mute failed: " & error.msg
   of ToggleDiscord:
-    pressDiscordMute()
+    try:
+      queueDiscordCommand(ToggleDiscordMute)
+    except DiscordQueueError as error:
+      echo "Button 8: " & error.msg
   of Unassigned:
     discard
 

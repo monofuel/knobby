@@ -267,6 +267,31 @@ suite "button media plan":
     except MediaError as error:
       check error.field == "menus[0].deck[0].visual.states.muted"
 
+  test "control keys plan their exact action kind and mixed or deafened images":
+    let
+      plans = planButtonMedia(buttonConfig(%*[{"id": "root", "title": "Main",
+        "mixer": [], "deck": [
+          deckKey(2, "Mics", %*{"image": "assets/a.png", "states": {
+            "mixed": "assets/mix.png", "unavailable": "assets/off.png"}},
+            %*{"kind": "microphones"}),
+          deckKey(3, "Deaf", %*{"builtinNumber": 3, "states": {"deafened": "assets/d.png"}},
+            %*{"kind": "discordDeafen"})]}]))
+      mics = plans.planFor("root", 2)
+    check mics.controlAction == "microphones"
+    check mics.obsOperation == ""
+    check mics.states == @[StatePlan(state: "unavailable", image: "assets/off.png"),
+      StatePlan(state: "mixed", image: "assets/mix.png")]
+    check plans.planFor("root", 3).controlAction == "discordDeafen"
+    check plans.planFor("root", 3).states == @[StatePlan(state: "deafened", image: "assets/d.png")]
+    var menu = builtinMenu("root")
+    menu["deck"][4]["action"] = %*{"kind": "discord"}
+    let
+      cache = getTempDir() / "knobby-media-control-unit-" & $getCurrentProcessId()
+      manifest = prepareButtonMedia(buttonConfig(%*[menu]), "/nonexistent", cache,
+        "/nonexistent/font.ttf")
+    check manifest["menus"]["root"]["5"] == %*{"builtinNumber": 5, "controlAction": "discord"}
+    check not dirExists(cache)
+
   test "builtin OBS keys without states carry their operation and need no rendering":
     var menu = builtinMenu("root")
     menu["deck"][4]["action"] = %*{"kind": "obs", "operation": "open"}

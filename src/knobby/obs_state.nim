@@ -4,6 +4,8 @@ import
 const
   ObsOperations* = ["recordToggle", "pauseToggle", "micToggle", "open", "minecraft1080"]
   ObsVisualStates* = ["recording", "paused", "muted", "unavailable", "running", "ready"]
+  VisualStates* = ["recording", "paused", "muted", "unavailable", "running", "ready",
+    "mixed", "deafened"]
   ObsStatusFields* = ["connected", "workspaceReady", "minecraftReady",
     "recording", "paused", "micMuted", "transitioning", "error", "obsRunning",
     "minecraftRunning", "minecraftSized"]

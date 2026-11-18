@@ -539,10 +539,10 @@ suite "Configured Stream Deck sessions":
     check fake.closes == 1
 
 proc obsStatus(recording: bool, connected = true): JsonNode =
-  ## Build a fake OBS helper status snapshot.
-  %*{"connected": connected, "workspaceReady": connected, "minecraftReady": true,
+  ## Build fake player indicators around an OBS helper status snapshot.
+  %*{"obs": {"connected": connected, "workspaceReady": connected, "minecraftReady": true,
     "recording": recording, "paused": false, "micMuted": false,
-    "transitioning": false, "error": ""}
+    "transitioning": false, "error": ""}, "controls": nil}
 
 proc obsPage(base, basePressed, recording, recordingPressed: string,
     frames: openArray[string]): JsonNode =
@@ -680,3 +680,43 @@ suite "OBS indicators":
     expect ValueError:
       runConfiguredSession(newStreamDeck(newFakeDeck().transport()), proc (): bool = true,
         ignoreKey, nil, nil, nilOptions)
+
+suite "control indicators":
+  test "control keys switch preloaded variants from control status alone":
+    let directory = getTempDir() / "knobby-player-controls"
+    createDir(directory)
+    defer: removeDir(directory)
+    let
+      base = writeJpeg(directory, "base.jpg")
+      mixed = writeJpeg(directory, "mixed.jpg")
+      grey = writeJpeg(directory, "grey.jpg")
+      a = writeJpeg(directory, "a.jpg")
+    var page = framePage(1, "controls", [a], a, key = 2)
+    page["keys"]["1"] = %*{"normal": [{"path": base, "durationMs": 0}], "pressed": base,
+      "controlAction": "microphones",
+      "states": {"mixed": {"normal": [{"path": mixed, "durationMs": 0}], "pressed": mixed},
+        "unavailable": {"normal": [{"path": grey, "durationMs": 0}], "pressed": grey}}}
+    page["keys"]["3"] = %*{"builtinNumber": 3, "controlAction": "grok"}
+    let
+      fake = newFakeDeck()
+      pages = new seq[JsonNode]
+      calls = new seq[int64]
+      diagnostics = new seq[string]
+    pages[].add(page)
+    var options = fake.fakeOptions(diagnostics)
+    options.readIndicators = proc (): JsonNode =
+      ## Report live microphones, then mixed, then no observation at all.
+      let state = if fake.nowMs < 200: "live" elif fake.nowMs < 400: "mixed" else: ""
+      %*{"obs": nil, "controls": {"systemMic": {"state": state}}}
+    runConfiguredSession(newStreamDeck(fake.transport()), proc (): bool = fake.nowMs >= 600,
+      ignoreKey, pageReader(pages, calls), nil, options)
+    var keyOne: seq[string]
+    for upload in fake.uploads():
+      if upload.key == 0 and (keyOne.len == 0 or keyOne[^1] != upload.jpeg):
+        keyOne.add(upload.jpeg)
+    check keyOne == @[readFile(base), readFile(mixed), readFile(grey)]
+    check calls[][0] == 0
+    for call in calls[][1..^1]:
+      check call == 1
+    check diagnostics[].len == 1
+    check "key 3" in diagnostics[][0]

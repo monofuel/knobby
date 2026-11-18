@@ -439,6 +439,30 @@ suite "Button editor model":
     check model.visualState == NormalState
     expect ValueError: model.selectVisualState("recording")
 
+  test "control actions expose their own preview states":
+    var model = liveModel()
+    model.selectDevice(DeckDevice)
+    model.selectKey(6)
+    model.setActionKind(DiscordAction)
+    model.selectVisualState("deafened")
+    model.setImage("assets/deaf.png", "deafened")
+    check model.selected()["visual"]["states"] == %*{"deafened": "assets/deaf.png"}
+    model.setActionKind(MicrophonesAction)
+    check model.visualState == NormalState
+    model.selectVisualState("mixed")
+    expect ValueError: model.selectVisualState("deafened")
+    model.setActionKind(OpenDiscordAction)
+    model.selectVisualState("running")
+    model.setActionKind(MixerOverlayAction)
+    check model.visualState == NormalState
+    expect ValueError: model.selectVisualState("muted")
+    check model.validation == ""
+    check ActionLabels[DiscordDeafenAction] == "Discord deafen"
+    check ActionLabels[OpenDiscordAction] == "Open Discord"
+    check ActionLabels[MixerOverlayAction] == "Mixer overlay"
+    check manifestStates(%*{"controlAction": "discordDeafen"}) == @["deafened", "unavailable"]
+    check manifestStates(%*{"obsOperation": "micToggle"}) == @["muted", "unavailable"]
+
   test "OBS edits autosave, recover, and survive edits made while applying":
     let
       directory = getTempDir() / "knobby-editor-obs-draft-test"

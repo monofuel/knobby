@@ -14,6 +14,7 @@ type
     audioUpdatedMs*: int64
     buttons*: JsonNode
     obs*: JsonNode
+    controls*: JsonNode
 
 var
   stateLock: Lock
@@ -61,6 +62,7 @@ proc unavailable(message: string) =
       shared.mousepadPresent = false
       shared.buttons = nil
       shared.obs = nil
+      shared.controls = nil
 
 proc inputLoop() {.thread.} =
   ## Subscribe and reconnect; this process never opens hardware or queries audio.
@@ -77,6 +79,7 @@ proc inputLoop() {.thread.} =
           var state = viewerState(decodeSnapshot($message["state"]))
           state.buttons = message["state"]{"buttonConfig"}
           state.obs = message["state"]{"obs"}
+          state.controls = message["state"]{"controls"}
           {.cast(gcsafe).}:
             withLock stateLock: deepCopy(shared, state)
           receivedMs = monotonicMs()

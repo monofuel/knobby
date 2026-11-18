@@ -43,7 +43,7 @@ suite "RPC failure bounds":
       pair.peer.close()
     pair.peer.send("\x01")
     expect CatchableError:
-      discard pair.client.getVoiceMute()
+      discard pair.client.getVoiceSettings()
 
   test "oversized frame rejected before reading payload":
     let pair = rpcPair()
@@ -52,7 +52,7 @@ suite "RPC failure bounds":
       pair.peer.close()
     pair.peer.send(encodeUint32Le(FrameOp) & encodeUint32Le(2 * 1024 * 1024))
     expect IOError:
-      discard pair.client.getVoiceMute()
+      discard pair.client.getVoiceSettings()
 
   test "unrelated responses cannot keep a request alive forever":
     let pair = rpcPair()
@@ -64,4 +64,4 @@ suite "RPC failure bounds":
       frames.add(encodeFrame(FrameOp, "{}"))
     pair.peer.send(frames)
     expect IOError:
-      discard pair.client.getVoiceMute()
+      discard pair.client.getVoiceSettings()

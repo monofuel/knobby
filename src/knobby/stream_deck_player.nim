@@ -1,6 +1,6 @@
 import
   std/[algorithm, json, monotimes, os, strutils, tables],
-  ./[bindings, obs_state, stream_deck, stream_deck_page]
+  ./[bindings, controls_state, obs_state, stream_deck, stream_deck_page]
 
 type
   PlayerClock* = proc (): int64
@@ -21,9 +21,10 @@ type
     ends: seq[int]
     pressed: int
   KeyPlan = object
-    # visuals[0] is the base; later visuals are OBS state variants named by states.
+    # visuals[0] is the base; later visuals are status variants named by states.
     visuals: seq[KeyVisual]
     states: seq[string]
+    actionKind: string
     operation: string
     diagnostic: string
   DeckPage = object
@@ -80,11 +81,11 @@ proc writeDiagnostic(message: string) =
   stderr.writeLine("Stream Deck: " & message)
 
 proc defaultPlayerOptions*(): PlayerOptions =
-  ## Return the production clock, polling bounds, diagnostic sink, and OBS status reader.
+  ## Return the production clock, polling bounds, diagnostic sink, and status indicator reader.
   PlayerOptions(clock: monotonicMs, idlePollMs: DefaultIdlePollMs,
     busyRetryMs: DefaultBusyRetryMs, busyLimitMs: DefaultBusyLimitMs,
     brightness: StreamDeckDemoBrightness, onDiagnostic: writeDiagnostic,
-    readIndicators: readObsStatus)
+    readIndicators: readIndicators)
 
 proc builtinDeckPage*(generation: int64 = 1, menu = "root"): JsonNode =
   ## Build a page that shows the embedded numbered images on every key.
@@ -194,7 +195,7 @@ proc frameVisual(page: var DeckPage, previous: DeckPage, entry: JsonNode,
     else: result.normal[0]
 
 proc entryPlan(page: var DeckPage, previous: DeckPage, entry: JsonNode): KeyPlan =
-  ## Convert one manifest key entry and its OBS state variants into image
+  ## Convert one manifest key entry and its status variants into image
   ## indices, raising ValueError when malformed.
   if entry.kind != JObject:
     raise newException(ValueError, "entry must be an object")
@@ -214,12 +215,18 @@ proc entryPlan(page: var DeckPage, previous: DeckPage, entry: JsonNode): KeyPlan
     if entry["obsOperation"].kind != JString:
       raise newException(ValueError, "obsOperation must be a string")
     result.operation = entry["obsOperation"].getStr()
+    result.actionKind = "obs"
+  elif entry.hasKey("controlAction"):
+    let control = entry["controlAction"]
+    if control.kind != JString or not control.getStr().isControlAction():
+      raise newException(ValueError, "controlAction must name a control action")
+    result.actionKind = control.getStr()
   if entry.hasKey("states"):
     let states = entry["states"]
     if states.kind != JObject:
       raise newException(ValueError, "states must be an object")
     for state, variant in states:
-      if state notin ObsVisualStates:
+      if state notin VisualStates:
         raise newException(ValueError, "unknown visual state " & state.escape())
       result.visuals.add(page.frameVisual(previous, variant, "states." & state & "."))
       result.states.add(state)
@@ -335,10 +342,10 @@ proc receivePage(player: var Player, node: JsonNode) =
   player.hasPending = true
   player.ready = false
 
-proc visualIndex(plan: KeyPlan, status: JsonNode): int =
-  ## Return the visual matching the OBS status, falling back to the base.
-  if plan.operation.len > 0:
-    let state = obsVisualState(plan.operation, status)
+proc visualIndex(plan: KeyPlan, indicators: JsonNode): int =
+  ## Return the visual matching the indicators, falling back to the base.
+  if plan.actionKind.len > 0:
+    let state = actionVisualState(plan.actionKind, plan.operation, indicators)
     if state.len > 0:
       result = max(0, plan.states.find(state))
 
@@ -471,7 +478,7 @@ proc runConfiguredSession*(deck: StreamDeck, shouldStop: proc (): bool,
   ## onReady runs after every key of a new generation is on the device. Stopping
   ## restores the logo; the session is always closed, and a close failure after
   ## another error is logged so the original error propagates. Each loop reads
-  ## one options.readIndicators snapshot to pick OBS state variants preloaded
+  ## one options.readIndicators {obs, controls} snapshot to pick status variants preloaded
   ## with the page, without a new generation or animation clock reset.
   if options.clock.isNil or options.onDiagnostic.isNil or options.readIndicators.isNil or
       options.busyLimitMs <= 0 or

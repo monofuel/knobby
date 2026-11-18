@@ -1,6 +1,7 @@
 import
   std/[json, locks, times],
-  ./[audio_status, bindings, button_runtime, fader_cache, ipc, midi_events, obs_state, stream_deck]
+  ./[audio_status, bindings, button_runtime, controls_state, fader_cache, ipc, midi_events,
+    obs_state, stream_deck]
 
 type
   MixerStatus* = object
@@ -24,6 +25,7 @@ type
     audioUpdatedMs*: int64
     buttonConfig*: JsonNode
     obs*: JsonNode
+    controls*: JsonNode
 
 const
   StatusVersion* = ProtocolVersion
@@ -64,6 +66,7 @@ proc readKnobbyState*(): StatusSnapshot =
   result.updatedMs = nowMs()
   result.buttonConfig = buttonRuntimeStatus()
   result.obs = readObsStatus()
+  result.controls = readControlStatus()
   if result.buttonConfig{"initialized"}.getBool():
     result.catalog = activeMixerCatalog()
 
@@ -146,6 +149,8 @@ proc encodeState*(state: StatusSnapshot): JsonNode =
     snapshot.buttonConfig = newJObject()
   if snapshot.obs.isNil:
     snapshot.obs = unavailableObsStatus()
+  if snapshot.controls.isNil:
+    snapshot.controls = unavailableControlStatus()
   %snapshot
 
 proc encodeSnapshot*(state: MixerStatus, session: string, timeMs: int64): string =
@@ -169,6 +174,8 @@ proc decodeSnapshot*(data: string): StatusSnapshot =
   for value in observed:
     if value.kind != JBool:
       raise newException(ValueError, "Invalid fader observation flag.")
+  if not node.hasKey("controls"):
+    node["controls"] = unavailableControlStatus()
   if node["deckHeld"].len != StreamDeckKeyCount or node["deckPressedMs"].len != StreamDeckKeyCount or
       node["faderStreams"].len != 3:
     raise newException(ValueError, "Invalid device state arrays.")

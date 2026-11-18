@@ -10,7 +10,8 @@ type
     ClaudeAction = "claude", FfxivAction = "ffxiv",
     MicrophonesAction = "microphones", DiscordAction = "discord",
     MenuAction = "menu", BackAction = "back", HomeAction = "home",
-    ObsAction = "obs"
+    ObsAction = "obs", DiscordDeafenAction = "discordDeafen",
+    OpenDiscordAction = "openDiscord", MixerOverlayAction = "mixerOverlay"
   ButtonTarget* = enum
     TargetMixer = "mixer", TargetDeck = "deck", TargetBoth = "both"
   ButtonDevice* = enum
@@ -58,7 +59,8 @@ const
   DeckEntryKeys = ["key", "title", "action", "visual"]
   VisualKeys = ["image", "showTitle", "builtinNumber", "states"]
   ActionFields = ["command", "menu", "target", "operation"]
-  NamedActionKinds = {GrokAction, ClaudeAction, FfxivAction, MicrophonesAction, DiscordAction}
+  NamedActionKinds* = {GrokAction, ClaudeAction, FfxivAction, MicrophonesAction, DiscordAction,
+    DiscordDeafenAction, OpenDiscordAction, MixerOverlayAction}
   Sha256Initial = [0x6a09e667'u32, 0xbb67ae85'u32, 0x3c6ef372'u32, 0xa54ff53a'u32,
     0x510e527f'u32, 0x9b05688c'u32, 0x1f83d9ab'u32, 0x5be0cd19'u32]
   Sha256Rounds = [
@@ -270,8 +272,8 @@ proc parseEntries(menu: JsonNode, device: ButtonDevice, field: string, isRoot: b
             "Use either an image or a built-in number, not both.")
       if visual.hasKey("states"):
         let statesField = join(visualField, "states")
-        requireObject(visual["states"], statesField, ObsVisualStates)
-        for state in ObsVisualStates:
+        requireObject(visual["states"], statesField, VisualStates)
+        for state in VisualStates:
           if visual["states"].hasKey(state) and
               not isManagedAssetPath(requireMember(visual["states"], state, statesField, JString).getStr()):
             raise configError(join(statesField, state),
@@ -334,7 +336,7 @@ proc canonicalEntry(entry: JsonNode, button: ConfiguredButton, device: ButtonDev
       else: not source.hasKey("image"))
     if source.hasKey("states") and source["states"].len > 0:
       var states = newJObject()
-      for state in ObsVisualStates:
+      for state in VisualStates:
         if source["states"].hasKey(state):
           states[state] = source["states"][state]
       visual["states"] = states
@@ -424,6 +426,14 @@ proc buttonAt*(config: JsonNode, menu: string, device: string, key: int): JsonNo
     if typed.id == menu:
       let button = if parsedDevice == MixerDevice: typed.mixer[key - 1] else: typed.deck[key - 1]
       result = %*{"key": key, "title": button.title, "action": actionJson(button.action)}
+
+proc namedActionDescription*(kind: ConfigActionKind): string =
+  ## Describe a named action that has no compiled default binding.
+  case kind
+  of DiscordDeafenAction: "Toggle Discord deafen through local RPC."
+  of OpenDiscordAction: "Open or focus Discord."
+  of MixerOverlayAction: "Show the mixer overlay."
+  else: ""
 
 proc isQueuedAction*(kind: ConfigActionKind): bool =
   ## Report whether an action runs on the action worker rather than navigating.

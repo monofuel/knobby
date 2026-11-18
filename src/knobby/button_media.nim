@@ -5,7 +5,7 @@
 
 import
   std/[json, monotimes, os, osproc, posix, sequtils, sets, sha1, strutils, times, unicode],
-  ./[common, obs_state]
+  ./[common, controls_state, obs_state]
 
 type
   MediaError* = object of ValueError
@@ -53,6 +53,7 @@ type
     key*: int
     field*: string
     obsOperation*: string
+    controlAction*: string
     states*: seq[StatePlan]
     case kind*: KeyPlanKind
     of BuiltinKey:
@@ -419,11 +420,16 @@ proc planButtonMedia*(config: JsonNode): seq[MenuPlan] =
           KeyPlan(key: key, field: field, kind: ArtworkKey, title: title, image: image)
         else:
           KeyPlan(key: key, field: field, kind: TitleKey, title: title)
-      let action = entry{"action"}
-      if action{"kind"}.getStr() == "obs":
+      let
+        action = entry{"action"}
+        kind = action{"kind"}.getStr()
+      if kind == "obs":
         keyPlan.obsOperation = action{"operation"}.getStr()
+      elif kind.isControlAction():
+        keyPlan.controlAction = kind
+      if keyPlan.obsOperation.len > 0 or keyPlan.controlAction.len > 0:
         let states = if visual.isNil: nil else: visual{"states"}
-        for state in ObsVisualStates:
+        for state in VisualStates:
           if not states.isNil and states.hasKey(state):
             let stateImage = states[state].getStr()
             if not isManagedAsset(stateImage):
@@ -789,7 +795,8 @@ proc prepareButtonMedia*(config: JsonNode, configDir, cacheDir,
   ## {"version":1,"menus":{id:{"1".."15": entry}}}. Entries are either
   ## {"builtinNumber":n} or {"normal":[{"path","durationMs"}],"pressed":path}
   ## with absolute JPEG paths under cacheDir. OBS-bound entries add
-  ## "obsOperation" and, for mapped visual states, "states":{state:{normal,
+  ## "obsOperation" and control-bound entries add "controlAction" naming the
+  ## exact action kind; both add, for mapped visual states, "states":{state:{normal,
   ## pressed}}. Every variant counts toward maxPreparedBytes. The whole
   ## preparation, including every child process, shares one timeoutMs deadline and raises
   ## MediaTimeoutError when it runs out. Preparation never deletes published
@@ -831,6 +838,9 @@ proc prepareButtonMedia*(config: JsonNode, configDir, cacheDir,
           else: prepared(keyPlan)
         if keyPlan.obsOperation.len > 0:
           entry["obsOperation"] = %keyPlan.obsOperation
+        elif keyPlan.controlAction.len > 0:
+          entry["controlAction"] = %keyPlan.controlAction
+        if keyPlan.obsOperation.len > 0 or keyPlan.controlAction.len > 0:
           if keyPlan.states.len > 0:
             var states = newJObject()
             for statePlan in keyPlan.states:

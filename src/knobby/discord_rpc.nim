@@ -147,14 +147,13 @@ proc authenticate*(client: DiscordRpcClient, accessToken: string): JsonNode =
   ## Authenticate the RPC connection with an OAuth access token.
   result = client.request("AUTHENTICATE", %*{"access_token": accessToken})
 
-proc getVoiceMute*(client: DiscordRpcClient): bool =
-  ## Return whether the Discord client is currently self-muted.
-  let response = client.request("GET_VOICE_SETTINGS", newJObject())
-  result = response{"data"}{"mute"}.getBool()
+proc getVoiceSettings*(client: DiscordRpcClient): JsonNode =
+  ## Return the data object of a GET_VOICE_SETTINGS response, or nil when absent.
+  result = client.request("GET_VOICE_SETTINGS", newJObject()){"data"}
 
-proc setVoiceMute*(client: DiscordRpcClient, muted: bool) =
-  ## Set the Discord client's self-mute state.
-  discard client.request("SET_VOICE_SETTINGS", %*{"mute": muted})
+proc setVoiceSettings*(client: DiscordRpcClient, settings: JsonNode): JsonNode =
+  ## Apply voice settings and return the data object Discord reports, or nil when absent.
+  result = client.request("SET_VOICE_SETTINGS", settings){"data"}
 
 proc discordCredsExist*(): bool =
   ## Report whether the Discord OAuth credentials file exists.
@@ -215,13 +214,12 @@ proc refreshTokens*(creds: var DiscordCreds) =
     @["grant_type=refresh_token", fmt"refresh_token={creds.refreshToken}"])
   creds.storeTokens(response)
 
-var cachedClient: DiscordRpcClient
-
-proc connectAuthenticated(): DiscordRpcClient =
-  ## Connect and authenticate a fresh RPC client, refreshing expired tokens
-  ## as needed.
+proc connectAuthenticated*(timeoutMs = DefaultRecvTimeoutMs): DiscordRpcClient =
+  ## Connect and authenticate with saved credentials, refreshing expired tokens
+  ## without ever requesting interactive authorization.
   var creds = loadDiscordCreds()
   result = connectDiscordRpc()
+  result.recvTimeoutMs = timeoutMs
   try:
     discard result.handshake(creds.clientId)
     try:
@@ -232,27 +230,3 @@ proc connectAuthenticated(): DiscordRpcClient =
   except CatchableError:
     result.close()
     raise
-
-
-proc dropCachedClient() =
-  ## Close and forget the cached RPC connection.
-  if cachedClient != nil:
-    cachedClient.close()
-    cachedClient = nil
-
-proc toggleDiscordMute*(): bool =
-  ## Toggle the Discord client's self-mute and return the new mute state.
-  ## The authenticated connection is kept open across calls because Discord
-  ## rate-limits handshakes per client id: reconnecting on every press makes
-  ## the second press hang, so a fresh connection is only made when the
-  ## cached one has died (Discord restarted or closed the socket).
-  if cachedClient == nil:
-    cachedClient = connectAuthenticated()
-  try:
-    result = not cachedClient.getVoiceMute()
-    cachedClient.setVoiceMute(result)
-  except CatchableError:
-    dropCachedClient()
-    cachedClient = connectAuthenticated()
-    result = not cachedClient.getVoiceMute()
-    cachedClient.setVoiceMute(result)

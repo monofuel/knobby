@@ -191,6 +191,16 @@ proc drawDetails(sk: Silky, viewer: Viewer, x, height: float32) =
       text(binding["label"].getStr(), "Title")
       text("Note " & $viewer.selected, "Small", Accent)
       text(binding["description"].getStr())
+      let
+        live = viewer.editor.model.live
+        mixerMenu = viewer.state.buttons{"mixerMenu"}.getStr()
+        mixerEntry = if viewer.editor.model.loaded and mixerMenu.len > 0 and
+          not live.findMenu(mixerMenu).isNil: live.entryAt(mixerMenu, MixerDevice, viewer.selected)
+          else: nil
+      if not mixerEntry.isNil and mixerEntry.hasLiveStatus():
+        let state = viewer.editor.liveKeyState(mixerEntry)
+        text(viewer.editor.liveKeyDescription(mixerEntry), "Small",
+          if state == "unavailable": Muted else: Accent)
       if viewer.selected == 11:
         text("Microphone inputs", "Body", Accent)
         if viewer.state.audioError.len > 0:
@@ -228,9 +238,9 @@ proc drawDetails(sk: Silky, viewer: Viewer, x, height: float32) =
         title = entry{"title"}.getStr()
       text(if title.len > 0: title else: "Untitled", "Body", if title.len > 0: Foreground else: Muted)
       text(live.describeAction(entry), "Small", Muted)
-      if entry.obsOperation().len > 0:
-        let state = editor.liveObsState(entry)
-        text(editor.liveObsDescription(entry), "Small",
+      if entry.hasLiveStatus():
+        let state = editor.liveKeyState(entry)
+        text(editor.liveKeyDescription(entry), "Small",
           if state == "unavailable": Muted else: Accent)
       text("Menu: " & live.menuTitle(menu), "Small", Muted)
     elif not viewer.state.buttons.isNil:
@@ -462,13 +472,15 @@ proc editorScript(phase, directory, fixtureImage: string, window: Window, sk: Si
       capture("locked"),
       click("key:2"),
       waitFor("key 2", proc (): bool = model().key == 2),
-      waitFor("key 2 editable", proc (): bool = "importPath" in editor.rects)] &
+      waitFor("key 2 editable", proc (): bool = "importPath" in editor.rects),
+      scrollTo("import")] &
       replaceField("importPath", fixtureImage) & @[
       click("import"),
       waitFor("image imported", proc (): bool = model().selected().hasImage()),
       waitFor("image preview", proc (): bool =
         editor.previewEdits == model().edits and not editor.busy and
           not editor.manifest{"menus"}{"spiele"}{"2"}.isNil),
+      click("device:deck"),
       settle(20),
       capture("image"),
       click("menu:root"),
@@ -477,6 +489,7 @@ proc editorScript(phase, directory, fixtureImage: string, window: Window, sk: Si
       click("action:menu"),
       waitFor("menu action", proc (): bool =
         model().selected()["action"]{"menu"}.getStr() == "spiele"),
+      scrollTo("on:deck"),
       click("on:deck"),
       waitFor("deck target", proc (): bool = model().selected().menuTarget() == TargetDeck),
       click("key:3")] &
@@ -531,6 +544,7 @@ proc editorScript(phase, directory, fixtureImage: string, window: Window, sk: Si
       click("device:deck"),
       click("key:2"),
       waitFor("draft key", proc (): bool = model().device == DeckDevice and model().key == 2),
+      scrollTo("clearImage"),
       click("clearImage"),
       waitFor("draft without image", proc (): bool =
         not model().selected().hasImage() and model().dirty),
@@ -538,6 +552,7 @@ proc editorScript(phase, directory, fixtureImage: string, window: Window, sk: Si
         editor.previewEdits == model().edits and not editor.busy and
           editor.manifest{"menus"}{"spiele"}{"2"}.isNil and editor.previewCurrent(1)),
       waitFor("draft autosaved", proc (): bool = fileExists(draftPath())),
+      click("device:deck"),
       settle(4),
       capture("live-draft"),
       click("page:DeckPage"),
@@ -557,7 +572,7 @@ proc editorScript(phase, directory, fixtureImage: string, window: Window, sk: Si
         editor.previewCurrent(model().key - 1) and editor.previewCurrent(PressedSlot)
     proc liveState(): string =
       ## Return the live visual state of the OBS key under test.
-      editor.liveObsState(model().live.entryAt(RootMenuId, DeckDevice, 6))
+      editor.liveKeyState(model().live.entryAt(RootMenuId, DeckDevice, 6))
     result = @[
       click("page:DeckPage"),
       waitFor("live configuration", proc (): bool = model().loaded and not editor.opened),
@@ -746,7 +761,8 @@ proc main() =
     ## Refresh from observer snapshots without blocking on hardware or subprocesses.
     viewer.state = if fixtureStatus: previewState() else: readState()
     viewer.editor.liveKey = viewer.selected + 1
-    sk.updateEditor(viewer.editor, viewer.state.buttons, viewer.state.obs, viewer.previewView(window))
+    sk.updateEditor(viewer.editor, viewer.state.buttons, viewer.state.obs, viewer.state.controls,
+      viewer.previewView(window))
     if not window.visible:
       return
     if fixtureStatus and frame == 40:

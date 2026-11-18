@@ -1,6 +1,6 @@
 import
   std/[algorithm, json, os, strutils, unicode],
-  knobby/[button_config, obs_state]
+  knobby/[button_config, controls_state, obs_state]
 
 type
   ConflictState* = enum
@@ -34,7 +34,8 @@ type
 const
   BackKey* = 1
   ActionLabels*: array[ConfigActionKind, string] = ["None", "Command", "Grok",
-    "Claude", "FFXIV", "Microphones", "Discord", "Open menu", "Back", "Home", "OBS"]
+    "Claude", "FFXIV", "Microphones", "Discord mute", "Open menu", "Back", "Home", "OBS",
+    "Discord deafen", "Open Discord", "Mixer overlay"]
   TargetLabels*: array[ButtonTarget, string] = ["Mixer", "Deck", "Both"]
   DeviceLabels*: array[ButtonDevice, string] = ["Arduino mixer", "Stream Deck"]
   StaleCode* = "stale"
@@ -44,7 +45,7 @@ const
   NormalState* = ""
   StateLabels* = [("", "Default"), ("recording", "Recording"), ("paused", "Paused"),
     ("muted", "Muted"), ("unavailable", "Unavailable"),
-    ("running", "Running"), ("ready", "Ready")]
+    ("running", "Running"), ("ready", "Ready"), ("mixed", "Mixed"), ("deafened", "Deafened")]
 
 proc keyCount*(device: ButtonDevice): int =
   ## Return the number of editable physical keys on a device.
@@ -121,6 +122,25 @@ proc obsStates*(operation: string): seq[string] =
   of "open": @["running", "unavailable"]
   of "minecraft1080": @["running", "ready", "unavailable"]
   else: @[]
+
+proc controlStates*(kind: string): seq[string] =
+  ## List the visual states core can select for a control action, in display order.
+  case kind
+  of "microphones": @["muted", "mixed", "unavailable"]
+  of "discord": @["muted", "deafened", "unavailable"]
+  of "discordDeafen": @["deafened", "unavailable"]
+  of "openDiscord": @["running", "ready"]
+  else: @[]
+
+proc entryStates*(entry: JsonNode): seq[string] =
+  ## List the visual states of a configured slot's OBS or control action.
+  if entry.actionKind() == ObsAction: obsStates(entry.obsOperation())
+  else: controlStates(entry{"action"}{"kind"}.getStr())
+
+proc manifestStates*(entry: JsonNode): seq[string] =
+  ## List the visual states of a prepared manifest entry's OBS or control action.
+  let (kind, operation) = entry.manifestStatusAction()
+  if kind == "obs": obsStates(operation) else: controlStates(kind)
 
 proc stateLabel*(state: string): string =
   ## Name a visual state for editor controls.
@@ -200,8 +220,8 @@ proc ensureSelection(model: var EditorModel) =
   if model.draft.findMenu(model.menu).isNil:
     model.menu = model.draft.rootMenu()
   model.key = clamp(model.key, 1, model.device.keyCount())
-  let operation = model.draft.entryAt(model.menu, model.device, model.key).obsOperation()
-  if model.device != DeckDevice or model.visualState notin obsStates(operation):
+  let states = model.draft.entryAt(model.menu, model.device, model.key).entryStates()
+  if model.device != DeckDevice or model.visualState notin states:
     model.visualState = NormalState
 
 proc touch(model: var EditorModel) =
@@ -308,9 +328,9 @@ proc selected*(model: EditorModel): JsonNode =
   model.draft.entryAt(model.menu, model.device, model.key)
 
 proc selectVisualState*(model: var EditorModel, state: string) =
-  ## Choose which state's image the Deck preview and image controls use; OBS is never contacted.
+  ## Choose which state's image the Deck preview and image controls use; OBS and controls are never contacted.
   if model.device != DeckDevice or
-      (state != NormalState and state notin obsStates(model.selected().obsOperation())):
+      (state != NormalState and state notin model.selected().entryStates()):
     raise newException(ValueError, "The selected key has no " & stateLabel(state).toLowerAscii() &
       " image.")
   model.visualState = state
@@ -421,10 +441,10 @@ proc setObsOperation*(model: var EditorModel, operation: string) =
   model.touch()
 
 proc setImage*(model: var EditorModel, managedPath: string, state = NormalState) =
-  ## Use an imported managed asset for the base face or one OBS state; base images hide the title.
+  ## Use an imported managed asset for the base face or one status state; base images hide the title.
   if not isManagedAssetPath(managedPath):
     raise newException(ValueError, "Images must be imported into the managed assets directory.")
-  if state != NormalState and state notin ObsVisualStates:
+  if state != NormalState and state notin VisualStates:
     raise newException(ValueError, "Unknown key state: " & state)
   let visual = model.deckVisual()
   if state == NormalState:

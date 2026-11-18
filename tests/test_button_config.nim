@@ -256,6 +256,40 @@ suite "Button configuration":
     check isQueuedAction(ObsAction)
     check buttonAt(config, "tools", "deck", 4)["action"]["operation"].getStr() == "micToggle"
 
+  test "Discord and overlay actions are named kinds with control state images":
+    var config = baseConfig()
+    config["menus"][1]["deck"] = %*[
+      {"key": 2, "title": "Deafen", "action": {"kind": "discordDeafen"},
+        "visual": {"image": "assets/d.png", "states": {
+          "unavailable": "assets/grey.png", "deafened": "assets/deaf.png"}}},
+      {"key": 3, "title": "Mics", "action": {"kind": "microphones"},
+        "visual": {"states": {"mixed": "assets/mixed.png", "muted": "assets/m.png"}}},
+      {"key": 4, "title": "Discord", "action": {"kind": "openDiscord"}},
+      {"key": 5, "title": "Overlay", "action": {"kind": "mixerOverlay"}},
+      {"key": 6, "title": "Self mute", "action": {"kind": "discord"}}]
+    let
+      canonical = canonicalButtonConfig(config)
+      parsed = parseButtonSet(config)
+    check canonical["menus"][1]["deck"][0]["action"] == %*{"kind": "discordDeafen"}
+    var order: seq[string]
+    for state, _ in canonical["menus"][1]["deck"][1]["visual"]["states"]:
+      order.add(state)
+    check order == @["muted", "mixed"]
+    check parsed.menus[1].deck[1].action.kind == DiscordDeafenAction
+    check parsed.menus[1].deck[3].action.kind == OpenDiscordAction
+    check parsed.menus[1].deck[4].action.kind == MixerOverlayAction
+    check parsed.menus[1].deck[5].action.kind == DiscordAction
+    for kind in [DiscordDeafenAction, OpenDiscordAction, MixerOverlayAction]:
+      check kind in NamedActionKinds
+      check isQueuedAction(kind)
+      check namedActionDescription(kind).len > 0
+    config["menus"][1]["deck"] = %*[{"key": 2, "title": "x",
+      "action": {"kind": "openDiscord", "command": "Discord"}}]
+    check rejectedField(config) == "menus[1].deck[0].action.command"
+    let defaults = defaultButtonConfig()
+    check buttonAt(defaults, RootMenuId, "mixer", 8)["action"] == %*{"kind": "discord"}
+    check buttonAt(defaults, RootMenuId, "mixer", 11)["action"] == %*{"kind": "microphones"}
+
   test "OBS action and visual state mistakes name their field":
     let field = "menus[1].deck[0]"
     for (action, visual, expected) in [
