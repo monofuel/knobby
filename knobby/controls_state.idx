@@ -1,0 +1,28 @@
+nimTitle	controls_state	knobby/controls_state.html	module knobby/controls_state		0
+nim	MicObservation	knobby/controls_state.html#MicObservation	object MicObservation		6
+nim	DiscordObservation	knobby/controls_state.html#DiscordObservation	object DiscordObservation		13
+nim	ControlActionKinds	knobby/controls_state.html#ControlActionKinds	const ControlActionKinds		23
+nim	ControlStaleMs	knobby/controls_state.html#ControlStaleMs	const ControlStaleMs		24
+nim	LiveState	knobby/controls_state.html#LiveState	const LiveState		25
+nim	MutedMicState	knobby/controls_state.html#MutedMicState	const MutedMicState		26
+nim	MixedState	knobby/controls_state.html#MixedState	const MixedState		27
+nim	UnavailableControlState	knobby/controls_state.html#UnavailableControlState	const UnavailableControlState		28
+nim	ReadyState	knobby/controls_state.html#ReadyState	const ReadyState		29
+nim	controlClockMs	knobby/controls_state.html#controlClockMs	proc controlClockMs(): int64		46
+nim	micObservation	knobby/controls_state.html#micObservation,openArray[AudioLevel],int64	proc micObservation(microphones: openArray[AudioLevel]; nowMs: int64): MicObservation		54
+nim	observeMicrophones	knobby/controls_state.html#observeMicrophones,openArray[AudioLevel]	proc observeMicrophones(microphones: openArray[AudioLevel])		61
+nim	observeMicrophoneFailure	knobby/controls_state.html#observeMicrophoneFailure,string	proc observeMicrophoneFailure(message: string)		67
+nim	publishDiscordObservation	knobby/controls_state.html#publishDiscordObservation,DiscordObservation	proc publishDiscordObservation(observation: DiscordObservation)		74
+nim	systemMicStatus	knobby/controls_state.html#systemMicStatus,MicObservation,int64	proc systemMicStatus(mic: MicObservation; nowMs: int64): JsonNode		85
+nim	discordStatus	knobby/controls_state.html#discordStatus,DiscordObservation,int64	proc discordStatus(discord: DiscordObservation; nowMs: int64): JsonNode		109
+nim	controlStatusJson	knobby/controls_state.html#controlStatusJson,MicObservation,DiscordObservation,int64	proc controlStatusJson(mic: MicObservation; discord: DiscordObservation; nowMs: int64): JsonNode		129
+nim	unavailableControlStatus	knobby/controls_state.html#unavailableControlStatus	proc unavailableControlStatus(): JsonNode		133
+nim	readControlStatus	knobby/controls_state.html#readControlStatus	proc readControlStatus(): JsonNode		137
+nim	readIndicators	knobby/controls_state.html#readIndicators	proc readIndicators(): JsonNode		148
+nim	isControlAction	knobby/controls_state.html#isControlAction,string	proc isControlAction(kind: string): bool		152
+nim	controlVisualState	knobby/controls_state.html#controlVisualState,string,JsonNode	proc controlVisualState(action: string; controls: JsonNode): string		165
+nim	controlStatusDescription	knobby/controls_state.html#controlStatusDescription,string,JsonNode	proc controlStatusDescription(action: string; controls: JsonNode): string		190
+nim	actionVisualState	knobby/controls_state.html#actionVisualState,string,string,JsonNode	proc actionVisualState(kind, operation: string; indicators: JsonNode): string		215
+nim	actionStatusDescription	knobby/controls_state.html#actionStatusDescription,string,string,JsonNode	proc actionStatusDescription(kind, operation: string; indicators: JsonNode): string		221
+nim	manifestStatusAction	knobby/controls_state.html#manifestStatusAction,JsonNode	proc manifestStatusAction(entry: JsonNode): tuple[kind, operation: string]		227
+nim	selectKeyVisual	knobby/controls_state.html#selectKeyVisual,JsonNode,JsonNode	proc selectKeyVisual(entry: JsonNode; indicators: JsonNode): JsonNode		238

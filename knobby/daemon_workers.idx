@@ -1,12 +1,12 @@
 nimTitle	daemon_workers	knobby/daemon_workers.html	module knobby/daemon_workers		0
-nim	PendingActions	knobby/daemon_workers.html#PendingActions	object PendingActions		9
-nim	DeckDriver	knobby/daemon_workers.html#DeckDriver	object DeckDriver		12
-nim	MaxPendingButtons	knobby/daemon_workers.html#MaxPendingButtons	const MaxPendingButtons		19
-nim	emptyActions	knobby/daemon_workers.html#emptyActions	proc emptyActions(): PendingActions		35
-nim	enqueue	knobby/daemon_workers.html#enqueue,PendingActions,openArray[MidiEvent]	proc enqueue(queue: var PendingActions; events: openArray[MidiEvent])		39
-nim	drain	knobby/daemon_workers.html#drain,PendingActions	proc drain(queue: var PendingActions): seq[MidiEvent]		49
-nim	queueActions	knobby/daemon_workers.html#queueActions,openArray[MidiEvent]	proc queueActions(events: openArray[MidiEvent])		57
-nim	superviseDeck	knobby/daemon_workers.html#superviseDeck,DeckDriver,proc)	proc superviseDeck(driver: DeckDriver; shouldStop: proc (): bool)		96
-nim	serveState	knobby/daemon_workers.html#serveState,LocalServer	proc serveState(server: LocalServer)		174
-nim	startDeviceWorkers	knobby/daemon_workers.html#startDeviceWorkers	proc startDeviceWorkers()		242
-nim	stopDeviceWorkers	knobby/daemon_workers.html#stopDeviceWorkers	proc stopDeviceWorkers()		283
+nim	PendingActions	knobby/daemon_workers.html#PendingActions	object PendingActions		10
+nim	DeckDriver	knobby/daemon_workers.html#DeckDriver	object DeckDriver		13
+nim	MaxPendingButtons	knobby/daemon_workers.html#MaxPendingButtons	const MaxPendingButtons		20
+nim	emptyActions	knobby/daemon_workers.html#emptyActions	proc emptyActions(): PendingActions		36
+nim	enqueue	knobby/daemon_workers.html#enqueue,PendingActions,openArray[MidiEvent]	proc enqueue(queue: var PendingActions; events: openArray[MidiEvent])		40
+nim	drain	knobby/daemon_workers.html#drain,PendingActions	proc drain(queue: var PendingActions): seq[MidiEvent]		50
+nim	queueActions	knobby/daemon_workers.html#queueActions,openArray[MidiEvent]	proc queueActions(events: openArray[MidiEvent])		58
+nim	superviseDeck	knobby/daemon_workers.html#superviseDeck,DeckDriver,proc)	proc superviseDeck(driver: DeckDriver; shouldStop: proc (): bool)		102
+nim	serveState	knobby/daemon_workers.html#serveState,LocalServer	proc serveState(server: LocalServer)		182
+nim	startDeviceWorkers	knobby/daemon_workers.html#startDeviceWorkers	proc startDeviceWorkers()		250
+nim	stopDeviceWorkers	knobby/daemon_workers.html#stopDeviceWorkers	proc stopDeviceWorkers()		293

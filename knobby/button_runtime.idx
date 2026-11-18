@@ -6,17 +6,17 @@ nim	MaxRecentOperations	knobby/button_runtime.html#MaxRecentOperations	const Max
 nim	MaxRetainedManifests	knobby/button_runtime.html#MaxRetainedManifests	const MaxRetainedManifests		60
 nim	builtinButtonManifest	knobby/button_runtime.html#builtinButtonManifest,JsonNode	proc builtinButtonManifest(config: JsonNode): JsonNode		115
 nim	defaultButtonServices	knobby/button_runtime.html#defaultButtonServices	proc defaultButtonServices(): ButtonServices		135
-nim	routeMixerButton	knobby/button_runtime.html#routeMixerButton,int,bool	proc routeMixerButton(note: int; pressed: bool)		287
-nim	routeDeckButton	knobby/button_runtime.html#routeDeckButton,int,bool	proc routeDeckButton(keyIndex: int; pressed: bool)		292
-nim	resetMixerInput	knobby/button_runtime.html#resetMixerInput	proc resetMixerInput()		297
-nim	resetDeckInput	knobby/button_runtime.html#resetDeckInput	proc resetDeckInput()		302
-nim	takeButtonActions	knobby/button_runtime.html#takeButtonActions	proc takeButtonActions(): seq[JsonNode]		309
-nim	readDeckPage	knobby/button_runtime.html#readDeckPage,int64	proc readDeckPage(previousGeneration: int64): JsonNode		320
-nim	deckPageReady	knobby/button_runtime.html#deckPageReady	proc deckPageReady()		337
-nim	activeMixerCatalog	knobby/button_runtime.html#activeMixerCatalog	proc activeMixerCatalog(): JsonNode		372
-nim	buttonRuntimeStatus	knobby/button_runtime.html#buttonRuntimeStatus	proc buttonRuntimeStatus(): JsonNode		395
-nim	buttonOperation	knobby/button_runtime.html#buttonOperation,string	proc buttonOperation(id: string): JsonNode		413
-nim	initializeButtons	knobby/button_runtime.html#initializeButtons	proc initializeButtons(paths = newButtonPaths();\n                  buttonServices = defaultButtonServices())		440
-nim	startButtonWorker	knobby/button_runtime.html#startButtonWorker	proc startButtonWorker()		633
-nim	stopButtonWorker	knobby/button_runtime.html#stopButtonWorker	proc stopButtonWorker()		644
-nim	processConfigRequest	knobby/button_runtime.html#processConfigRequest,JsonNode	proc processConfigRequest(message: JsonNode): JsonNode		698
+nim	routeMixerButton	knobby/button_runtime.html#routeMixerButton,int,bool	proc routeMixerButton(note: int; pressed: bool)		290
+nim	routeDeckButton	knobby/button_runtime.html#routeDeckButton,int,bool	proc routeDeckButton(keyIndex: int; pressed: bool)		295
+nim	resetMixerInput	knobby/button_runtime.html#resetMixerInput	proc resetMixerInput()		300
+nim	resetDeckInput	knobby/button_runtime.html#resetDeckInput	proc resetDeckInput()		305
+nim	takeButtonActions	knobby/button_runtime.html#takeButtonActions	proc takeButtonActions(): seq[JsonNode]		312
+nim	readDeckPage	knobby/button_runtime.html#readDeckPage,int64	proc readDeckPage(previousGeneration: int64): JsonNode		323
+nim	deckPageReady	knobby/button_runtime.html#deckPageReady	proc deckPageReady()		340
+nim	activeMixerCatalog	knobby/button_runtime.html#activeMixerCatalog	proc activeMixerCatalog(): JsonNode		377
+nim	buttonRuntimeStatus	knobby/button_runtime.html#buttonRuntimeStatus	proc buttonRuntimeStatus(): JsonNode		400
+nim	buttonOperation	knobby/button_runtime.html#buttonOperation,string	proc buttonOperation(id: string): JsonNode		419
+nim	initializeButtons	knobby/button_runtime.html#initializeButtons	proc initializeButtons(paths = newButtonPaths();\n                  buttonServices = defaultButtonServices())		446
+nim	startButtonWorker	knobby/button_runtime.html#startButtonWorker	proc startButtonWorker()		640
+nim	stopButtonWorker	knobby/button_runtime.html#stopButtonWorker	proc stopButtonWorker()		651
+nim	processConfigRequest	knobby/button_runtime.html#processConfigRequest,JsonNode	proc processConfigRequest(message: JsonNode): JsonNode		705

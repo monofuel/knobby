@@ -1,0 +1,3 @@
+nimTitle	overlay_activation	knobby/overlay_activation.html	module knobby/overlay_activation		0
+nim	OverlayService	knobby/overlay_activation.html#OverlayService	const OverlayService		5
+nim	activateMixerOverlay	knobby/overlay_activation.html#activateMixerOverlay	proc activateMixerOverlay()		7

@@ -1,27 +1,28 @@
 nimTitle	discord_rpc	knobby/discord_rpc.html	module knobby/discord_rpc		0
-nim	DiscordRpcClient	knobby/discord_rpc.html#DiscordRpcClient	type DiscordRpcClient		6
-nim	DiscordCreds	knobby/discord_rpc.html#DiscordCreds	object DiscordCreds		11
-nim	HandshakeOp	knobby/discord_rpc.html#HandshakeOp	const HandshakeOp		18
-nim	FrameOp	knobby/discord_rpc.html#FrameOp	const FrameOp		19
-nim	CloseOp	knobby/discord_rpc.html#CloseOp	const CloseOp		20
-nim	FrameHeaderLen	knobby/discord_rpc.html#FrameHeaderLen	const FrameHeaderLen		22
-nim	OauthScopes	knobby/discord_rpc.html#OauthScopes	const OauthScopes		29
-nim	discordCredsPath	knobby/discord_rpc.html#discordCredsPath	proc discordCredsPath(): string		31
-nim	encodeUint32Le	knobby/discord_rpc.html#encodeUint32Le,int	proc encodeUint32Le(value: int): string		35
-nim	decodeUint32Le	knobby/discord_rpc.html#decodeUint32Le,string,int	proc decodeUint32Le(data: string; offset: int): int		43
-nim	encodeFrame	knobby/discord_rpc.html#encodeFrame,int,string	proc encodeFrame(op: int; payload: string): string		50
-nim	findDiscordSocketPath	knobby/discord_rpc.html#findDiscordSocketPath	proc findDiscordSocketPath(): string		55
-nim	newDiscordRpcClient	knobby/discord_rpc.html#newDiscordRpcClient,Socket	proc newDiscordRpcClient(socket: Socket; timeoutMs = DefaultRecvTimeoutMs): DiscordRpcClient		66
-nim	connectDiscordRpc	knobby/discord_rpc.html#connectDiscordRpc	proc connectDiscordRpc(): DiscordRpcClient		70
-nim	close	knobby/discord_rpc.html#close,DiscordRpcClient	proc close(client: DiscordRpcClient)		80
-nim	handshake	knobby/discord_rpc.html#handshake,DiscordRpcClient,string	proc handshake(client: DiscordRpcClient; clientId: string): JsonNode		127
-nim	authorize	knobby/discord_rpc.html#authorize,DiscordRpcClient,string	proc authorize(client: DiscordRpcClient; clientId: string): string		136
-nim	authenticate	knobby/discord_rpc.html#authenticate,DiscordRpcClient,string	proc authenticate(client: DiscordRpcClient; accessToken: string): JsonNode		146
-nim	getVoiceMute	knobby/discord_rpc.html#getVoiceMute,DiscordRpcClient	proc getVoiceMute(client: DiscordRpcClient): bool		150
-nim	setVoiceMute	knobby/discord_rpc.html#setVoiceMute,DiscordRpcClient,bool	proc setVoiceMute(client: DiscordRpcClient; muted: bool)		155
-nim	discordCredsExist	knobby/discord_rpc.html#discordCredsExist	proc discordCredsExist(): bool		159
-nim	loadDiscordCreds	knobby/discord_rpc.html#loadDiscordCreds	proc loadDiscordCreds(): DiscordCreds		163
-nim	saveDiscordCreds	knobby/discord_rpc.html#saveDiscordCreds,DiscordCreds	proc saveDiscordCreds(creds: DiscordCreds)		173
-nim	exchangeAuthCode	knobby/discord_rpc.html#exchangeAuthCode,DiscordCreds,string	proc exchangeAuthCode(creds: var DiscordCreds; code: string)		206
-nim	refreshTokens	knobby/discord_rpc.html#refreshTokens,DiscordCreds	proc refreshTokens(creds: var DiscordCreds)		212
-nim	toggleDiscordMute	knobby/discord_rpc.html#toggleDiscordMute	proc toggleDiscordMute(): bool		243
+nim	DiscordRpcError	knobby/discord_rpc.html#DiscordRpcError	object DiscordRpcError		6
+nim	DiscordRpcClient	knobby/discord_rpc.html#DiscordRpcClient	type DiscordRpcClient		8
+nim	DiscordCreds	knobby/discord_rpc.html#DiscordCreds	object DiscordCreds		13
+nim	HandshakeOp	knobby/discord_rpc.html#HandshakeOp	const HandshakeOp		20
+nim	FrameOp	knobby/discord_rpc.html#FrameOp	const FrameOp		21
+nim	CloseOp	knobby/discord_rpc.html#CloseOp	const CloseOp		22
+nim	FrameHeaderLen	knobby/discord_rpc.html#FrameHeaderLen	const FrameHeaderLen		24
+nim	OauthScopes	knobby/discord_rpc.html#OauthScopes	const OauthScopes		32
+nim	discordCredsPath	knobby/discord_rpc.html#discordCredsPath	proc discordCredsPath(): string		34
+nim	encodeUint32Le	knobby/discord_rpc.html#encodeUint32Le,int	proc encodeUint32Le(value: int): string		38
+nim	decodeUint32Le	knobby/discord_rpc.html#decodeUint32Le,string,int	proc decodeUint32Le(data: string; offset: int): int		46
+nim	encodeFrame	knobby/discord_rpc.html#encodeFrame,int,string	proc encodeFrame(op: int; payload: string): string		53
+nim	findDiscordSocketPath	knobby/discord_rpc.html#findDiscordSocketPath	proc findDiscordSocketPath(): string		58
+nim	newDiscordRpcClient	knobby/discord_rpc.html#newDiscordRpcClient,Socket	proc newDiscordRpcClient(socket: Socket; timeoutMs = DefaultRecvTimeoutMs): DiscordRpcClient		69
+nim	connectDiscordRpc	knobby/discord_rpc.html#connectDiscordRpc	proc connectDiscordRpc(): DiscordRpcClient		73
+nim	close	knobby/discord_rpc.html#close,DiscordRpcClient	proc close(client: DiscordRpcClient)		83
+nim	handshake	knobby/discord_rpc.html#handshake,DiscordRpcClient,string	proc handshake(client: DiscordRpcClient; clientId: string): JsonNode		130
+nim	authorize	knobby/discord_rpc.html#authorize,DiscordRpcClient,string	proc authorize(client: DiscordRpcClient; clientId: string): string		139
+nim	authenticate	knobby/discord_rpc.html#authenticate,DiscordRpcClient,string	proc authenticate(client: DiscordRpcClient; accessToken: string): JsonNode		149
+nim	getVoiceSettings	knobby/discord_rpc.html#getVoiceSettings,DiscordRpcClient	proc getVoiceSettings(client: DiscordRpcClient): JsonNode		153
+nim	setVoiceSettings	knobby/discord_rpc.html#setVoiceSettings,DiscordRpcClient,JsonNode	proc setVoiceSettings(client: DiscordRpcClient; settings: JsonNode): JsonNode		157
+nim	discordCredsExist	knobby/discord_rpc.html#discordCredsExist	proc discordCredsExist(): bool		161
+nim	loadDiscordCreds	knobby/discord_rpc.html#loadDiscordCreds	proc loadDiscordCreds(): DiscordCreds		165
+nim	saveDiscordCreds	knobby/discord_rpc.html#saveDiscordCreds,DiscordCreds	proc saveDiscordCreds(creds: DiscordCreds)		175
+nim	exchangeAuthCode	knobby/discord_rpc.html#exchangeAuthCode,DiscordCreds,string	proc exchangeAuthCode(creds: var DiscordCreds; code: string)		228
+nim	refreshTokens	knobby/discord_rpc.html#refreshTokens,DiscordCreds	proc refreshTokens(creds: var DiscordCreds)		234
+nim	connectAuthenticated	knobby/discord_rpc.html#connectAuthenticated	proc connectAuthenticated(timeoutMs = DefaultRecvTimeoutMs): DiscordRpcClient		240

@@ -15,42 +15,42 @@ nim	ArtworkKey	knobby/button_media.html#ArtworkKey	KeyPlanKind.ArtworkKey		43
 nim	KeyPlanKind	knobby/button_media.html#KeyPlanKind	enum KeyPlanKind		43
 nim	StatePlan	knobby/button_media.html#StatePlan	object StatePlan		48
 nim	KeyPlan	knobby/button_media.html#KeyPlan	object KeyPlan		52
-nim	MenuPlan	knobby/button_media.html#MenuPlan	object MenuPlan		64
-nim	MediaHelperVersion	knobby/button_media.html#MediaHelperVersion	const MediaHelperVersion		77
-nim	ManifestVersion	knobby/button_media.html#ManifestVersion	const ManifestVersion		78
-nim	KeySize	knobby/button_media.html#KeySize	const KeySize		79
-nim	DeckKeyCount	knobby/button_media.html#DeckKeyCount	const DeckKeyCount		80
-nim	MaxSourceBytes	knobby/button_media.html#MaxSourceBytes	const MaxSourceBytes		81
-nim	MaxSourceDimension	knobby/button_media.html#MaxSourceDimension	const MaxSourceDimension		82
-nim	MaxAnimationMs	knobby/button_media.html#MaxAnimationMs	const MaxAnimationMs		83
-nim	MaxSourceFrames	knobby/button_media.html#MaxSourceFrames	const MaxSourceFrames		84
-nim	MaxFramesPerSecond	knobby/button_media.html#MaxFramesPerSecond	const MaxFramesPerSecond		85
-nim	MaxPreparedBytes	knobby/button_media.html#MaxPreparedBytes	const MaxPreparedBytes		86
-nim	OperationTimeoutMs	knobby/button_media.html#OperationTimeoutMs	const OperationTimeoutMs		87
-nim	ChildTimeoutMs	knobby/button_media.html#ChildTimeoutMs	const ChildTimeoutMs		88
-nim	PreparedGraceSeconds	knobby/button_media.html#PreparedGraceSeconds	const PreparedGraceSeconds		89
-nim	MaxChildStdoutBytes	knobby/button_media.html#MaxChildStdoutBytes	const MaxChildStdoutBytes		91
-nim	MaxChildStderrBytes	knobby/button_media.html#MaxChildStderrBytes	const MaxChildStderrBytes		92
-nim	BackTitle	knobby/button_media.html#BackTitle	const BackTitle		96
-nim	withOperationDeadline	knobby/button_media.html#withOperationDeadline.t,int,untyped	template withOperationDeadline(timeoutMs: int; body: untyped)		160
-nim	hasOperationDeadline	knobby/button_media.html#hasOperationDeadline	proc hasOperationDeadline(): bool		171
-nim	checkOperationDeadline	knobby/button_media.html#checkOperationDeadline	proc checkOperationDeadline()		180
-nim	contentKey	knobby/button_media.html#contentKey,string	proc contentKey(data: string): string		185
-nim	sourceKindFromBytes	knobby/button_media.html#sourceKindFromBytes,string,string	proc sourceKindFromBytes(data: string; field = ""): SourceKind		189
-nim	isManagedAsset	knobby/button_media.html#isManagedAsset,string	proc isManagedAsset(path: string): bool		214
-nim	parseStreamProbe	knobby/button_media.html#parseStreamProbe,SourceKind,string,string	proc parseStreamProbe(kind: SourceKind; text: string; field = ""): SourceInfo		224
-nim	parsePacketDurations	knobby/button_media.html#parsePacketDurations,string,string	proc parsePacketDurations(text: string; field = ""): seq[int]		251
-nim	selectFrames	knobby/button_media.html#selectFrames,seq[int],string	proc selectFrames(durationsMs: seq[int]; field = ""): seq[FrameTiming]		268
-nim	containSize	knobby/button_media.html#containSize,int,int	proc containSize(width, height: int): tuple[width, height: int]		300
-nim	cleanTitle	knobby/button_media.html#cleanTitle,string	proc cleanTitle(title: string): string		307
-nim	layoutTitle	knobby/button_media.html#layoutTitle,string,openArray[int],int,int,int	proc layoutTitle(title: string; sizes: openArray[int];\n            maxWidth, maxHeight, maxLines: int): TitleLayout		343
-nim	escapeFilterValue	knobby/button_media.html#escapeFilterValue,string	proc escapeFilterValue(value: string): string		366
-nim	planButtonMedia	knobby/button_media.html#planButtonMedia,JsonNode	proc planButtonMedia(config: JsonNode): seq[MenuPlan]		388
-nim	runTool	knobby/button_media.html#runTool,seq[string]	proc runTool(args: seq[string]; timeoutMs = ChildTimeoutMs;\n        maxStdout = MaxChildStdoutBytes; maxStderr = MaxChildStderrBytes): string		436
-nim	probeSource	knobby/button_media.html#probeSource,string,SourceKind,string	proc probeSource(path: string; kind: SourceKind; field = ""): SourceInfo		507
-nim	probeDurations	knobby/button_media.html#probeDurations,string,string	proc probeDurations(path: string; field = ""): seq[int]		515
-nim	importButtonAsset	knobby/button_media.html#importButtonAsset,string,string	proc importButtonAsset(source, configDir: string; timeoutMs = OperationTimeoutMs): string		580
-nim	prepareButtonMedia	knobby/button_media.html#prepareButtonMedia,JsonNode,string,string,string	proc prepareButtonMedia(config: JsonNode; configDir, cacheDir, fontPath: string;\n                   timeoutMs = OperationTimeoutMs;\n                   maxPreparedBytes = MaxPreparedBytes): JsonNode		785
-nim	isContentKeyName	knobby/button_media.html#isContentKeyName,string	proc isContentKeyName(name: string): bool		847
-nim	manifestContentKeys	knobby/button_media.html#manifestContentKeys,JsonNode	proc manifestContentKeys(manifest: JsonNode): HashSet[string]		867
-nim	cleanPreparedCache	knobby/button_media.html#cleanPreparedCache,string,string	proc cleanPreparedCache(cacheDir, manifestDir: string): PreparedCleanup		874
+nim	MenuPlan	knobby/button_media.html#MenuPlan	object MenuPlan		65
+nim	MediaHelperVersion	knobby/button_media.html#MediaHelperVersion	const MediaHelperVersion		78
+nim	ManifestVersion	knobby/button_media.html#ManifestVersion	const ManifestVersion		79
+nim	KeySize	knobby/button_media.html#KeySize	const KeySize		80
+nim	DeckKeyCount	knobby/button_media.html#DeckKeyCount	const DeckKeyCount		81
+nim	MaxSourceBytes	knobby/button_media.html#MaxSourceBytes	const MaxSourceBytes		82
+nim	MaxSourceDimension	knobby/button_media.html#MaxSourceDimension	const MaxSourceDimension		83
+nim	MaxAnimationMs	knobby/button_media.html#MaxAnimationMs	const MaxAnimationMs		84
+nim	MaxSourceFrames	knobby/button_media.html#MaxSourceFrames	const MaxSourceFrames		85
+nim	MaxFramesPerSecond	knobby/button_media.html#MaxFramesPerSecond	const MaxFramesPerSecond		86
+nim	MaxPreparedBytes	knobby/button_media.html#MaxPreparedBytes	const MaxPreparedBytes		87
+nim	OperationTimeoutMs	knobby/button_media.html#OperationTimeoutMs	const OperationTimeoutMs		88
+nim	ChildTimeoutMs	knobby/button_media.html#ChildTimeoutMs	const ChildTimeoutMs		89
+nim	PreparedGraceSeconds	knobby/button_media.html#PreparedGraceSeconds	const PreparedGraceSeconds		90
+nim	MaxChildStdoutBytes	knobby/button_media.html#MaxChildStdoutBytes	const MaxChildStdoutBytes		92
+nim	MaxChildStderrBytes	knobby/button_media.html#MaxChildStderrBytes	const MaxChildStderrBytes		93
+nim	BackTitle	knobby/button_media.html#BackTitle	const BackTitle		97
+nim	withOperationDeadline	knobby/button_media.html#withOperationDeadline.t,int,untyped	template withOperationDeadline(timeoutMs: int; body: untyped)		161
+nim	hasOperationDeadline	knobby/button_media.html#hasOperationDeadline	proc hasOperationDeadline(): bool		172
+nim	checkOperationDeadline	knobby/button_media.html#checkOperationDeadline	proc checkOperationDeadline()		181
+nim	contentKey	knobby/button_media.html#contentKey,string	proc contentKey(data: string): string		186
+nim	sourceKindFromBytes	knobby/button_media.html#sourceKindFromBytes,string,string	proc sourceKindFromBytes(data: string; field = ""): SourceKind		190
+nim	isManagedAsset	knobby/button_media.html#isManagedAsset,string	proc isManagedAsset(path: string): bool		215
+nim	parseStreamProbe	knobby/button_media.html#parseStreamProbe,SourceKind,string,string	proc parseStreamProbe(kind: SourceKind; text: string; field = ""): SourceInfo		225
+nim	parsePacketDurations	knobby/button_media.html#parsePacketDurations,string,string	proc parsePacketDurations(text: string; field = ""): seq[int]		252
+nim	selectFrames	knobby/button_media.html#selectFrames,seq[int],string	proc selectFrames(durationsMs: seq[int]; field = ""): seq[FrameTiming]		269
+nim	containSize	knobby/button_media.html#containSize,int,int	proc containSize(width, height: int): tuple[width, height: int]		301
+nim	cleanTitle	knobby/button_media.html#cleanTitle,string	proc cleanTitle(title: string): string		308
+nim	layoutTitle	knobby/button_media.html#layoutTitle,string,openArray[int],int,int,int	proc layoutTitle(title: string; sizes: openArray[int];\n            maxWidth, maxHeight, maxLines: int): TitleLayout		344
+nim	escapeFilterValue	knobby/button_media.html#escapeFilterValue,string	proc escapeFilterValue(value: string): string		367
+nim	planButtonMedia	knobby/button_media.html#planButtonMedia,JsonNode	proc planButtonMedia(config: JsonNode): seq[MenuPlan]		389
+nim	runTool	knobby/button_media.html#runTool,seq[string]	proc runTool(args: seq[string]; timeoutMs = ChildTimeoutMs;\n        maxStdout = MaxChildStdoutBytes; maxStderr = MaxChildStderrBytes): string		442
+nim	probeSource	knobby/button_media.html#probeSource,string,SourceKind,string	proc probeSource(path: string; kind: SourceKind; field = ""): SourceInfo		513
+nim	probeDurations	knobby/button_media.html#probeDurations,string,string	proc probeDurations(path: string; field = ""): seq[int]		521
+nim	importButtonAsset	knobby/button_media.html#importButtonAsset,string,string	proc importButtonAsset(source, configDir: string; timeoutMs = OperationTimeoutMs): string		586
+nim	prepareButtonMedia	knobby/button_media.html#prepareButtonMedia,JsonNode,string,string,string	proc prepareButtonMedia(config: JsonNode; configDir, cacheDir, fontPath: string;\n                   timeoutMs = OperationTimeoutMs;\n                   maxPreparedBytes = MaxPreparedBytes): JsonNode		791
+nim	isContentKeyName	knobby/button_media.html#isContentKeyName,string	proc isContentKeyName(name: string): bool		857
+nim	manifestContentKeys	knobby/button_media.html#manifestContentKeys,JsonNode	proc manifestContentKeys(manifest: JsonNode): HashSet[string]		877
+nim	cleanPreparedCache	knobby/button_media.html#cleanPreparedCache,string,string	proc cleanPreparedCache(cacheDir, manifestDir: string): PreparedCleanup		884

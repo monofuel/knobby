@@ -1,0 +1,11 @@
+nimTitle	overlay_state	knobby/overlay_state.html	module knobby/overlay_state		0
+nim	OverlayRequest	knobby/overlay_state.html#OverlayRequest	object OverlayRequest		6
+nim	MixerOverlayDurationMs	knobby/overlay_state.html#MixerOverlayDurationMs	const MixerOverlayDurationMs		11
+nim	visible	knobby/overlay_state.html#visible,OverlayRequest,int64	proc visible(request: OverlayRequest; nowMs: int64): bool		19
+nim	request	knobby/overlay_state.html#request,OverlayRequest,int64	proc request(request: var OverlayRequest; nowMs: int64)		23
+nim	dismiss	knobby/overlay_state.html#dismiss,OverlayRequest,int64	proc dismiss(request: var OverlayRequest; nowMs: int64)		28
+nim	press	knobby/overlay_state.html#press,OverlayRequest,bool,int64	proc press(request: var OverlayRequest; requestsOverlay: bool; nowMs: int64)		34
+nim	toJson	knobby/overlay_state.html#toJson,OverlayRequest,int64	proc toJson(request: OverlayRequest; nowMs: int64): JsonNode		41
+nim	pressMixerOverlay	knobby/overlay_state.html#pressMixerOverlay,bool	proc pressMixerOverlay(requestsOverlay: bool; nowMs = monotonicMs())		47
+nim	mixerOverlayStatus	knobby/overlay_state.html#mixerOverlayStatus	proc mixerOverlayStatus(nowMs = monotonicMs()): JsonNode		53
+nim	resetMixerOverlay	knobby/overlay_state.html#resetMixerOverlay	proc resetMixerOverlay()		59

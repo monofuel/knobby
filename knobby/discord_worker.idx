@@ -1,0 +1,31 @@
+nimTitle	discord_worker	knobby/discord_worker.html	module knobby/discord_worker		0
+nim	ToggleDiscordMute	knobby/discord_worker.html#ToggleDiscordMute	DiscordCommand.ToggleDiscordMute		6
+nim	ToggleDiscordDeafen	knobby/discord_worker.html#ToggleDiscordDeafen	DiscordCommand.ToggleDiscordDeafen		6
+nim	DiscordCommand	knobby/discord_worker.html#DiscordCommand	enum DiscordCommand		6
+nim	DiscordQueueError	knobby/discord_worker.html#DiscordQueueError	object DiscordQueueError		8
+nim	QueuedDiscordCommand	knobby/discord_worker.html#QueuedDiscordCommand	object QueuedDiscordCommand		9
+nim	DiscordTransport	knobby/discord_worker.html#DiscordTransport	object DiscordTransport		12
+nim	DiscordWorker	knobby/discord_worker.html#DiscordWorker	object DiscordWorker		22
+nim	MaxDiscordCommands	knobby/discord_worker.html#MaxDiscordCommands	const MaxDiscordCommands		33
+nim	DiscordPollMs	knobby/discord_worker.html#DiscordPollMs	const DiscordPollMs		34
+nim	DiscordPresenceMs	knobby/discord_worker.html#DiscordPresenceMs	const DiscordPresenceMs		35
+nim	SocketWaitMs	knobby/discord_worker.html#SocketWaitMs	const SocketWaitMs		36
+nim	InitialBackoffMs	knobby/discord_worker.html#InitialBackoffMs	const InitialBackoffMs		37
+nim	MaxBackoffMs	knobby/discord_worker.html#MaxBackoffMs	const MaxBackoffMs		38
+nim	CommandMaxAgeMs	knobby/discord_worker.html#CommandMaxAgeMs	const CommandMaxAgeMs		39
+nim	DiscordLaunchCommand	knobby/discord_worker.html#DiscordLaunchCommand	const DiscordLaunchCommand		42
+nim	DiscordWindowClass	knobby/discord_worker.html#DiscordWindowClass	const DiscordWindowClass		43
+nim	queueDiscordCommand	knobby/discord_worker.html#queueDiscordCommand,DiscordCommand	proc queueDiscordCommand(command: DiscordCommand; nowMs = controlClockMs())		56
+nim	takeDiscordCommands	knobby/discord_worker.html#takeDiscordCommands	proc takeDiscordCommands(): seq[QueuedDiscordCommand]		69
+nim	setDiscordAccepting	knobby/discord_worker.html#setDiscordAccepting,bool,string	proc setDiscordAccepting(ready: bool; reason = ""): int		76
+nim	isDiscordProcessName	knobby/discord_worker.html#isDiscordProcessName,string	proc isDiscordProcessName(comm: string): bool		87
+nim	discordProcessRunning	knobby/discord_worker.html#discordProcessRunning	proc discordProcessRunning(): bool		91
+nim	discordWindowId	knobby/discord_worker.html#discordWindowId,string	proc discordWindowId(windowList: string): string		102
+nim	hasVoiceState	knobby/discord_worker.html#hasVoiceState,JsonNode	proc hasVoiceState(data: JsonNode): bool		117
+nim	toggleSettings	knobby/discord_worker.html#toggleSettings,DiscordCommand,bool,bool	proc toggleSettings(command: DiscordCommand; muted, deafened: bool): JsonNode		121
+nim	newDiscordWorker	knobby/discord_worker.html#newDiscordWorker,DiscordTransport,proc(DiscordObservation),proc(string)	proc newDiscordWorker(transport: DiscordTransport;\n                 publish: proc (observation: DiscordObservation);\n                 log: proc (message: string)): DiscordWorker		135
+nim	step	knobby/discord_worker.html#step,DiscordWorker,int64	proc step(worker: var DiscordWorker; nowMs: int64)		268
+nim	shutdown	knobby/discord_worker.html#shutdown,DiscordWorker	proc shutdown(worker: var DiscordWorker)		284
+nim	rpcTransport	knobby/discord_worker.html#rpcTransport	proc rpcTransport(): DiscordTransport		291
+nim	startDiscordWorker	knobby/discord_worker.html#startDiscordWorker	proc startDiscordWorker()		334
+nim	stopDiscordWorker	knobby/discord_worker.html#stopDiscordWorker	proc stopDiscordWorker()		338

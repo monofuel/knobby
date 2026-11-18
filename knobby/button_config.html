@@ -74,7 +74,8 @@
   ClaudeAction = &quot;claude&quot;, FfxivAction = &quot;ffxiv&quot;,
   MicrophonesAction = &quot;microphones&quot;, DiscordAction = &quot;discord&quot;,
   MenuAction = &quot;menu&quot;, BackAction = &quot;back&quot;, HomeAction = &quot;home&quot;,
-  ObsAction = &quot;obs&quot;">ConfigActionKind</a></li>
+  ObsAction = &quot;obs&quot;, DiscordDeafenAction = &quot;discordDeafen&quot;,
+  OpenDiscordAction = &quot;openDiscord&quot;, MixerOverlayAction = &quot;mixerOverlay&quot;">ConfigActionKind</a></li>
 <li><a class="reference" href="#ConfiguredAction" title="ConfiguredAction = object
   kind*: ConfigActionKind
   command*, menu*, operation*: string
@@ -105,6 +106,9 @@
 <li><a class="reference" href="#MaxMenus" title="MaxMenus = 64">MaxMenus</a></li>
 <li><a class="reference" href="#MaxTitleRunes" title="MaxTitleRunes = 64">MaxTitleRunes</a></li>
 <li><a class="reference" href="#MixerKeyCount" title="MixerKeyCount = 12">MixerKeyCount</a></li>
+<li><a class="reference" href="#NamedActionKinds" title="NamedActionKinds = {GrokAction, ClaudeAction, FfxivAction, MicrophonesAction,
+                    DiscordAction, DiscordDeafenAction, OpenDiscordAction,
+                    MixerOverlayAction}">NamedActionKinds</a></li>
 <li><a class="reference" href="#RootMenuId" title="RootMenuId = &quot;root&quot;">RootMenuId</a></li>
 <li><a class="reference" href="#UnassignedTitle" title="UnassignedTitle = &quot;Unassigned&quot;">UnassignedTitle</a></li>
 
@@ -199,6 +203,10 @@
   <li><a class="reference" href="#menuAt%2CJsonNode%2Cstring" title="menuAt(config: JsonNode; id: string): JsonNode">menuAt(config: JsonNode; id: string): JsonNode</a></li>
 
 </ul>
+<ul class="simple nested-toc-section">namedActionDescription
+  <li><a class="reference" href="#namedActionDescription%2CConfigActionKind" title="namedActionDescription(kind: ConfigActionKind): string">namedActionDescription(kind: ConfigActionKind): string</a></li>
+
+</ul>
 <ul class="simple nested-toc-section">newButtonPaths
   <li><a class="reference" href="#newButtonPaths" title="newButtonPaths(configDir = buttonConfigDirectory();
                stateDir = buttonStateDirectory()): ButtonPaths">newButtonPaths(configDir = buttonConfigDirectory();
@@ -272,8 +280,8 @@
   <dd>
     
     
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_config.nim#L16" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_config.nim#L16" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_config.nim#L17" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_config.nim#L17" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -283,8 +291,8 @@
   <dd>
     
     
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_config.nim#L34" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_config.nim#L34" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_config.nim#L35" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_config.nim#L35" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -295,8 +303,8 @@
   <dd>
     
     
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_config.nim#L31" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_config.nim#L31" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_config.nim#L32" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_config.nim#L32" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -306,8 +314,8 @@
   <dd>
     
     
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_config.nim#L14" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_config.nim#L14" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_config.nim#L15" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_config.nim#L15" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -317,7 +325,8 @@
   <span class="Identifier">ClaudeAction</span> <span class="Other">=</span> <span class="StringLit">&quot;claude&quot;</span><span class="Other">,</span> <span class="Identifier">FfxivAction</span> <span class="Other">=</span> <span class="StringLit">&quot;ffxiv&quot;</span><span class="Other">,</span>
   <span class="Identifier">MicrophonesAction</span> <span class="Other">=</span> <span class="StringLit">&quot;microphones&quot;</span><span class="Other">,</span> <span class="Identifier">DiscordAction</span> <span class="Other">=</span> <span class="StringLit">&quot;discord&quot;</span><span class="Other">,</span>
   <span class="Identifier">MenuAction</span> <span class="Other">=</span> <span class="StringLit">&quot;menu&quot;</span><span class="Other">,</span> <span class="Identifier">BackAction</span> <span class="Other">=</span> <span class="StringLit">&quot;back&quot;</span><span class="Other">,</span> <span class="Identifier">HomeAction</span> <span class="Other">=</span> <span class="StringLit">&quot;home&quot;</span><span class="Other">,</span>
-  <span class="Identifier">ObsAction</span> <span class="Other">=</span> <span class="StringLit">&quot;obs&quot;</span></pre></dt>
+  <span class="Identifier">ObsAction</span> <span class="Other">=</span> <span class="StringLit">&quot;obs&quot;</span><span class="Other">,</span> <span class="Identifier">DiscordDeafenAction</span> <span class="Other">=</span> <span class="StringLit">&quot;discordDeafen&quot;</span><span class="Other">,</span>
+  <span class="Identifier">OpenDiscordAction</span> <span class="Other">=</span> <span class="StringLit">&quot;openDiscord&quot;</span><span class="Other">,</span> <span class="Identifier">MixerOverlayAction</span> <span class="Other">=</span> <span class="StringLit">&quot;mixerOverlay&quot;</span></pre></dt>
   <dd>
     
     
@@ -334,8 +343,8 @@
   <dd>
     
     
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_config.nim#L18" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_config.nim#L18" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_config.nim#L19" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_config.nim#L19" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -348,8 +357,8 @@
   <dd>
     
     
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_config.nim#L22" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_config.nim#L22" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_config.nim#L23" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_config.nim#L23" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -361,8 +370,8 @@
   <dd>
     
     
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_config.nim#L27" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_config.nim#L27" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_config.nim#L28" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_config.nim#L28" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -377,8 +386,8 @@
   <dd>
     
     
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_config.nim#L49" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_config.nim#L49" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_config.nim#L50" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_config.nim#L50" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -387,8 +396,8 @@
   <dd>
     
     
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_config.nim#L38" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_config.nim#L38" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_config.nim#L39" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_config.nim#L39" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -397,8 +406,8 @@
   <dd>
     
     
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_config.nim#L40" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_config.nim#L40" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_config.nim#L41" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_config.nim#L41" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -407,8 +416,8 @@
   <dd>
     
     
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_config.nim#L44" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_config.nim#L44" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_config.nim#L45" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_config.nim#L45" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -417,8 +426,8 @@
   <dd>
     
     
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_config.nim#L45" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_config.nim#L45" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_config.nim#L46" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_config.nim#L46" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -427,8 +436,8 @@
   <dd>
     
     
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_config.nim#L42" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_config.nim#L42" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_config.nim#L43" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_config.nim#L43" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -437,8 +446,8 @@
   <dd>
     
     
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_config.nim#L41" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_config.nim#L41" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_config.nim#L42" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_config.nim#L42" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -447,8 +456,8 @@
   <dd>
     
     
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_config.nim#L43" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_config.nim#L43" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_config.nim#L44" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_config.nim#L44" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -457,8 +466,20 @@
   <dd>
     
     
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_config.nim#L39" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_config.nim#L39" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_config.nim#L40" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_config.nim#L40" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+
+  </dd>
+</div>
+<div id="NamedActionKinds">
+  <dt><pre><a href="button_config.html#NamedActionKinds"><span class="Identifier">NamedActionKinds</span></a> <span class="Other">=</span> <span class="Other">{</span><span class="DecNumber">GrokAction</span><span class="Other">,</span> <span class="DecNumber">ClaudeAction</span><span class="Other">,</span> <span class="DecNumber">FfxivAction</span><span class="Other">,</span> <span class="DecNumber">MicrophonesAction</span><span class="Other">,</span>
+                    <span class="DecNumber">DiscordAction</span><span class="Other">,</span> <span class="DecNumber">DiscordDeafenAction</span><span class="Other">,</span> <span class="DecNumber">OpenDiscordAction</span><span class="Other">,</span>
+                    <span class="DecNumber">MixerOverlayAction</span><span class="Other">}</span></pre></dt>
+  <dd>
+    
+    
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_config.nim#L62" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_config.nim#L62" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -467,8 +488,8 @@
   <dd>
     
     
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_config.nim#L47" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_config.nim#L47" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_config.nim#L48" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_config.nim#L48" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -477,8 +498,8 @@
   <dd>
     
     
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_config.nim#L50" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_config.nim#L50" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_config.nim#L51" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_config.nim#L51" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -495,8 +516,8 @@
   <dd>
     
     Encode an action with only the fields its kind uses, in canonical order.
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_config.nim#L312" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_config.nim#L312" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_config.nim#L314" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_config.nim#L314" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -509,8 +530,8 @@
   <dd>
     
     Return the immutable, content-addressed source asset directory.
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_config.nim#L481" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_config.nim#L481" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_config.nim#L491" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_config.nim#L491" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -523,8 +544,8 @@
   <dd>
     
     Return the effective entry for a slot, filling non-root Back and unassigned slots.
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_config.nim#L411" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_config.nim#L411" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_config.nim#L413" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_config.nim#L413" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -538,8 +559,8 @@
   <dd>
     
     Locate the editable configuration directory.
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_config.nim#L457" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_config.nim#L457" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_config.nim#L467" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_config.nim#L467" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -553,8 +574,8 @@
   <dd>
     
     Locate the canonical bare configuration file.
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_config.nim#L465" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_config.nim#L465" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_config.nim#L475" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_config.nim#L475" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -568,8 +589,8 @@
   <dd>
     
     Locate prepared media, recovery records, and drafts.
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_config.nim#L461" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_config.nim#L461" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_config.nim#L471" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_config.nim#L471" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -582,8 +603,8 @@
   <dd>
     
     Validate and return a deterministic copy used for persistence, envelopes, and revisions.
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_config.nim#L352" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_config.nim#L352" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_config.nim#L354" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_config.nim#L354" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -596,8 +617,8 @@
   <dd>
     
     Wrap a configuration with the revision an edit must be based on.
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_config.nim#L372" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_config.nim#L372" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_config.nim#L374" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_config.nim#L374" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -609,8 +630,8 @@
   <dd>
     
     Return the canonical configuration file.
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_config.nim#L473" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_config.nim#L473" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_config.nim#L483" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_config.nim#L483" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -623,8 +644,8 @@
   <dd>
     
     Return an opaque digest that is stable across formatting and entry order.
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_config.nim#L368" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_config.nim#L368" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_config.nim#L370" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_config.nim#L370" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -638,8 +659,8 @@
   <dd>
     
     Decode a recovery record, rejecting unsupported or internally inconsistent files.
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_config.nim#L438" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_config.nim#L438" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_config.nim#L448" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_config.nim#L448" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -652,8 +673,8 @@
   <dd>
     
     Describe the compiled desktop bindings and numbered Stream Deck page as editable JSON.
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_config.nim#L385" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_config.nim#L385" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_config.nim#L387" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_config.nim#L387" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -666,8 +687,8 @@
   <dd>
     
     Render the bare canonical configuration as human-editable JSON.
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_config.nim#L448" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_config.nim#L448" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_config.nim#L458" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_config.nim#L458" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -680,8 +701,8 @@
   <dd>
     
     Encode the recovery record for the configuration most recently applied.
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_config.nim#L432" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_config.nim#L432" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_config.nim#L442" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_config.nim#L442" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -694,8 +715,8 @@
   <dd>
     
     Return the GUI's retained draft envelope.
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_config.nim#L497" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_config.nim#L497" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_config.nim#L507" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_config.nim#L507" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -708,8 +729,8 @@
   <dd>
     
     Return where replaced, unapplied disk content is preserved.
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_config.nim#L477" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_config.nim#L477" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_config.nim#L487" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_config.nim#L487" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -721,8 +742,8 @@
   <dd>
     
     Report whether a path names one file directly inside the managed assets directory.
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_config.nim#L173" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_config.nim#L173" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_config.nim#L175" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_config.nim#L175" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -735,8 +756,8 @@
   <dd>
     
     Report whether an action runs on the action worker rather than navigating.
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_config.nim#L428" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_config.nim#L428" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_config.nim#L438" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_config.nim#L438" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -749,8 +770,8 @@
   <dd>
     
     Return the recovery record of the last applied configuration.
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_config.nim#L493" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_config.nim#L493" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_config.nim#L503" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_config.nim#L503" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -763,8 +784,8 @@
   <dd>
     
     Return the directory of revision-addressed prepared manifests.
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_config.nim#L489" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_config.nim#L489" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_config.nim#L499" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_config.nim#L499" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -777,8 +798,22 @@
   <dd>
     
     Return the canonical stored menu object, without filled slots.
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_config.nim#L404" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_config.nim#L404" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_config.nim#L406" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_config.nim#L406" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+
+  </dd>
+</div>
+
+</div>
+<div id="namedActionDescription-procs-all">
+  <div id="namedActionDescription,ConfigActionKind">
+  <dt><pre><span class="Keyword">proc</span> <a href="#namedActionDescription%2CConfigActionKind"><span class="Identifier">namedActionDescription</span></a><span class="Other">(</span><span class="Identifier">kind</span><span class="Other">:</span> <a href="button_config.html#ConfigActionKind"><span class="Identifier">ConfigActionKind</span></a><span class="Other">)</span><span class="Other">:</span> <span class="Identifier">string</span> {.<span><span class="Other pragmadots">...</span></span><span class="pragmawrap"><span class="Identifier">raises</span><span class="Other">:</span> <span class="Other">[</span><span class="Other">]</span><span class="Other">,</span>
+    <span class="Identifier">tags</span><span class="Other">:</span> <span class="Other">[</span><span class="Other">]</span><span class="Other">,</span> <span class="Identifier">forbids</span><span class="Other">:</span> <span class="Other">[</span><span class="Other">]</span></span>.}</pre></dt>
+  <dd>
+    
+    Describe a named action that has no compiled default binding.
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_config.nim#L430" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_config.nim#L430" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -792,8 +827,8 @@
   <dd>
     
     Describe configuration and state locations; tests pass temporary directories.
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_config.nim#L469" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_config.nim#L469" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_config.nim#L479" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_config.nim#L479" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -806,8 +841,8 @@
   <dd>
     
     Validate a configuration and convert it to the typed, reference-free routing model.
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_config.nim#L281" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_config.nim#L281" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_config.nim#L283" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_config.nim#L283" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -821,8 +856,8 @@
   <dd>
     
     Validate an export or draft envelope's shape; the configuration is validated separately.
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_config.nim#L377" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_config.nim#L377" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_config.nim#L379" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_config.nim#L379" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -835,8 +870,8 @@
   <dd>
     
     Return the media preparation cache directory.
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_config.nim#L485" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_config.nim#L485" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_config.nim#L495" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_config.nim#L495" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -848,8 +883,8 @@
   <dd>
     
     Return the lowercase hexadecimal SHA-256 digest of a byte string.
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_config.nim#L79" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_config.nim#L79" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_config.nim#L81" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_config.nim#L81" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -862,8 +897,8 @@
   <dd>
     
     Raise ButtonConfigError, naming the offending field, when a configuration is invalid.
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_config.nim#L364" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_config.nim#L364" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_config.nim#L366" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_config.nim#L366" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -878,8 +913,8 @@
   <dd>
     
     Replace a file through a synced temporary file in the same directory.
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_config.nim#L501" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_config.nim#L501" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/button_config.nim#L511" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/button_config.nim#L511" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -895,7 +930,7 @@
       <div class="twelve-columns footer">
         <span class="nim-sprite"></span>
         <br>
-        <small style="color: var(--hint);">Made with Nim. Generated: 2026-11-18 18:37:59 UTC</small>
+        <small style="color: var(--hint);">Made with Nim. Generated: 2026-11-18 22:21:33 UTC</small>
       </div>
     </div>
   </div>

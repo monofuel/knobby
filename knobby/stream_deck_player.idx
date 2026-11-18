@@ -1,15 +1,15 @@
 nimTitle	stream_deck_player	knobby/stream_deck_player.html	module knobby/stream_deck_player		0
 nim	PlayerClock	knobby/stream_deck_player.html#PlayerClock	type PlayerClock		6
 nim	PlayerOptions	knobby/stream_deck_player.html#PlayerOptions	object PlayerOptions		7
-nim	MaxPreparedJpegBytes	knobby/stream_deck_player.html#MaxPreparedJpegBytes	const MaxPreparedJpegBytes		60
-nim	MaxFramesPerKey	knobby/stream_deck_player.html#MaxFramesPerKey	const MaxFramesPerKey		61
-nim	MaxFrameDurationMs	knobby/stream_deck_player.html#MaxFrameDurationMs	const MaxFrameDurationMs		62
-nim	MaxPageImageBytes	knobby/stream_deck_player.html#MaxPageImageBytes	const MaxPageImageBytes		63
-nim	monotonicMs	knobby/stream_deck_player.html#monotonicMs	proc monotonicMs(): int64		74
-nim	defaultPlayerOptions	knobby/stream_deck_player.html#defaultPlayerOptions	proc defaultPlayerOptions(): PlayerOptions		82
-nim	builtinDeckPage	knobby/stream_deck_player.html#builtinDeckPage,int64,string	proc builtinDeckPage(generation: int64 = 1; menu = "root"): JsonNode		89
-nim	builtinPageReader	knobby/stream_deck_player.html#builtinPageReader	proc builtinPageReader(): proc (previousGeneration: int64): JsonNode		96
-nim	frameEnds	knobby/stream_deck_player.html#frameEnds,openArray[int]	proc frameEnds(durations: openArray[int]): seq[int]		103
-nim	frameIndexAt	knobby/stream_deck_player.html#frameIndexAt,openArray[int],int64	proc frameIndexAt(ends: openArray[int]; elapsedMs: int64): int		119
-nim	msUntilNextFrame	knobby/stream_deck_player.html#msUntilNextFrame,openArray[int],int64	proc msUntilNextFrame(ends: openArray[int]; elapsedMs: int64): int64		124
-nim	runConfiguredSession	knobby/stream_deck_player.html#runConfiguredSession,StreamDeck,proc),proc(StreamDeckKeyEvent),proc(int64),proc)	proc runConfiguredSession(deck: StreamDeck; shouldStop: proc (): bool;\n                     onKey: proc (event: StreamDeckKeyEvent);\n                     readPage: proc (previousGeneration: int64): JsonNode;\n                     onReady: proc () = nil; options = defaultPlayerOptions())		464
+nim	MaxPreparedJpegBytes	knobby/stream_deck_player.html#MaxPreparedJpegBytes	const MaxPreparedJpegBytes		61
+nim	MaxFramesPerKey	knobby/stream_deck_player.html#MaxFramesPerKey	const MaxFramesPerKey		62
+nim	MaxFrameDurationMs	knobby/stream_deck_player.html#MaxFrameDurationMs	const MaxFrameDurationMs		63
+nim	MaxPageImageBytes	knobby/stream_deck_player.html#MaxPageImageBytes	const MaxPageImageBytes		64
+nim	monotonicMs	knobby/stream_deck_player.html#monotonicMs	proc monotonicMs(): int64		75
+nim	defaultPlayerOptions	knobby/stream_deck_player.html#defaultPlayerOptions	proc defaultPlayerOptions(): PlayerOptions		83
+nim	builtinDeckPage	knobby/stream_deck_player.html#builtinDeckPage,int64,string	proc builtinDeckPage(generation: int64 = 1; menu = "root"): JsonNode		90
+nim	builtinPageReader	knobby/stream_deck_player.html#builtinPageReader	proc builtinPageReader(): proc (previousGeneration: int64): JsonNode		97
+nim	frameEnds	knobby/stream_deck_player.html#frameEnds,openArray[int]	proc frameEnds(durations: openArray[int]): seq[int]		104
+nim	frameIndexAt	knobby/stream_deck_player.html#frameIndexAt,openArray[int],int64	proc frameIndexAt(ends: openArray[int]; elapsedMs: int64): int		120
+nim	msUntilNextFrame	knobby/stream_deck_player.html#msUntilNextFrame,openArray[int],int64	proc msUntilNextFrame(ends: openArray[int]; elapsedMs: int64): int64		125
+nim	runConfiguredSession	knobby/stream_deck_player.html#runConfiguredSession,StreamDeck,proc),proc(StreamDeckKeyEvent),proc(int64),proc)	proc runConfiguredSession(deck: StreamDeck; shouldStop: proc (): bool;\n                     onKey: proc (event: StreamDeckKeyEvent);\n                     readPage: proc (previousGeneration: int64): JsonNode;\n                     onReady: proc () = nil; options = defaultPlayerOptions())		471

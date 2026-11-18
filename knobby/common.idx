@@ -6,6 +6,6 @@ nim	knobbyFontPath	knobby/common.html#knobbyFontPath	proc knobbyFontPath(): stri
 nim	runCommand	knobby/common.html#runCommand,string,seq[string]	proc runCommand(command: string; args: seq[string]): string		21
 nim	spawnCommand	knobby/common.html#spawnCommand,string,seq[string],set[ProcessOption]	proc spawnCommand(command: string; args: seq[string];\n             options: set[ProcessOption] = {poUsePath, poStdErrToStdOut}): Process		32
 nim	runShellCommand	knobby/common.html#runShellCommand,string	proc runShellCommand(command: string): tuple[output: string, exitCode: int]		38
-nim	runAudioCommand	knobby/common.html#runAudioCommand,string,seq[string]	proc runAudioCommand(command: string; args: seq[string]): string		47
-nim	markProgress	knobby/common.html#markProgress	proc markProgress()		105
-nim	startProgressWatchdog	knobby/common.html#startProgressWatchdog	proc startProgressWatchdog()		117
+nim	runAudioCommand	knobby/common.html#runAudioCommand,string,seq[string]	proc runAudioCommand(command: string; args: seq[string]): string		62
+nim	markProgress	knobby/common.html#markProgress	proc markProgress()		116
+nim	startProgressWatchdog	knobby/common.html#startProgressWatchdog	proc startProgressWatchdog()		128

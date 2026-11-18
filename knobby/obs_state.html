@@ -62,6 +62,8 @@
                    &quot;minecraftRunning&quot;, &quot;minecraftSized&quot;]">ObsStatusFields</a></li>
 <li><a class="reference" href="#ObsVisualStates" title="ObsVisualStates = [&quot;recording&quot;, &quot;paused&quot;, &quot;muted&quot;, &quot;unavailable&quot;, &quot;running&quot;,
                    &quot;ready&quot;]">ObsVisualStates</a></li>
+<li><a class="reference" href="#VisualStates" title="VisualStates = [&quot;recording&quot;, &quot;paused&quot;, &quot;muted&quot;, &quot;unavailable&quot;, &quot;running&quot;,
+                &quot;ready&quot;, &quot;mixed&quot;, &quot;deafened&quot;]">VisualStates</a></li>
 
     </ul>
   </details>
@@ -142,8 +144,8 @@
   <dd>
     
     
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/obs_state.nim#L7" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/obs_state.nim#L7" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/obs_state.nim#L9" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/obs_state.nim#L9" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -155,6 +157,17 @@
     
     <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/obs_state.nim#L6" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
 <a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/obs_state.nim#L6" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+
+  </dd>
+</div>
+<div id="VisualStates">
+  <dt><pre><a href="obs_state.html#VisualStates"><span class="Identifier">VisualStates</span></a> <span class="Other">=</span> <span class="Other">[</span><span class="StringLit">&quot;recording&quot;</span><span class="Other">,</span> <span class="StringLit">&quot;paused&quot;</span><span class="Other">,</span> <span class="StringLit">&quot;muted&quot;</span><span class="Other">,</span> <span class="StringLit">&quot;unavailable&quot;</span><span class="Other">,</span> <span class="StringLit">&quot;running&quot;</span><span class="Other">,</span>
+                <span class="StringLit">&quot;ready&quot;</span><span class="Other">,</span> <span class="StringLit">&quot;mixed&quot;</span><span class="Other">,</span> <span class="StringLit">&quot;deafened&quot;</span><span class="Other">]</span></pre></dt>
+  <dd>
+    
+    
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/obs_state.nim#L7" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/obs_state.nim#L7" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -170,8 +183,8 @@
   <dd>
     
     Report whether an operation name is one OBS buttons may run.
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/obs_state.nim#L47" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/obs_state.nim#L47" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/obs_state.nim#L49" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/obs_state.nim#L49" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -184,8 +197,8 @@
   <dd>
     
     Describe what an OBS operation does, as shown in status catalogs and editors.
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/obs_state.nim#L61" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/obs_state.nim#L61" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/obs_state.nim#L63" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/obs_state.nim#L63" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -198,8 +211,8 @@
   <dd>
     
     Return a short human label for an OBS operation.
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/obs_state.nim#L51" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/obs_state.nim#L51" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/obs_state.nim#L53" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/obs_state.nim#L53" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -212,8 +225,8 @@
   <dd>
     
     Explain the current action or missing prerequisite without conflating app presence with capture readiness.
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/obs_state.nim#L111" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/obs_state.nim#L111" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/obs_state.nim#L113" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/obs_state.nim#L113" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -226,8 +239,8 @@
   <dd>
     
     Choose the visual state for an OBS-bound key, or &quot;&quot; for its base visual. Unknown or disconnected status is unavailable, never &quot;stopped&quot;.
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/obs_state.nim#L76" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/obs_state.nim#L76" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/obs_state.nim#L78" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/obs_state.nim#L78" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -241,8 +254,8 @@
   <dd>
     
     Return an owned copy of the newest OBS status, unavailable until one is set.
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/obs_state.nim#L39" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/obs_state.nim#L39" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/obs_state.nim#L41" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/obs_state.nim#L41" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -255,8 +268,8 @@
   <dd>
     
     Return the prepared variant of a manifest key entry for the status, or the entry itself when it has no OBS binding or no variant for the state.
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/obs_state.nim#L141" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/obs_state.nim#L141" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/obs_state.nim#L143" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/obs_state.nim#L143" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -269,8 +282,8 @@
   <dd>
     
     Replace the shared OBS status snapshot with an owned copy of an object.
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/obs_state.nim#L29" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/obs_state.nim#L29" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/obs_state.nim#L31" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/obs_state.nim#L31" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -282,8 +295,8 @@
   <dd>
     
     Return the status reported before OBS is known: everything false, no error.
-    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/obs_state.nim#L23" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/obs_state.nim#L23" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/monofuel/knobby/tree/master/src/knobby/obs_state.nim#L25" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/monofuel/knobby/edit/devel/src/knobby/obs_state.nim#L25" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -299,7 +312,7 @@
       <div class="twelve-columns footer">
         <span class="nim-sprite"></span>
         <br>
-        <small style="color: var(--hint);">Made with Nim. Generated: 2026-11-18 18:37:59 UTC</small>
+        <small style="color: var(--hint);">Made with Nim. Generated: 2026-11-18 22:21:33 UTC</small>
       </div>
     </div>
   </div>
