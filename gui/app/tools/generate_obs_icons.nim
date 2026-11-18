@@ -341,17 +341,21 @@ proc icons(): seq[Icon] =
     muted = palette("#2a0605", "#d42a1e", "#ff7a5c", "#8a130d", [('x', "#f2f2f2"), ('s', "#8e9094")])
   @[
     Icon(name: "menu-obs", label: "OBS", tone: GreenTone, sprite: CameraSprite, colors: camera),
+    Icon(name: "minecraft-launch", label: "PRISM", tone: GreyTone, sprite: OpenSprite, colors: openFace),
+    Icon(name: "minecraft-1080-needed", label: "1080", tone: AmberTone, sprite: OpenSprite, colors: openFace),
     Icon(name: "minecraft-1080", label: "1080", tone: GreenTone, sprite: OpenSprite, colors: openFace),
     Icon(name: "back", label: "BACK", tone: GreenTone, sprite: BackSprite, colors: pale),
     Icon(name: "record-idle", label: "REC", tone: GreenTone, sprite: RecordRingSprite, colors: ring),
     Icon(name: "record-recording", label: "REC", tone: RedTone, sprite: RecordSprite, colors: redstone),
     Icon(name: "record-paused", label: "REC", tone: AmberTone, sprite: RecordPausedSprite, colors: coin),
+    Icon(name: "record-unavailable", label: "REC", tone: GreyTone, sprite: RecordRingSprite, colors: greyed),
     Icon(name: "pause-idle", label: "PAUSE", tone: GreyTone, sprite: PauseSprite, colors: greyed),
     Icon(name: "pause-running", label: "PAUSE", tone: GreenTone, sprite: PauseSprite, colors: pale),
     Icon(name: "pause-paused", label: "PAUSE", tone: AmberTone, sprite: PauseSprite, colors: amber),
     Icon(name: "mic-enabled", label: "MIC", tone: GreenTone, sprite: MicSprite, colors: emerald),
     Icon(name: "mic-muted", label: "MUTED", tone: RedTone, sprite: MicMutedSprite, colors: muted),
-    Icon(name: "obs-open", label: "OPEN", tone: GreenTone, sprite: OpenSprite, colors: openFace),
+    Icon(name: "obs-idle", label: "OBS", tone: GreyTone, sprite: OpenSprite, colors: openFace),
+    Icon(name: "obs-open", label: "OBS", tone: GreenTone, sprite: OpenSprite, colors: openFace),
     Icon(name: "unavailable", label: "OFF", tone: GreyTone, sprite: BarrierSprite, colors: stone)]
 
 proc render(icon: Icon): Image =

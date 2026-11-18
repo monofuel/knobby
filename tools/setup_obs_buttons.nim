@@ -23,8 +23,9 @@ proc installObsButtons(artDirectory: string) =
     raise newException(ValueError, "The OBS menu already exists; edit it with the GUI or config export/apply.")
   if root == nil: raise newException(ValueError, "The root menu is missing.")
   for name in ["menu-obs", "back", "record-idle", "record-recording", "record-paused",
-      "pause-idle", "pause-running", "pause-paused", "mic-enabled", "mic-muted",
-      "obs-open", "unavailable", "minecraft-1080"]:
+      "record-unavailable", "pause-idle", "pause-running", "pause-paused", "mic-enabled",
+      "mic-muted", "obs-idle", "obs-open", "unavailable", "minecraft-launch",
+      "minecraft-1080-needed", "minecraft-1080"]:
     let record = runConfigOperation("config.importAsset",
       %*{"source": absolutePath(artDirectory / (name & ".png"))})
     artwork[name] = record["path"].getStr()
@@ -40,16 +41,17 @@ proc installObsButtons(artDirectory: string) =
   menu["deck"].add(key(1, "Back", %*{"kind": "back"}, "back"))
   menu["deck"].add(key(2, "Record", %*{"kind": "obs", "operation": "recordToggle"},
     "record-idle", [("recording", "record-recording"), ("paused", "record-paused"),
-    ("unavailable", "unavailable")]))
+    ("unavailable", "record-unavailable")]))
   menu["deck"].add(key(3, "Pause", %*{"kind": "obs", "operation": "pauseToggle"},
     "pause-idle", [("recording", "pause-running"), ("paused", "pause-paused"),
     ("unavailable", "pause-idle")]))
   menu["deck"].add(key(4, "Commentary", %*{"kind": "obs", "operation": "micToggle"},
     "mic-enabled", [("muted", "mic-muted"), ("unavailable", "unavailable")]))
   menu["deck"].add(key(5, "Open OBS", %*{"kind": "obs", "operation": "open"},
-    "obs-open", [("unavailable", "unavailable")]))
+    "obs-idle", [("unavailable", "obs-idle"), ("running", "obs-open")]))
   menu["deck"].add(key(6, "Minecraft 1080p", %*{"kind": "obs", "operation": "minecraft1080"},
-    "minecraft-1080"))
+    "minecraft-launch", [("unavailable", "minecraft-launch"), ("running", "minecraft-1080-needed"),
+    ("ready", "minecraft-1080")]))
   let entry = key(2, "OBS", %*{"kind": "menu", "menu": ObsMenuId, "target": "deck"}, "menu-obs")
   var replaced = false
   for index in 0..<root["deck"].len:
