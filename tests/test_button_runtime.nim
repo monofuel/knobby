@@ -76,6 +76,30 @@ proc navConfig(): JsonNode =
       "deck": [
         {"key": 6, "title": "Home", "action": {"kind": "home"}}]}]}
 
+proc cycleConfig(): JsonNode =
+  ## Describe a three-menu mixer cycle whose forward transitions legitimately grow history.
+  result = %*{"version": 1, "root": "root", "menus": [
+    {"id": "root", "title": "Main", "mixer": [
+      {"key": 9, "title": "Next", "action": {"kind": "menu", "menu": "a", "target": "mixer"}}],
+      "deck": []}]}
+  for (id, next, previous) in [("a", "b", "c"), ("b", "c", "a"), ("c", "a", "b")]:
+    result["menus"].add(%*{"id": id, "title": id, "deck": [], "mixer": [
+      {"key": 6, "title": "Home", "action": {"kind": "home"}},
+      {"key": 9, "title": "Next", "action": {"kind": "menu", "menu": next, "target": "mixer"}},
+      {"key": 10, "title": "Previous", "action": {"kind": "menu", "menu": previous, "target": "mixer"}}]})
+
+proc reciprocalConfig(): JsonNode =
+  ## Describe two menus linking to each other through Deck-only, mixer-only, and linked keys.
+  result = %*{"version": 1, "root": "root", "menus": []}
+  for (id, other) in [("root", "x"), ("x", "y"), ("y", "x")]:
+    result["menus"].add(%*{"id": id, "title": id,
+      "mixer": [
+        {"key": 2, "title": "Both", "action": {"kind": "menu", "menu": other, "target": "both"}},
+        {"key": 3, "title": "Mixer", "action": {"kind": "menu", "menu": other, "target": "mixer"}},
+        {"key": 6, "title": "Home", "action": {"kind": "home"}}],
+      "deck": [
+        {"key": 4, "title": "Deck", "action": {"kind": "menu", "menu": other, "target": "deck"}}]})
+
 proc newPaths(): ButtonPaths =
   ## Create empty private config and state directories for one test.
   inc directoryCounter
@@ -300,32 +324,112 @@ suite "Button runtime":
 
   test "navigation beyond the history limit is rejected without changing state":
     let paths = newPaths()
-    writeFileAtomic(paths.configPath(), encodeConfigFile(navConfig()))
+    writeFileAtomic(paths.configPath(), encodeConfigFile(cycleConfig()))
     start(paths)
     defer: finish(paths)
     syncDeck()
-    press(MixerDevice, 3)
-    for _ in 2..MaxNavigationHistory:
-      press(MixerDevice, 4)
+    for _ in 1..MaxNavigationHistory:
+      press(MixerDevice, 9)
     check status()["historyDepth"].getInt() == MaxNavigationHistory
     check menus() == ("b", "root")
     let generation = status()["deckGeneration"].getBiggestInt()
     for _ in 1..2:
       try:
-        routeMixerButton(4, true)
+        routeMixerButton(9, true)
         check false
       except IOError as error:
         check "limited to " & $MaxNavigationHistory in error.msg
-      routeMixerButton(4, false)
+      routeMixerButton(9, false)
     check menus() == ("b", "root")
     check status()["historyDepth"].getInt() == MaxNavigationHistory
     check status()["deckGeneration"].getBiggestInt() == generation
+    press(MixerDevice, 10)
+    check menus() == ("a", "root")
+    check status()["historyDepth"].getInt() == MaxNavigationHistory - 1
+    press(MixerDevice, 9)
+    check menus() == ("b", "root")
     press(MixerDevice, 1)
     check menus() == ("a", "root")
     check status()["historyDepth"].getInt() == MaxNavigationHistory - 1
-    press(MixerDevice, 4)
-    check menus() == ("b", "root")
     press(MixerDevice, 6)
+    check menus() == ("root", "root")
+    check status()["historyDepth"].getInt() == 0
+
+  test "reciprocal menu links undo their own transition so history stays bounded":
+    let paths = newPaths()
+    writeFileAtomic(paths.configPath(), encodeConfigFile(reciprocalConfig()))
+    start(paths)
+    defer: finish(paths)
+    syncDeck()
+    press(DeckDevice, 4)
+    syncDeck()
+    check menus() == ("root", "x")
+    for _ in 1..100:
+      press(DeckDevice, 4)
+      syncDeck()
+    check menus() == ("root", "x")
+    check status()["historyDepth"].getInt() == 1
+    press(DeckDevice, 4)
+    syncDeck()
+    check menus() == ("root", "y")
+    check status()["historyDepth"].getInt() == 2
+    press(DeckDevice, 1)
+    check menus() == ("root", "x")
+    syncDeck()
+    press(DeckDevice, 1)
+    check menus() == ("root", "root")
+    check status()["historyDepth"].getInt() == 0
+    press(MixerDevice, 2)
+    syncDeck()
+    for _ in 1..101:
+      press(MixerDevice, 2)
+      syncDeck()
+    check menus() == ("y", "y")
+    check status()["historyDepth"].getInt() == 2
+    press(DeckDevice, 1)
+    check menus() == ("x", "x")
+    syncDeck()
+    press(MixerDevice, 1)
+    check menus() == ("root", "root")
+    check status()["historyDepth"].getInt() == 0
+    check takeButtonActions().len == 0
+
+  test "returns on other devices or after linked transitions are recorded, not undone":
+    let paths = newPaths()
+    writeFileAtomic(paths.configPath(), encodeConfigFile(reciprocalConfig()))
+    start(paths)
+    defer: finish(paths)
+    syncDeck()
+    press(MixerDevice, 3)
+    press(DeckDevice, 4)
+    syncDeck()
+    press(MixerDevice, 3)
+    press(DeckDevice, 4)
+    syncDeck()
+    check menus() == ("y", "y")
+    check status()["historyDepth"].getInt() == 4
+    press(MixerDevice, 3)
+    check menus() == ("x", "y")
+    check status()["historyDepth"].getInt() == 5
+    press(DeckDevice, 1)
+    check menus() == ("x", "x")
+    check status()["historyDepth"].getInt() == 4
+    syncDeck()
+    press(MixerDevice, 6)
+    press(MixerDevice, 2)
+    syncDeck()
+    press(MixerDevice, 2)
+    syncDeck()
+    check menus() == ("y", "y")
+    press(MixerDevice, 3)
+    check menus() == ("x", "y")
+    check status()["historyDepth"].getInt() == 3
+    press(MixerDevice, 1)
+    check menus() == ("y", "y")
+    press(MixerDevice, 1)
+    check menus() == ("x", "x")
+    syncDeck()
+    press(DeckDevice, 1)
     check menus() == ("root", "root")
     check status()["historyDepth"].getInt() == 0
 

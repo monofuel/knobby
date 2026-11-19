@@ -204,13 +204,24 @@ proc targetDevices(target: ButtonTarget): set[ButtonDevice] =
 
 proc openMenu(current: var RuntimeState, target: ButtonTarget, menu: string) =
   ## Record one linked transition for every target device unless all are already there.
-  ## A full history rejects the transition and leaves menus and history unchanged.
+  ## Returning exactly to the newest transition's previous menus on the same devices undoes
+  ## that transition instead, so reciprocal menu links do not grow history.
+  ## A full history rejects any other transition and leaves menus and history unchanged.
   let devices = targetDevices(target)
   var changes = false
   for device in devices:
     if current.menus[device] != menu:
       changes = true
-  if changes:
+  var undoes = changes and current.history.len > 0 and current.history[^1].devices == devices
+  if undoes:
+    for device in devices:
+      if current.history[^1].previous[device] != menu:
+        undoes = false
+  if undoes:
+    current.history.setLen(current.history.len - 1)
+    for device in devices:
+      current.setMenu(device, menu)
+  elif changes:
     if current.history.len >= MaxNavigationHistory:
       raise newException(IOError, NavigationLimitMessage)
     var transition = Transition(devices: devices)
