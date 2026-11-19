@@ -33,6 +33,10 @@ const
     ".#rrr######rrr#.", ".#rrrrrrrrrrrd#.", ".#dddddddddddd#.", "..####rr######..",
     "......rr#.......", "......r#........", "................", "................"]
   SymbolCenter = (Border + LabelBandTop) div 2
+  GraphWidth = 48
+  GraphHeight = 32
+  GraphInset = 4
+  GraphLogitLimit = 4.5
   GearCells = 16
   GearTeeth = 8
   GearToothHalfWidth = 0.24
@@ -565,15 +569,46 @@ proc slackSprite(): Sprite =
         if vertical: result[along][across] = symbol
         else: result[across][along] = symbol
 
+proc drawSoftmaxGraph(image: Image) =
+  ## Plot both outputs of softmax over logits (z, 0) as pixel-aligned curves on a dark panel.
+  let
+    left = (Size - GraphWidth) div 2
+    top = SymbolCenter - GraphHeight div 2
+    plotLeft = left + GraphInset
+    plotRight = left + GraphWidth - 1 - GraphInset - 1
+    plotTop = top + GraphInset
+    plotBottom = top + GraphHeight - 1 - GraphInset
+    axisX = (plotLeft + plotRight) div 2
+    axisY = plotBottom + 1
+    silver = rgb("#c3c8d0")
+    curves = [(rgb("#ffb347"), false), (rgb("#4fe3ff"), true)]
+  for y in top..<top + GraphHeight:
+    for x in left..<left + GraphWidth:
+      let edge = x in [left, left + GraphWidth - 1] or y in [top, top + GraphHeight - 1]
+      image[x, y] = if edge: rgb("#0b0c0e") else: rgb("#142030")
+  for x in plotLeft - 2..plotRight + 3: image[x, axisY] = silver
+  for y in plotTop - 2..axisY: image[axisX, y] = silver
+  for x in axisX - 2..axisX + 2:
+    image[x, plotTop] = silver
+    image[x, (plotTop + plotBottom) div 2] = silver
+  for (color, first) in curves:
+    var previous = -1
+    for x in plotLeft..plotRight:
+      let
+        z = -GraphLogitLimit + 2 * GraphLogitLimit * float(x - plotLeft) / float(plotRight - plotLeft)
+        share = exp(z) / (exp(z) + 1)
+        p = if first: share else: 1 - share
+        y = plotTop + int(round((1 - p) * float(plotBottom - 1 - plotTop)))
+        span = if previous < 0: y..y else: min(previous, y)..max(previous, y)
+      for row in span.a..span.b + 1:
+        for column in x..x + 1:
+          image[column, row] = color
+      previous = y
+
 proc generateWorkIcons() =
   ## Generate Work-menu launcher artwork using the same pixel style as OBS and Discord.
   const
     Directory = OutputDirectory.parentDir() / "work"
-    Briefcase = @[
-      "................", "................", "................", "......hhhh......",
-      ".....hh..hh.....", ".hhhhhhhhhhhhhh.", ".hrrrrrrrrrrrrr.", ".rrrrrrrrrrrrrr.",
-      ".ddddddlldddddd.", ".rrrrrrllrrrrrr.", ".rrrrrrrrrrrrrr.", ".rrrrrrrrrrrrrr.",
-      ".rrrrrrrrrrrrrd.", ".dddddddddddddd.", "................", "................"]
     Sword = @[
       "................", ".......hr.......", ".......hr.......", ".......hr.......",
       ".......hr.......", ".......hr.......", ".......hr.......", ".......hr.......",
@@ -610,7 +645,6 @@ proc generateWorkIcons() =
       ".#rllllrrllllr#.", ".#rllllrrllllr#.", ".#rrrrrrrrrrrr#.", ".##############.",
       ".......ss.......", ".....ssssss.....", "................", "................"]
   let
-    leather = palette("#2a1606", "#9a5b2a", "#d08a4a", "#5e3414", [('l', "#f0c040")])
     steel = palette("#16181b", "#b4b8bf", "#eceef2", "#71757c",
       [('g', "#f0c040"), ('k', "#a8761a"), ('b', "#6b3a16")])
     gold = palette("#2e2404", "#f5d332", "#fff3a0", "#b8901a", [('k', "#d9a520"), ('j', "#d42a1e")])
@@ -623,7 +657,6 @@ proc generateWorkIcons() =
     dashboard = palette("#122138", "#35639b", "#91c8ee", "#203b61", [('l', "#85d46c"), ('s', "#b4b8bf")])
   createDir(Directory)
   for (name, label, tone, sprite, colors) in [
-      ("menu-work", "SOFT", GreenTone, Briefcase, leather),
       ("wow-classic", "WOW", GreenTone, Sword, steel),
       ("wow-nim", "NIM", GreenTone, Crown, gold),
       ("slack", "SLACK", GreenTone, slackSprite(), slack),
@@ -640,6 +673,11 @@ proc generateWorkIcons() =
     image.drawSymbol(outlinedColors(sprite), colors)
     image.drawLabel(label, tone.labelColor())
     image.writeFile(Directory / (name & ".png"))
+  let softmax = newImage(Size, Size)
+  softmax.fillStone(GreenTone)
+  softmax.drawSoftmaxGraph()
+  softmax.drawLabel("SOFT", GreenTone.labelColor())
+  softmax.writeFile(Directory / "menu-work.png")
 
 proc main() =
   ## Regenerate the committed key faces without network access or system fonts.

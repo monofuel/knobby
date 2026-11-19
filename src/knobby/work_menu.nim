@@ -75,3 +75,19 @@ proc installWorkMenu*(source, targets: JsonNode, artwork: Table[string, string])
     if slot >= 0: root["deck"].elems[slot] = entry
     else: root["deck"].add(entry)
     result["menus"].add(menu)
+
+proc refreshWorkMenuArtwork*(source: JsonNode, imagePath: string): JsonNode =
+  ## Return an owned configuration whose root Deck key 4 Softmax entry shows a new image.
+  ## Only that entry's visual image changes; any other root Deck key 4 binding is refused.
+  result = parseJson($source)
+  var entry: JsonNode
+  for menu in result["menus"]:
+    if menu["id"].getStr() == result["root"].getStr():
+      for button in menu["deck"]:
+        if button["key"].getInt() == WorkRootKey: entry = button
+  let wanted = %*{"kind": "menu", "menu": WorkMenuId, "target": "deck"}
+  if entry.isNil or entry{"action"} != wanted:
+    raise newException(ValueError, "Root deck key " & $WorkRootKey &
+      " does not open the Softmax menu; refusing to change its artwork.")
+  if not entry.hasKey("visual"): entry["visual"] = newJObject()
+  entry["visual"]["image"] = %imagePath

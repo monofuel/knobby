@@ -51,5 +51,15 @@ or through export/edit/apply like any other button.
 
 Artwork is generated alongside the OBS and Discord icons by
 `gui/app/tools/generate_obs_icons.nim`. Prism, Discord, and Back reuse their
-existing faces; the briefcase, sword, crown, hash, flask, bolts, and gamepad
-are original Knobby pixel art.
+existing faces; the sword, crown, hash, flask, bolts, and gamepad are original
+Knobby pixel art. The root Softmax key plots the two-output softmax of logits
+(z, 0) for z from -4.5 to 4.5: a cyan p1 = e^z / (e^z + 1) and a gold
+p2 = 1 / (e^z + 1) cross at 0.5 over silver axes.
+
+Setup never replaces artwork on an installed menu. To show regenerated root
+art, refresh only that key image; every other button, menu, and mixer binding
+is kept, and a root Deck key 4 that does not open the Softmax menu is refused:
+
+```
+nix develop --command nim r tools/setup_work_buttons.nim --refresh-menu-art
+```

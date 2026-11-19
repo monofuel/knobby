@@ -122,6 +122,28 @@ suite "Work submenu installation":
     backTarget[0]["key"] = %1
     expect ValueError: discard installWorkMenu(liveLikeConfig(), backTarget, artwork())
 
+  test "refreshing root art changes only the Softmax key image and refuses foreign bindings":
+    let source = installWorkMenu(liveLikeConfig(), targets(), artwork())
+    source["menus"][source["menus"].len - 1]["deck"].add(%*{"key": 11, "title": "Future",
+      "action": {"kind": "command", "command": "true"}, "visual": {"image": "assets/future.png"}})
+    let
+      original = $source
+      refreshed = refreshWorkMenuArtwork(source, "assets/graph.png")
+    validateButtonConfig(refreshed)
+    check $source == original
+    let expected = parseJson(original)
+    for button in expected["menus"][0]["deck"]:
+      if button["key"].getInt() == WorkRootKey: button["visual"]["image"] = %"assets/graph.png"
+    check refreshed == expected
+    check buttonAt(refreshed, "root", "deck", WorkRootKey)["visual"]["showTitle"].getBool() == false
+    let foreign = liveLikeConfig()
+    for button in foreign["menus"][0]["deck"]:
+      if button["key"].getInt() == WorkRootKey: button["action"] = %*{"kind": "claude"}
+    let foreignText = $foreign
+    expect ValueError: discard refreshWorkMenuArtwork(foreign, "assets/graph.png")
+    check $foreign == foreignText
+    expect ValueError: discard refreshWorkMenuArtwork(liveLikeConfig(), "assets/graph.png")
+
   test "actual runtime enters Work on the Deck only, queues a launcher, and returns Back":
     let
       directory = createTempDir("knobby-work-navigation-", "")

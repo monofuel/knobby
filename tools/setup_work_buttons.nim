@@ -6,12 +6,11 @@ const
   RepositoryDirectory = currentSourcePath().parentDir().parentDir()
   DefaultTargetsFile = RepositoryDirectory / "docs/work-menu-targets.json"
   DefaultAssetsDirectory = RepositoryDirectory / "assets"
+  Usage = "Usage: setup_work_buttons --apply [TARGETS_FILE [ASSETS_DIRECTORY]]\n" &
+    "       setup_work_buttons --refresh-menu-art [ASSETS_DIRECTORY]"
 
-proc main() =
+proc installMenu(args: seq[string]) =
   ## Install the Deck-only Softmax menu through the shared configuration API.
-  let args = commandLineParams()
-  if args.len notin 1..3 or args[0] != "--apply":
-    quit("Usage: setup_work_buttons --apply [TARGETS_FILE [ASSETS_DIRECTORY]]", 2)
   let
     targets = parseFile(if args.len >= 2: args[1] else: DefaultTargetsFile)
     assetsDirectory = if args.len == 3: args[2] else: DefaultAssetsDirectory
@@ -32,6 +31,31 @@ proc main() =
     envelope["config"] = installWorkMenu(envelope["config"], targets, artwork)
     validateButtonConfig(envelope["config"])
     echo runConfigOperation("config.apply", %*{"envelope": envelope})
+
+proc refreshMenuArt(args: seq[string]) =
+  ## Replace only the root Softmax key image with the repository artwork.
+  let
+    assetsDirectory = if args.len == 2: args[1] else: DefaultAssetsDirectory
+    current = requireConfigResult(requestConfig("config.get"))["envelope"]["config"]
+  validateButtonConfig(refreshWorkMenuArtwork(current, "assets/menu-work.png"))
+  let
+    record = runConfigOperation("config.importAsset",
+      %*{"source": absolutePath(assetsDirectory / (WorkMenuArt & ".png"))})
+    envelope = requireConfigResult(requestConfig("config.get"))["envelope"]
+    candidate = refreshWorkMenuArtwork(envelope["config"], record["path"].getStr())
+  validateButtonConfig(candidate)
+  if candidate == envelope["config"]:
+    echo "The Softmax key already shows this artwork; nothing to apply."
+  else:
+    envelope["config"] = candidate
+    echo runConfigOperation("config.apply", %*{"envelope": envelope})
+
+proc main() =
+  ## Dispatch the install or artwork refresh mode.
+  let args = commandLineParams()
+  if args.len in 1..3 and args[0] == "--apply": installMenu(args)
+  elif args.len in 1..2 and args[0] == "--refresh-menu-art": refreshMenuArt(args)
+  else: quit(Usage, 2)
 
 when isMainModule:
   main()
