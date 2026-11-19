@@ -73,8 +73,9 @@ workflow for text editors and AI tools.
 The [OBS submenu](docs/obs.md) provides Minecraft recording, pause, commentary
 mute, and a button to resize Minecraft to 1080p, with live state artwork.
 The [Discord submenu](docs/discord.md) separates system mic mute, Discord mute,
-and deafen. The MIDI mixer's top-right button brings up a temporary legend
-without taking focus away from your application.
+and deafen. The [Work submenu](docs/work.md) launches Prism, both WoW clients,
+Discord, Slack, and the research dashboards. The MIDI mixer's top-right button
+brings up a temporary legend without taking focus away from your application.
 
 The viewer uses Windy and Silky and can stay in the system tray. See
 [GUI setup](docs/gui.md) for installing its separate dependencies and launching it.

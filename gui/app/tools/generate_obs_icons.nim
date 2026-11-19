@@ -49,6 +49,7 @@ const
     'D': @["####.", "#...#", "#...#", "#...#", "#...#", "#...#", "####."],
     'E': @["#####", "#....", "#....", "####.", "#....", "#....", "#####"],
     'F': @["#####", "#....", "#....", "####.", "#....", "#....", "#...."],
+    'G': @[".###.", "#...#", "#....", "#.###", "#...#", "#...#", ".###."],
     'I': @["###", ".#.", ".#.", ".#.", ".#.", ".#.", "###"],
     'K': @["#...#", "#..#.", "#.#..", "##...", "#.#..", "#..#.", "#...#"],
     'H': @["#...#", "#...#", "#...#", "#####", "#...#", "#...#", "#...#"],
@@ -541,6 +542,91 @@ proc generateDiscordIcons() =
   render(Icon(label: "BACK", tone: GreenTone, sprite: BackSprite,
     colors: palette("#1a1b1d", "#d9dbe0", "#ffffff", "#9a9ca0"))).writeFile(Directory / "back.png")
 
+proc outlinedColors(sprite: Sprite): Sprite =
+  ## Surround a multicolor sprite's painted cells with a one-cell dark outline.
+  result = sprite
+  for y, line in sprite:
+    for x, symbol in line:
+      if symbol != '.': continue
+      for dy in -1..1:
+        for dx in -1..1:
+          let
+            row = y + dy
+            column = x + dx
+          if row in 0..<sprite.len and column in 0..<line.len and sprite[row][column] != '.':
+            result[y][x] = '#'
+
+proc slackSprite(): Sprite =
+  ## Build a four-color hash from crossing bars on the sprite grid.
+  for row in 0..<16: result.add(repeat('.', 16))
+  for (symbol, vertical, first) in [('g', false, 4), ('p', false, 10), ('b', true, 4), ('y', true, 10)]:
+    for along in 2..13:
+      for across in first..first + 1:
+        if vertical: result[along][across] = symbol
+        else: result[across][along] = symbol
+
+proc generateWorkIcons() =
+  ## Generate Work-menu launcher artwork using the same pixel style as OBS and Discord.
+  const
+    Directory = OutputDirectory.parentDir() / "work"
+    Briefcase = @[
+      "................", "................", "................", "......hhhh......",
+      ".....hh..hh.....", ".hhhhhhhhhhhhhh.", ".hrrrrrrrrrrrrr.", ".rrrrrrrrrrrrrr.",
+      ".ddddddlldddddd.", ".rrrrrrllrrrrrr.", ".rrrrrrrrrrrrrr.", ".rrrrrrrrrrrrrr.",
+      ".rrrrrrrrrrrrrd.", ".dddddddddddddd.", "................", "................"]
+    Sword = @[
+      "................", ".......hr.......", ".......hr.......", ".......hr.......",
+      ".......hr.......", ".......hr.......", ".......hr.......", ".......hr.......",
+      ".......hd.......", "..gggggggggggg..", "..kkkkkkkkkkkk..", ".......bb.......",
+      ".......bb.......", "......gggg......", ".......kk.......", "................"]
+    Crown = @[
+      "................", "................", "................", ".h.....hh.....h.",
+      ".hh...hrrh...hh.", ".rrr.hrrrrh.rrr.", ".rrrrrrrrrrrrrr.", ".rrrrrrjjrrrrrr.",
+      ".rrrrrrrrrrrrrr.", ".rrrrrrrrrrrrrd.", ".kkkkkkkkkkkkkk.", ".hhhhhhhhhhhhhh.",
+      ".dddddddddddddd.", "................", "................", "................"]
+    Flask = @[
+      "................", ".....hhhhhh.....", "......wwww......", "......wwww......",
+      "......wwww......", ".....wwwwww.....", "....wwwwwwww....", "...wwwwwwwwww...",
+      "...wllllllllw...", "..wllllllllllw..", "..wlhllllllllw..", "..wllllllllllw..",
+      "..wddddddddddw..", "...wwwwwwwwww...", "................", "................"]
+    Bolt = @[
+      "................", ".........hhhh...", "........hrrr....", ".......hrrr.....",
+      "......hrrr......", ".....hrrr.......", "....hrrrrrrrr...", "........rrrr....",
+      ".......rrrr.....", "......rrrr......", ".....rrrd.......", "....rrd.........",
+      "...rd...........", "................", "................", "................"]
+    Gamepad = @[
+      "................", "................", "................", "................",
+      "...hhhhhhhhhh...", "..hrrrrrrrrrrr..", ".hrrkrrrrrrrarr.", ".rrkkkrrrrrarar.",
+      ".rrrkrrrrrrrarr.", ".rrrrrrrrrrrrrr.", ".rrrrddddddrrrr.", ".rrrd......drrr.",
+      "..dd........dd..", "................", "................", "................"]
+  let
+    leather = palette("#2a1606", "#9a5b2a", "#d08a4a", "#5e3414", [('l', "#f0c040")])
+    steel = palette("#16181b", "#b4b8bf", "#eceef2", "#71757c",
+      [('g', "#f0c040"), ('k', "#a8761a"), ('b', "#6b3a16")])
+    gold = palette("#2e2404", "#f5d332", "#fff3a0", "#b8901a", [('k', "#d9a520"), ('j', "#d42a1e")])
+    slack = palette("#16181b", "#d9dbe0", "#ffffff", "#9a9ca0",
+      [('b', "#36c5f0"), ('g', "#2eb67d"), ('y', "#ecb22e"), ('p', "#e01e5a")])
+    glass = palette("#16181b", "#c8d6e0", "#ffffff", "#2f8a4a", [('w', "#a9bccb"), ('l', "#5fe08a")])
+    bolt = palette("#2e1c04", "#ffd84a", "#fff3a0", "#d08a12")
+    pad = palette("#1c2049", "#8a7bd9", "#c4baff", "#4e4290", [('k', "#1e1a3a"), ('a', "#ff6a6a")])
+  createDir(Directory)
+  for (name, label, tone, sprite, colors) in [
+      ("menu-work", "WORK", GreenTone, Briefcase, leather),
+      ("wow-classic", "WOW", GreenTone, Sword, steel),
+      ("wow-nim", "NIM", GreenTone, Crown, gold),
+      ("slack", "SLACK", GreenTone, slackSprite(), slack),
+      ("autoresearch", "LAB", GreenTone, Flask, glass),
+      ("xp-prod", "PROD", GreenTone, Bolt, bolt),
+      ("xp-staging", "STAGE", AmberTone, Bolt, bolt),
+      ("next-games", "NEXT", AmberTone, Gamepad, pad)]:
+    for line in sprite:
+      doAssert line.len == 16, name & " sprite rows must be 16 cells wide."
+    let image = newImage(Size, Size)
+    image.fillStone(tone)
+    image.drawSymbol(outlinedColors(sprite), colors)
+    image.drawLabel(label, tone.labelColor())
+    image.writeFile(Directory / (name & ".png"))
+
 proc main() =
   ## Regenerate the committed key faces without network access or system fonts.
   createDir(OutputDirectory)
@@ -549,6 +635,7 @@ proc main() =
       doAssert line.len == icon.sprite[0].len, icon.name & " sprite rows differ in width."
     icon.render().writeFile(OutputDirectory / (icon.name & ".png"))
   generateDiscordIcons()
+  generateWorkIcons()
 
 when isMainModule:
   main()

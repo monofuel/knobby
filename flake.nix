@@ -78,6 +78,7 @@
           cp gui/app/dist/knobby-obs-setup "$out/libexec/knobby-obs-setup"
           cp -r assets/obs "$out/share/knobby/obs-icons"
           cp -r assets/discord "$out/share/knobby/discord-icons"
+          cp -r assets/work "$out/share/knobby/work-icons"
           ln -s ${obsAudioPlugin} "$out/share/knobby/obs-audio-plugin"
           makeWrapper "$out/libexec/knobby" "$out/bin/knobby" \
             --prefix PATH : "${pkgs.lib.makeBinPath runtimeTools}"

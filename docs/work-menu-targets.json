@@ -1,0 +1,21 @@
+[
+  {"key": 2, "title": "Prism", "art": "obs/minecraft-launch",
+    "action": {"kind": "command", "command": "systemd-run --user --collect --quiet --unit=knobby-prism.service --property=Type=exec --property=KillMode=process --property=StandardInput=null --property=StandardOutput=null --property=StandardError=null -- \"$HOME/bin/prism\""}},
+  {"key": 3, "title": "WoW Classic", "art": "work/wow-classic",
+    "action": {"kind": "command", "command": "make -C /home/monofuel/src/wow-coworld/wow-shadow-army play-classic"}},
+  {"key": 4, "title": "WoW Nim", "art": "work/wow-nim",
+    "action": {"kind": "command", "command": "make -C /home/monofuel/src/wow-coworld/wow-shadow-army play"}},
+  {"key": 5, "title": "Discord", "art": "discord/open-idle",
+    "states": {"running": "discord/open-running", "ready": "discord/open-running", "unavailable": "discord/open-idle"},
+    "action": {"kind": "openDiscord"}},
+  {"key": 6, "title": "Slack", "art": "work/slack",
+    "action": {"kind": "command", "command": "slack -s"}},
+  {"key": 7, "title": "Autoresearch", "art": "work/autoresearch",
+    "action": {"kind": "command", "command": "firefox --new-window http://127.0.0.1:8103/"}},
+  {"key": 8, "title": "Fast-XP Prod", "art": "work/xp-prod",
+    "action": {"kind": "command", "command": "firefox --new-window https://fast-xp-k8s-prod.tail0f4a29.ts.net/"}},
+  {"key": 9, "title": "Fast-XP Staging", "art": "work/xp-staging",
+    "action": {"kind": "command", "command": "firefox --new-window https://fast-xp-k8s-staging.tail0f4a29.ts.net/"}},
+  {"key": 10, "title": "Next Games", "art": "work/next-games",
+    "action": {"kind": "command", "command": "firefox --new-window https://fast-xp-k8s-staging.tail0f4a29.ts.net/next/"}}
+]
