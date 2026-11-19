@@ -69,8 +69,17 @@ proc installWorkMenu*(source, targets: JsonNode, artwork: Table[string, string])
   for index in 0..<root["deck"].len:
     if root["deck"][index]["key"].getInt() == WorkRootKey: slot = index
   if not existing.isNil:
+    var
+      navigationMatches = false
+      controls = newJArray()
+    for button in existing["deck"]:
+      if button["key"].getInt() == 1:
+        navigationMatches = sameControl(button, menu["deck"][0]) or
+          button["action"] == %*{"kind": "menu", "menu": result["root"], "target": "deck"}
+    for button in menu["deck"]:
+      if button["key"].getInt() != 1: controls.add(button)
     let unchanged = containsControls(root["deck"], %*[entry]) and
-      existing["mixer"].len == 0 and containsControls(existing["deck"], menu["deck"])
+      existing["mixer"].len == 0 and navigationMatches and containsControls(existing["deck"], controls)
     if not unchanged:
       raise newException(ValueError, "A different Softmax menu already exists; use the editor to change it.")
   elif slot >= 0 and root["deck"][slot]["action"]["kind"].getStr() != "none":

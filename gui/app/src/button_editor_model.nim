@@ -58,7 +58,7 @@ proc rootMenu*(config: JsonNode): string =
   if config.isNil: RootMenuId else: config{"root"}.getStr(RootMenuId)
 
 proc isLockedBack*(config: JsonNode, menu: string, key: int): bool =
-  ## Report whether a slot is the linked Back key every non-root menu reserves.
+  ## Report whether a slot is the reserved Home or Back key in a non-root menu.
   menu != config.rootMenu() and key == BackKey
 
 proc menus*(config: JsonNode): seq[JsonNode] =
@@ -337,13 +337,13 @@ proc selectVisualState*(model: var EditorModel, state: string) =
   model.visualState = state
 
 proc selectedLocked*(model: EditorModel): bool =
-  ## Report whether the selected slot is the immutable linked Back key.
+  ## Report whether the selected slot is the reserved Home or Back key.
   model.draft.isLockedBack(model.menu, model.key)
 
 proc mutableEntry(model: var EditorModel): JsonNode =
   ## Return the selected slot in the draft, materializing it in key order.
   if model.selectedLocked():
-    raise newException(ValueError, "Key 1 of a submenu is always Back on both devices.")
+    raise newException(ValueError, "Key 1 of a submenu is reserved for navigation.")
   let menu = model.draft.findMenu(model.menu)
   if menu.isNil:
     raise newException(ValueError, "Unknown menu: " & model.menu)

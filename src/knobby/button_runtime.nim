@@ -259,10 +259,15 @@ proc goBack(current: var RuntimeState, device: ButtonDevice) =
   for target in restored:
     current.setMenu(target, restore[target])
 
-proc goHome(current: var RuntimeState) =
-  ## Return both devices to the root menu and clear all navigation history.
-  current.history = @[]
-  for device in ButtonDevice:
+proc goHome(current: var RuntimeState, devices = {MixerDevice, DeckDevice}) =
+  ## Return the chosen devices to root and forget their history, preserving other devices.
+  var kept: seq[Transition]
+  for transition in current.history:
+    var remaining = transition
+    remaining.devices = remaining.devices - devices
+    if remaining.devices.card > 0: kept.add(remaining)
+  current.history = kept
+  for device in devices:
     current.setMenu(device, current.active.buttons.root)
 
 proc route(device: ButtonDevice, key: int, pressed: bool) =
@@ -287,7 +292,11 @@ proc route(device: ButtonDevice, key: int, pressed: bool) =
         pressMixerOverlay(button.action.kind == MixerOverlayAction)
         case button.action.kind
         of NoAction: discard
-        of MenuAction: state.openMenu(button.action.target, button.action.menu)
+        of MenuAction:
+          if button.action.target == TargetDeck and button.action.menu == state.active.buttons.root:
+            state.goHome({DeckDevice})
+          else:
+            state.openMenu(button.action.target, button.action.menu)
         of BackAction: state.goBack(device)
         of HomeAction: state.goHome()
         else:

@@ -225,10 +225,11 @@ proc parseAction(node: JsonNode, field: string, menuIds: HashSet[string]): Confi
   else:
     discard
 
-proc parseEntries(menu: JsonNode, device: ButtonDevice, field: string, isRoot: bool,
+proc parseEntries(menu: JsonNode, device: ButtonDevice, field, rootId: string,
     menuIds: HashSet[string], buttons: var openArray[ConfiguredButton]) =
   ## Validate one device's sparse entry list into a complete fixed-size slot array.
   let
+    isRoot = menu["id"].getStr() == rootId
     name = $device
     listField = join(field, name)
     allowed = if device == MixerDevice: @MixerEntryKeys else: @DeckEntryKeys
@@ -252,9 +253,11 @@ proc parseEntries(menu: JsonNode, device: ButtonDevice, field: string, isRoot: b
     validateTitle(title, join(entryField, "title"))
     let action = parseAction(requireMember(entry, "action", entryField, JObject),
       join(entryField, "action"), menuIds)
-    if not isRoot and key == 1 and action.kind != BackAction:
+    let deckHome = device == DeckDevice and action.kind == MenuAction and
+      action.menu == rootId and action.target == TargetDeck
+    if not isRoot and key == 1 and action.kind != BackAction and not deckHome:
       raise configError(join(entryField, "action"),
-        "Key 1 of a non-root menu is always Back on both devices.")
+        "Key 1 of a submenu must be Back, or a Deck-only link to Home on the Deck.")
     if entry.hasKey("visual"):
       let visualField = join(entryField, "visual")
       let visual = entry["visual"]
@@ -308,9 +311,8 @@ proc parseButtonSet*(config: JsonNode): ButtonSet =
     var parsed = ConfiguredMenu(id: menu["id"].getStr(),
       title: optionalString(menu, "title", field))
     validateTitle(parsed.title, join(field, "title"))
-    let isRoot = parsed.id == result.root
-    parseEntries(menu, MixerDevice, field, isRoot, menuIds, parsed.mixer)
-    parseEntries(menu, DeckDevice, field, isRoot, menuIds, parsed.deck)
+    parseEntries(menu, MixerDevice, field, result.root, menuIds, parsed.mixer)
+    parseEntries(menu, DeckDevice, field, result.root, menuIds, parsed.deck)
     result.menus.add(parsed)
 
 proc actionJson*(action: ConfiguredAction): JsonNode =

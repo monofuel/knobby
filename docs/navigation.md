@@ -5,15 +5,15 @@ keys, so switching tasks always uses the same place:
 
 | Key | Main menu | OBS, Discord, Softmax |
 | --- | --- | --- |
-| 1 | HOME (stays on the main menu) | BACK |
+| 1 | HOME (stays on the main menu) | HOME |
 | 2 | OBS | OBS |
 | 3 | CHAT (Discord controls) | CHAT (Discord controls) |
 | 4 | SOFT (Softmax) | SOFT (Softmax) |
 
 These keys change menus on the Deck only; the MIDI mixer keeps its current
-menu. Pressing the key for the menu you are already in does nothing. Back and
-direct switches use the usual linked history: switching straight back undoes
-the last switch, so bouncing between Softmax and Discord never fills history.
+menu. Home always returns directly to the main menu and clears the Deck's
+navigation history. Pressing Home on the main menu does nothing. Pressing
+the shortcut for the menu you are already in also does nothing.
 
 ## Colors
 

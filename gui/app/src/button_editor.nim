@@ -1044,7 +1044,8 @@ proc drawDetails(sk: Silky, window: Window, editor: ButtonEditor, x, height: flo
       y += sk.label("Previews the draft only; OBS and controls are not changed.", x, y, width,
         "Small", Muted) + 12
   if locked:
-    y += sk.label("Key 1 is always Back in submenus. It returns linked devices to the menu they came from.",
+    y += sk.label(if kind == MenuAction: "Home returns the Deck directly to the main menu."
+      else: "Back returns linked devices to their previous menu.",
       x, y, width, "Body", Muted) + 14
   else:
     heading("Title")

@@ -22,6 +22,7 @@
             hashes = builtins.fromJSON (builtins.readFile ./nix/dependency-hashes.json);
         in { name = builtins.elemAt fields 0;
           src = pkgs.fetchzip { url = "https://codeload.github.com/${repo}/tar.gz/${revision}";
+            extension = "tar.gz";
             hash = hashes.${revision}; }; }
       ) pins;
       dependencyConfig = pkgs.lib.concatMapStringsSep "\n"

@@ -77,7 +77,7 @@ suite "Button configuration":
     check envelope["baseRevision"].getStr() == configRevision(config)
     check parseConfigEnvelope(envelope).config == canonical
 
-  test "non-root key 1 is Back on both devices and only accepts an explicit Back":
+  test "non-root key 1 defaults to Back and also accepts a Deck-only Home link":
     let config = baseConfig()
     for device in ["mixer", "deck"]:
       check buttonAt(config, "tools", device, 1) ==
@@ -92,6 +92,16 @@ suite "Button configuration":
     var rootKey = baseConfig()
     rootKey["menus"][0]["mixer"].add(%*{"key": 1, "action": {"kind": "grok"}})
     validateButtonConfig(rootKey)
+    let home = %*{"key": 1, "title": "Home", "action": {"kind": "menu", "menu": "root", "target": "deck"}}
+    var homeConfig = baseConfig()
+    homeConfig["menus"][1]["deck"].add(home)
+    check buttonAt(homeConfig, "tools", "deck", 1) == home
+    for target in ["mixer", "both"]:
+      homeConfig["menus"][1]["deck"][0]["action"]["target"] = %target
+      check rejectedField(homeConfig) == "menus[1].deck[0].action"
+    homeConfig["menus"][1]["deck"][0]["action"]["target"] = %"deck"
+    homeConfig["menus"][1]["deck"][0]["action"]["menu"] = %"tools"
+    check rejectedField(homeConfig) == "menus[1].deck[0].action"
 
   test "Unicode titles are accepted while invalid UTF-8 and controls are rejected":
     var unicode = baseConfig()

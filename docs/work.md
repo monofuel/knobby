@@ -2,7 +2,7 @@
 
 Stream Deck key 4 opens **Softmax** on the Deck only from the main, OBS, and
 Discord menus; the MIDI mixer stays where it is. Keys 1-4 are the
-[shared purple navigation keys](navigation.md): Back, OBS, CHAT, and SOFT.
+[shared purple navigation keys](navigation.md): HOME, OBS, CHAT, and SOFT.
 
 | Key | Label | Opens |
 | --- | --- | --- |
@@ -19,9 +19,8 @@ Discord menus; the MIDI mixer stays where it is. Keys 1-4 are the
 | 15 | START | Start WoW Server: start the existing persistent private world |
 
 The **DISCORD** key brings the app to the foreground; **CHAT** (key 3) opens its
-controls menu, whose key 4 links back to Softmax. Direct reciprocal switches
-undo the last matching transition, so repeated task swaps keep Back useful
-without filling navigation history.
+controls menu, whose key 4 opens Softmax. HOME (key 1) always returns directly
+to the main menu.
 
 Both WoW keys run the documented human play targets in
 `~/src/wow-coworld/wow-shadow-army` and need its local realm running. The Nim

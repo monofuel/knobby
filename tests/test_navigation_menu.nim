@@ -115,7 +115,7 @@ proc migrate(config: JsonNode): JsonNode =
   migrateNavigation(config, navigationArt(), startServerTarget(targets()))
 
 suite "Shared navigation prefix":
-  test "the live layout gains Back, OBS, Discord, Softmax on keys 1 to 4 of every known menu":
+  test "the live layout gains Home, OBS, Discord, Softmax on keys 1 to 4 of every known menu":
     let
       source = liveLikeConfig()
       original = $source
@@ -124,12 +124,8 @@ suite "Shared navigation prefix":
     check $source == original
     for id in KnownMenus:
       let first = entry(updated, id, 1)
-      if id == "root":
-        check first == %*{"key": 1, "title": "Home", "action": {"kind": "menu", "menu": "root", "target": "deck"},
-          "visual": {"image": "assets/nav-home.png", "showTitle": false}}
-      else:
-        check first == %*{"key": 1, "title": "Back", "action": {"kind": "back"},
-          "visual": {"image": "assets/nav-back.png", "showTitle": false}}
+      check first == %*{"key": 1, "title": "Home", "action": {"kind": "menu", "menu": "root", "target": "deck"},
+        "visual": {"image": "assets/nav-home.png", "showTitle": false}}
       for (key, title, menu, image) in [(2, "OBS", "obs", "menu-obs"), (3, "Discord", "discord", "menu-discord"),
           (4, "Softmax", "work", "menu-work")]:
         check entry(updated, id, key) == %*{"key": key, "title": title,
@@ -359,11 +355,13 @@ suite "Shared navigation prefix":
     check entry(linked, "work", 13) == entry(organized, "work", 13)
     check entry(linked, "discord", 8) == entry(organized, "discord", 8)
 
-  test "actual runtime navigates the shared prefix with bounded history and no launches":
+  test "actual runtime Home skips previous menus, clears Deck history, and leaves MIDI alone":
     let
       directory = createTempDir("knobby-navigation-", "")
       paths = newButtonPaths(directory / "config", directory / "state")
       config = migrate(liveLikeConfig())
+    storedMenu(config, "root")["mixer"] = %*[
+      {"key": 2, "title": "Mixer OBS", "action": {"kind": "menu", "menu": "obs", "target": "mixer"}}]
     defer: removeDir(directory)
     createDir(paths.configDir)
     createDir(paths.stateDir)
@@ -375,6 +373,9 @@ suite "Shared navigation prefix":
     pressDeck(1)
     check buttonRuntimeStatus()["deckMenu"].getStr() == "root"
     check buttonRuntimeStatus()["historyDepth"].getInt() == 0
+    let generation = buttonRuntimeStatus()["deckGeneration"].getBiggestInt()
+    pressDeck(1)
+    check buttonRuntimeStatus()["deckGeneration"].getBiggestInt() == generation
     pressDeck(4)
     check buttonRuntimeStatus()["deckMenu"].getStr() == "work"
     pressDeck(4)
@@ -393,10 +394,22 @@ suite "Shared navigation prefix":
     check buttonRuntimeStatus()["deckMenu"].getStr() == "discord"
     check buttonRuntimeStatus()["historyDepth"].getInt() == 3
     pressDeck(1)
-    check buttonRuntimeStatus()["deckMenu"].getStr() == "obs"
-    pressDeck(1)
+    check buttonRuntimeStatus()["deckMenu"].getStr() == "root"
+    check buttonRuntimeStatus()["historyDepth"].getInt() == 0
     pressDeck(1)
     check buttonRuntimeStatus()["deckMenu"].getStr() == "root"
     check buttonRuntimeStatus()["historyDepth"].getInt() == 0
     check buttonRuntimeStatus()["mixerMenu"].getStr() == "root"
+    routeMixerButton(2, true)
+    routeMixerButton(2, false)
+    for trip in 1..40:
+      for key in [2, 3, 4]: pressDeck(key)
+      pressDeck(1)
+      check buttonRuntimeStatus()["deckMenu"].getStr() == "root"
+      check buttonRuntimeStatus()["mixerMenu"].getStr() == "obs"
+      check buttonRuntimeStatus()["historyDepth"].getInt() == 1
+    routeMixerButton(1, true)
+    routeMixerButton(1, false)
+    check buttonRuntimeStatus()["mixerMenu"].getStr() == "root"
+    check buttonRuntimeStatus()["historyDepth"].getInt() == 0
     check takeButtonActions().len == 0
