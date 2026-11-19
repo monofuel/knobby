@@ -26,6 +26,24 @@ const
   GlyphGap = 1
   LabelTop = 50
   LabelBandTop = 45
+  CompactScale = 2
+  CompactBandTop = LabelBandTop + Border div 2
+  CompactBandBottom = Size - Border - 1
+  CompactRowTops = [CompactBandTop, CompactBandTop + 11]
+  CompactSingleTop = 52
+  CompactFont = {
+    'A': @[".#.", "#.#", "###", "#.#", "#.#"],
+    'C': @[".##", "#..", "#..", "#..", ".##"],
+    'D': @["##.", "#.#", "#.#", "#.#", "##."],
+    'I': @["#", "#", "#", "#", "#"],
+    'L': @["#..", "#..", "#..", "#..", "###"],
+    'M': @["#...#", "##.##", "#.#.#", "#...#", "#...#"],
+    'N': @["#..#", "##.#", "#.##", "#..#", "#..#"],
+    'O': @["###", "#.#", "#.#", "#.#", "###"],
+    'R': @["##.", "#.#", "##.", "#.#", "#.#"],
+    'S': @[".##", "#..", ".#.", "..#", "##."],
+    'V': @["#.#", "#.#", "#.#", "#.#", ".#."],
+    'W': @["#...#", "#...#", "#.#.#", "#.#.#", ".#.#."]}.toTable
   Seed = 0x2f6e2b1'u32
   ChatSprite = @[
     "................", "..############..", ".#hhhhhhhhhhhh#.", ".#hrrrrrrrrrrr#.",
@@ -344,6 +362,32 @@ proc drawLabel(image: Image, text: string, color: ColorRGBX) =
               image[x + column * FontScale + dx + offset, LabelTop + row * FontScale + dy + offset] = ink
       x += (glyph[0].len + GlyphGap) * FontScale
 
+proc drawCompactLabel(image: Image, lines: openArray[string], color: ColorRGBX) =
+  ## Draw one or two centered 5-row label lines in the label band with a one-pixel shadow.
+  doAssert lines.len in 1..2, "Compact labels have one or two lines."
+  let shadow = color.shade(-150)
+  for index, text in lines:
+    var width = 0
+    for position, character in text:
+      if position > 0: width += GlyphGap
+      width += CompactFont[character][0].len
+    width *= CompactScale
+    doAssert width <= Size - 2 * Border - 2, "Compact label is too wide: " & text
+    let top = if lines.len == 1: CompactSingleTop else: CompactRowTops[index]
+    for (offset, ink) in [(1, shadow), (0, color)]:
+      var x = (Size - width) div 2
+      for character in text:
+        let glyph = CompactFont[character]
+        for row, line in glyph:
+          for column, symbol in line:
+            if symbol != '#': continue
+            for dy in 0..<CompactScale:
+              for dx in 0..<CompactScale:
+                let y = top + row * CompactScale + dy + offset
+                if y <= CompactBandBottom:
+                  image[x + column * CompactScale + dx + offset, y] = ink
+        x += (glyph[0].len + GlyphGap) * CompactScale
+
 proc palette(outline, fill, highlight, dark: string, extra: openArray[(char, string)] = []):
     Table[char, ColorRGBX] =
   ## Build a sprite palette: outline, fill, highlight, and shadow plus optional extras.
@@ -657,22 +701,28 @@ proc generateWorkIcons() =
     dashboard = palette("#122138", "#35639b", "#91c8ee", "#203b61", [('l', "#85d46c"), ('s', "#b4b8bf")])
   createDir(Directory)
   for (name, label, tone, sprite, colors) in [
-      ("wow-classic", "WOW", GreenTone, Sword, steel),
-      ("wow-nim", "NIM", GreenTone, Crown, gold),
-      ("slack", "SLACK", GreenTone, slackSprite(), slack),
-      ("autoresearch", "LAB", GreenTone, Flask, glass),
-      ("xp-prod", "PROD", GreenTone, Bolt, bolt),
-      ("xp-staging", "STAGE", AmberTone, Bolt, bolt),
-      ("next-games", "NEXT", AmberTone, Gamepad, pad),
-      ("wow-server", "START", GreenTone, Server, rack),
-      ("wow-dashboard", "REALM", GreenTone, Dashboard, dashboard)]:
+      ("wow-classic", @["WOW", "VANILLA"], GreenTone, Sword, steel),
+      ("wow-nim", @["WOW", "NIM"], GreenTone, Crown, gold),
+      ("slack", @["SLACK"], GreenTone, slackSprite(), slack),
+      ("autoresearch", @["LAB"], GreenTone, Flask, glass),
+      ("xp-prod", @["PROD"], GreenTone, Bolt, bolt),
+      ("xp-staging", @["STAGE"], AmberTone, Bolt, bolt),
+      ("next-games", @["NEXT"], AmberTone, Gamepad, pad),
+      ("wow-server", @["START"], GreenTone, Server, rack),
+      ("wow-dashboard", @["REALM"], GreenTone, Dashboard, dashboard)]:
     for line in sprite:
       doAssert line.len == 16, name & " sprite rows must be 16 cells wide."
     let image = newImage(Size, Size)
     image.fillStone(tone)
     image.drawSymbol(outlinedColors(sprite), colors)
-    image.drawLabel(label, tone.labelColor())
+    if label.len == 1: image.drawLabel(label[0], tone.labelColor())
+    else: image.drawCompactLabel(label, tone.labelColor())
     image.writeFile(Directory / (name & ".png"))
+  let discord = newImage(Size, Size)
+  discord.fillStone(GreenTone)
+  discord.drawSymbol(ChatSprite, palette("#1c2049", "#7289da", "#c0c9ff", "#404b87"))
+  discord.drawCompactLabel(["DISCORD"], GreenTone.labelColor())
+  discord.writeFile(Directory / "discord.png")
   let softmax = newImage(Size, Size)
   softmax.fillStone(GreenTone)
   softmax.drawSoftmaxGraph()

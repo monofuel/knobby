@@ -6,9 +6,9 @@ where it is. Key 1 is the standard linked Back.
 | Key | Label | Opens |
 | --- | --- | --- |
 | 2 | PRISM | Open/focus Prism using Knobby's existing launcher (`knobby-obs prism`) |
-| 3 | WOW | The genuine 1.12.1 client for the human seat (`make play-classic`) |
-| 4 | NIM | The native Nim WoW client with the human controller (`make play`) |
-| 5 | OPEN/READY | Discord, focusing an open window first, with live status art |
+| 3 | WOW VANILLA | The genuine 1.12.1 client for the human seat (`make play-classic`) |
+| 4 | WOW NIM | The native Nim WoW client with the human controller (`make play`) |
+| 5 | DISCORD | Discord, focusing an open window first |
 | 6 | SLACK | The installed Slack desktop app |
 | 7 | LAB | The local coworld-autoresearch dashboard |
 | 8 | PROD | The Fast-XP production performance dashboard |
@@ -50,9 +50,11 @@ preserved. After installation, change titles, commands, or art in the editor
 or through export/edit/apply like any other button.
 
 Artwork is generated alongside the OBS and Discord icons by
-`gui/app/tools/generate_obs_icons.nim`. Prism, Discord, and Back reuse their
-existing faces; the sword, crown, hash, flask, bolts, and gamepad are original
-Knobby pixel art. The root Softmax key plots the two-output softmax of logits
+`gui/app/tools/generate_obs_icons.nim`. Prism and Back reuse their existing
+faces, and Discord reuses the pixel chat sprite under a fixed DISCORD caption;
+the sword, crown, hash, flask, bolts, and gamepad are original Knobby pixel
+art. Two-word and long captions use a compact 3x5 font, so the WoW keys read
+WOW VANILLA and WOW NIM. The root Softmax key plots the two-output softmax of logits
 (z, 0) for z from -4.5 to 4.5: a cyan p1 = e^z / (e^z + 1) and a gold
 p2 = 1 / (e^z + 1) cross at 0.5 over silver axes.
 
@@ -62,4 +64,13 @@ is kept, and a root Deck key 4 that does not open the Softmax menu is refused:
 
 ```
 nix develop --command nim r tools/setup_work_buttons.nim --refresh-menu-art
+```
+
+The WoW Vanilla, WoW Nim, and Discord launchers (keys 3-5) have their own
+refresh. It sets their titles and faces from the targets file and drops the
+Discord key's state images so it always reads DISCORD. It changes nothing else,
+and refuses unless each of those keys already runs its standard action:
+
+```
+nix develop --command nim r tools/setup_work_buttons.nim --refresh-launcher-art
 ```

@@ -7,7 +7,8 @@ const
   DefaultTargetsFile = RepositoryDirectory / "docs/work-menu-targets.json"
   DefaultAssetsDirectory = RepositoryDirectory / "assets"
   Usage = "Usage: setup_work_buttons --apply [TARGETS_FILE [ASSETS_DIRECTORY]]\n" &
-    "       setup_work_buttons --refresh-menu-art [ASSETS_DIRECTORY]"
+    "       setup_work_buttons --refresh-menu-art [ASSETS_DIRECTORY]\n" &
+    "       setup_work_buttons --refresh-launcher-art [TARGETS_FILE [ASSETS_DIRECTORY]]"
 
 proc installMenu(args: seq[string]) =
   ## Install the Deck-only Softmax menu through the shared configuration API.
@@ -50,11 +51,36 @@ proc refreshMenuArt(args: seq[string]) =
     envelope["config"] = candidate
     echo runConfigOperation("config.apply", %*{"envelope": envelope})
 
+proc refreshLauncherArt(args: seq[string]) =
+  ## Retitle and redraw only the WoW and Discord launcher keys of the installed Softmax menu.
+  let
+    targets = parseFile(if args.len >= 2: args[1] else: DefaultTargetsFile)
+    assetsDirectory = if args.len == 3: args[2] else: DefaultAssetsDirectory
+    names = workLauncherArtworkNames(targets)
+    current = requireConfigResult(requestConfig("config.get"))["envelope"]["config"]
+  var artwork = initTable[string, string]()
+  for name in names: artwork[name] = "assets/" & name.extractFilename() & ".png"
+  validateButtonConfig(refreshWorkLaunchers(current, targets, artwork))
+  for name in names:
+    let record = runConfigOperation("config.importAsset",
+      %*{"source": absolutePath(assetsDirectory / (name & ".png"))})
+    artwork[name] = record["path"].getStr()
+  let
+    envelope = requireConfigResult(requestConfig("config.get"))["envelope"]
+    candidate = refreshWorkLaunchers(envelope["config"], targets, artwork)
+  validateButtonConfig(candidate)
+  if candidate == envelope["config"]:
+    echo "The Softmax launchers already show these titles and faces; nothing to apply."
+  else:
+    envelope["config"] = candidate
+    echo runConfigOperation("config.apply", %*{"envelope": envelope})
+
 proc main() =
-  ## Dispatch the install or artwork refresh mode.
+  ## Dispatch the install or an artwork refresh mode.
   let args = commandLineParams()
   if args.len in 1..3 and args[0] == "--apply": installMenu(args)
   elif args.len in 1..2 and args[0] == "--refresh-menu-art": refreshMenuArt(args)
+  elif args.len in 1..3 and args[0] == "--refresh-launcher-art": refreshLauncherArt(args)
   else: quit(Usage, 2)
 
 when isMainModule:

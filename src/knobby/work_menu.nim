@@ -7,6 +7,7 @@ const
   WorkRootKey* = 4
   WorkMenuArt* = "work/menu-work"
   WorkBackArt* = "obs/back"
+  WorkLauncherKeys* = [3, 4, 5]
 
 proc workArtworkNames*(targets: JsonNode): seq[string] =
   ## Return every artwork name the Work menu needs, in first-use order, without duplicates.
@@ -91,3 +92,43 @@ proc refreshWorkMenuArtwork*(source: JsonNode, imagePath: string): JsonNode =
       " does not open the Softmax menu; refusing to change its artwork.")
   if not entry.hasKey("visual"): entry["visual"] = newJObject()
   entry["visual"]["image"] = %imagePath
+
+proc launcherTarget(targets: JsonNode, key: int): JsonNode =
+  ## Return the standard target bound to one Softmax launcher key.
+  for target in targets:
+    if target["key"].getInt() == key: result = target
+  if result.isNil:
+    raise newException(ValueError, "The targets file has no Softmax key " & $key & ".")
+
+proc workLauncherArtworkNames*(targets: JsonNode): seq[string] =
+  ## Return the artwork names shown by the refreshed launcher keys, in key order.
+  for key in WorkLauncherKeys:
+    let target = launcherTarget(targets, key)
+    result.add(target["art"].getStr())
+    if target.hasKey("states"):
+      for state, art in target["states"].pairs: result.add(art.getStr())
+
+proc refreshWorkLaunchers*(source, targets: JsonNode, artwork: Table[string, string]): JsonNode =
+  ## Return an owned configuration whose WoW and Discord Softmax launchers use the standard titles and faces.
+  ## Each refreshed key must already run exactly its standard action; any other binding is refused.
+  ## Only those keys' titles, images, and state images change, so states absent from a target are removed.
+  result = parseJson($source)
+  var menu: JsonNode
+  for candidate in result["menus"]:
+    if candidate["id"].getStr() == WorkMenuId: menu = candidate
+  if menu.isNil:
+    raise newException(ValueError, "The Softmax menu is not installed; use --apply first.")
+  for key in WorkLauncherKeys:
+    let target = launcherTarget(targets, key)
+    var button: JsonNode
+    for candidate in menu["deck"]:
+      if candidate["key"].getInt() == key: button = candidate
+    if button.isNil or button{"action"} != target["action"]:
+      raise newException(ValueError, "Softmax key " & $key &
+        " does not run its standard action; refusing to change it.")
+    let face = workButton(target, artwork)
+    button["title"] = face["title"]
+    if not button.hasKey("visual"): button["visual"] = %*{"showTitle": false}
+    button["visual"]["image"] = face["visual"]["image"]
+    if face["visual"].hasKey("states"): button["visual"]["states"] = face["visual"]["states"]
+    elif button["visual"].hasKey("states"): button["visual"].delete("states")

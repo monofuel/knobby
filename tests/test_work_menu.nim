@@ -84,8 +84,10 @@ suite "Work submenu installation":
     check command(updated, 3) == "make -C " & WowDirectory & " play-classic"
     check command(updated, 4) == "cd " & WowDirectory & " && nix develop --command make play"
     check buttonAt(updated, WorkMenuId, "deck", 5)["action"] == %*{"kind": "openDiscord"}
-    check buttonAt(updated, WorkMenuId, "deck", 5)["visual"]["states"]["ready"].getStr() ==
-      "assets/open-running.png"
+    check buttonAt(updated, WorkMenuId, "deck", 5)["visual"] ==
+      %*{"image": "assets/discord.png", "showTitle": false}
+    check buttonAt(updated, WorkMenuId, "deck", 3)["title"].getStr() == "WoW Vanilla"
+    check buttonAt(updated, WorkMenuId, "deck", 4)["title"].getStr() == "WoW Nim"
     check command(updated, 6) == "slack -s"
     check command(updated, 7) == "xdg-open http://127.0.0.1:8103/"
     check command(updated, 8) == "xdg-open https://fast-xp-k8s-prod.tail0f4a29.ts.net/"
@@ -96,7 +98,7 @@ suite "Work submenu installation":
     check command(updated, 12) != command(updated, 7)
 
   test "every referenced artwork file exists in the repository":
-    check workArtworkNames(targets()).len == 13
+    check workArtworkNames(targets()).len == 12
     for name in workArtworkNames(targets()):
       check fileExists(AssetsDirectory / (name & ".png"))
 
@@ -143,6 +145,44 @@ suite "Work submenu installation":
     expect ValueError: discard refreshWorkMenuArtwork(foreign, "assets/graph.png")
     check $foreign == foreignText
     expect ValueError: discard refreshWorkMenuArtwork(liveLikeConfig(), "assets/graph.png")
+
+  test "refreshing launchers retitles WoW, gives Discord a static face, and keeps everything else":
+    let earlier = targets()
+    earlier[1]["title"] = %"WoW Classic"
+    earlier[3]["art"] = %"discord/open-idle"
+    earlier[3]["states"] = %*{"running": "discord/open-running", "ready": "discord/open-running",
+      "unavailable": "discord/open-idle"}
+    var earlierArt = artwork()
+    for name in ["discord/open-idle", "discord/open-running"]:
+      earlierArt[name] = "assets/" & name.extractFilename() & ".png"
+    let source = installWorkMenu(liveLikeConfig(), earlier, earlierArt)
+    source["menus"][source["menus"].len - 1]["deck"].add(%*{"key": 11, "title": "Start Server",
+      "action": {"kind": "command", "command": "true"}, "visual": {"image": "assets/server.png"}})
+    for button in source["menus"][0]["deck"]:
+      if button["key"].getInt() == WorkRootKey: button["visual"]["image"] = %"assets/graph.png"
+    let
+      original = $source
+      refreshed = refreshWorkLaunchers(source, targets(), artwork())
+    validateButtonConfig(refreshed)
+    check $source == original
+    let expected = parseJson(original)
+    for button in expected["menus"][expected["menus"].len - 1]["deck"]:
+      case button["key"].getInt()
+      of 3: button["title"] = %"WoW Vanilla"
+      of 5:
+        button["visual"]["image"] = %"assets/discord.png"
+        button["visual"].delete("states")
+      else: discard
+    check refreshed == expected
+    check refreshWorkLaunchers(refreshed, targets(), artwork()) == refreshed
+    check workLauncherArtworkNames(targets()) == @["work/wow-classic", "work/wow-nim", "work/discord"]
+    let foreign = parseJson(original)
+    for button in foreign["menus"][foreign["menus"].len - 1]["deck"]:
+      if button["key"].getInt() == 4: button["action"]["command"] = %"make play-other"
+    let foreignText = $foreign
+    expect ValueError: discard refreshWorkLaunchers(foreign, targets(), artwork())
+    check $foreign == foreignText
+    expect ValueError: discard refreshWorkLaunchers(liveLikeConfig(), targets(), artwork())
 
   test "actual runtime enters Work on the Deck only, queues a launcher, and returns Back":
     let
