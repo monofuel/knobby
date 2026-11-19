@@ -27,7 +27,11 @@ const
   LabelTop = 50
   LabelBandTop = 45
   Seed = 0x2f6e2b1'u32
-  DiscordLogoPath = OutputDirectory.parentDir() / "branding" / "discord-clyde.svg"
+  ChatSprite = @[
+    "................", "..############..", ".#hhhhhhhhhhhh#.", ".#hrrrrrrrrrrr#.",
+    ".#rrrrrrrrrrrr#.", ".#rr##rrrr##rr#.", ".#rr##rrrr##rr#.", ".#rrrrrrrrrrrr#.",
+    ".#rrr######rrr#.", ".#rrrrrrrrrrrd#.", ".#dddddddddddd#.", "..####rr######..",
+    "......rr#.......", "......r#........", "................", "................"]
   SymbolCenter = (Border + LabelBandTop) div 2
   GearCells = 16
   GearTeeth = 8
@@ -296,18 +300,19 @@ proc fillStone(image: Image, tone: Tone) =
     image[x, LabelBandTop] = frame.shade(-80)
     image[x, LabelBandTop + 1] = frame.shade(-80)
 
-proc drawSprite(image: Image, sprite: Sprite, colors: Table[char, ColorRGBX], top = SpriteTop) =
-  ## Draw a 16x16 sprite at a whole-pixel scale; "." stays transparent.
+proc drawSprite(image: Image, sprite: Sprite, colors: Table[char, ColorRGBX],
+    top = SpriteTop, left = -1) =
+  ## Draw a sprite at a whole-pixel scale, centered unless its left edge is supplied.
   let
     width = sprite[0].len * SpriteScale
-    left = (Size - width) div 2
+    startX = if left < 0: (Size - width) div 2 else: left
   for row, line in sprite:
     for column, symbol in line:
       if symbol == '.': continue
       let color = colors[symbol]
       for dy in 0..<SpriteScale:
         for dx in 0..<SpriteScale:
-          image[left + column * SpriteScale + dx, top + row * SpriteScale + dy] = color
+          image[startX + column * SpriteScale + dx, top + row * SpriteScale + dy] = color
 
 proc labelWidth(text: string): int =
   ## Measure a label in logical font pixels, including inter-glyph gaps.
@@ -490,38 +495,39 @@ proc generateDiscordIcons() =
       ".#rrrrrrrr###rr#.", ".#rrrrrrrr#.###..", ".#rrrrrrrd#..##..", ".#dddddddd#...#..",
       ".#########......", "................", "................", "................"]
   let
-    logo = readImage(DiscordLogoPath).resize(42, 31)
-    green = palette("#0f2a0a", "#5fb83a", "#a6e67a", "#2f7a1c")
-    red = palette("#2a0605", "#d42a1e", "#ff7a5c", "#8a130d")
-    grey = palette("#1e1f21", "#6a6c70", "#84868a", "#4c4d50", [('e', "#2a2b2e")])
+    green = palette("#0f2a0a", "#5fb83a", "#a6e67a", "#2f7a1c", [('s', "#c8cace")])
+    red = palette("#2a0605", "#d42a1e", "#ff7a5c", "#8a130d", [('s', "#8e9094"), ('x', "#f2f2f2")])
+    amber = palette("#2e1c04", "#f0a32a", "#ffe08a", "#b06a12", [('s', "#c8cace")])
+    grey = palette("#1e1f21", "#6a6c70", "#84868a", "#4c4d50", [('e', "#2a2b2e"), ('s', "#84868a")])
+    purple = palette("#1c2049", "#7289da", "#c0c9ff", "#404b87")
     steel = palette("#16181b", "#b4b8bf", "#eceef2", "#71757c", [('e', "#16181b")])
   createDir(Directory)
   for prefix in ["system", "discord"]:
-    for (suffix, label, tone, slashed) in [
-        ("live", "LIVE", GreenTone, false),
-        ("muted", "MUTED", RedTone, true),
-        ("mixed", "MIXED", AmberTone, false),
-        ("deafened", "DEAF", RedTone, true),
-        ("unavailable", "N/A", GreyTone, false)]:
+    for (suffix, label, tone, mic, colors) in [
+        ("live", "LIVE", GreenTone, MicSprite, green),
+        ("muted", "MUTED", RedTone, MicMutedSprite, red),
+        ("mixed", "MIXED", AmberTone, MicSprite, amber),
+        ("deafened", "DEAF", RedTone, MicMutedSprite, red),
+        ("unavailable", "N/A", GreyTone, MicSprite, grey)]:
       if (prefix == "system" and suffix == "deafened") or
           (prefix == "discord" and suffix == "mixed"): continue
       let image = newImage(Size, Size)
       image.fillStone(tone)
-      if prefix == "discord": image.draw(logo, translate(vec2(15, 9)))
-      else: image.drawSymbol(gearSprite(), if tone == GreyTone: grey else: steel, slashed)
+      if prefix == "discord": image.drawSprite(ChatSprite, purple, 9, 5)
+      else: image.drawSprite(gearSprite(), steel, 7, 3)
+      image.drawSprite(mic, colors, 10, 36)
       image.drawLabel(label, tone.labelColor())
       image.writeFile(Directory / (prefix & "-" & suffix & ".png"))
   for (name, label, tone, sprite, colors) in [
-      ("menu-discord", "CHAT", GreenTone, newSeq[string](), green),
+      ("menu-discord", "CHAT", GreenTone, ChatSprite, purple),
       ("deafen-live", "HEAR", GreenTone, Headphones, green),
       ("deafen-muted", "DEAF", RedTone, Headphones, red),
       ("deafen-unavailable", "N/A", GreyTone, Headphones, grey),
-      ("open-idle", "OPEN", GreyTone, newSeq[string](), green),
-      ("open-running", "READY", GreenTone, newSeq[string](), green)]:
+      ("open-idle", "OPEN", GreyTone, ChatSprite, purple),
+      ("open-running", "READY", GreenTone, ChatSprite, purple)]:
     let image = newImage(Size, Size)
     image.fillStone(tone)
-    if sprite.len == 0: image.draw(logo, translate(vec2(15, 9)))
-    else: image.drawSymbol(sprite, colors, name == "deafen-muted")
+    image.drawSymbol(sprite, colors, name == "deafen-muted")
     image.drawLabel(label, tone.labelColor())
     image.writeFile(Directory / (name & ".png"))
   for (prefix, sprite) in [("voice", Phone), ("video", Video)]:

@@ -19,9 +19,10 @@ the OBS submenu. Duplicate MIDI and Deck buttons use the same actions.
 
 The icons show observations rather than guessing from the last press: green
 **LIVE**, red **MUTED** or **DEAF**, amber **MIXED** when microphone inputs
-disagree, and grey **N/A** when state cannot be established. A large silver
-**gear** identifies system microphone controls; Discord's official blurple
-**Clyde logo** identifies Discord controls. There are no source-word headers.
+disagree, and grey **N/A** when state cannot be established. Both mute buttons
+show a **microphone**, with a silver **gear** beside the system mic and the
+original purple **pixel chat face** beside the Discord mic. The chat face also
+identifies the Discord menu and Open button. There are no source-word headers.
 Open Discord shows grey
 **OPEN** when closed and green **READY** when running; it does not imply RPC
 authorization succeeded.
@@ -106,6 +107,5 @@ Use `--upgrade` to add the answer controls to unused Discord keys 6 and 7 and
 refresh standard faces; occupied custom keys are refused before applying any
 configuration. Applying is revision checked and keeps the last valid config.
 Artwork is generated alongside the OBS icons by
-`gui/app/tools/generate_obs_icons.nim`. The Discord mark comes from
-[Discord's official branding](../assets/branding/README.md); the surrounding
-pixel frames, gear, phone, and camera are Knobby artwork.
+`gui/app/tools/generate_obs_icons.nim`. The pixel chat face, microphones,
+frames, gear, phone, and camera are original Knobby artwork.
