@@ -5,7 +5,7 @@ import
 type
   Tone = enum
     ## Frame and accent palette shared by every icon variant.
-    GreenTone, RedTone, AmberTone, GreyTone
+    GreenTone, RedTone, AmberTone, GreyTone, PurpleTone
   Sprite = seq[string]
   Icon = object
     name, label: string
@@ -208,6 +208,23 @@ const
     "##########......",
     "................",
     "................"]
+  HomeSprite = @[
+    "................",
+    ".......##.......",
+    "......#hh#..##..",
+    ".....#hrrh#.#d#.",
+    "....#hrrrrh##d#.",
+    "...#hrrrrrrh#d#.",
+    "..#hrrrrrrrrh#..",
+    ".#hrrrrrrrrrrh#.",
+    "..#rrrrrrrrrrd..",
+    "..#rrr##rrrrrd..",
+    "..#rrr#d#rrrrd..",
+    "..#rrr#d#rrrrd..",
+    "..#rrr#d#rrrrd..",
+    "..#ddd#d#ddddd..",
+    "..############..",
+    "................"]
   BackSprite = @[
     "................",
     "......##........",
@@ -277,6 +294,7 @@ proc frameColor(tone: Tone): ColorRGBX =
   of RedTone: rgb("#b3261e")
   of AmberTone: rgb("#d9901f")
   of GreyTone: rgb("#5b5d61")
+  of PurpleTone: rgb("#7a3fb8")
 
 proc labelColor(tone: Tone): ColorRGBX =
   ## Return the label ink that matches a state tone.
@@ -285,6 +303,7 @@ proc labelColor(tone: Tone): ColorRGBX =
   of RedTone: rgb("#ff8a78")
   of AmberTone: rgb("#ffd36a")
   of GreyTone: rgb("#a4a6aa")
+  of PurpleTone: rgb("#dcb4ff")
 
 proc noise(x, y: int): uint32 =
   ## Return a deterministic per-texel hash so regenerated icons are byte-identical.
@@ -409,11 +428,11 @@ proc icons(): seq[Icon] =
     openFace = palette("#0f2a0a", "#5fb83a", "#a6e67a", "#2f7a1c", [('l', "#2a3b4c")])
     muted = palette("#2a0605", "#d42a1e", "#ff7a5c", "#8a130d", [('x', "#f2f2f2"), ('s', "#8e9094")])
   @[
-    Icon(name: "menu-obs", label: "OBS", tone: GreenTone, sprite: CameraSprite, colors: camera),
+    Icon(name: "menu-obs", label: "OBS", tone: PurpleTone, sprite: CameraSprite, colors: camera),
     Icon(name: "minecraft-launch", label: "PRISM", tone: GreyTone, sprite: OpenSprite, colors: openFace),
     Icon(name: "minecraft-1080-needed", label: "1080", tone: AmberTone, sprite: OpenSprite, colors: openFace),
     Icon(name: "minecraft-1080", label: "1080", tone: GreenTone, sprite: OpenSprite, colors: openFace),
-    Icon(name: "back", label: "BACK", tone: GreenTone, sprite: BackSprite, colors: pale),
+    Icon(name: "back", label: "BACK", tone: PurpleTone, sprite: BackSprite, colors: pale),
     Icon(name: "record-idle", label: "REC", tone: GreenTone, sprite: RecordRingSprite, colors: ring),
     Icon(name: "record-recording", label: "REC", tone: RedTone, sprite: RecordSprite, colors: redstone),
     Icon(name: "record-paused", label: "REC", tone: AmberTone, sprite: RecordPausedSprite, colors: coin),
@@ -568,7 +587,7 @@ proc generateDiscordIcons() =
       image.drawLabel(label, tone.labelColor())
       image.writeFile(Directory / (prefix & "-" & suffix & ".png"))
   for (name, label, tone, sprite, colors) in [
-      ("menu-discord", "CHAT", GreenTone, ChatSprite, purple),
+      ("menu-discord", "CHAT", PurpleTone, ChatSprite, purple),
       ("deafen-live", "HEAR", GreenTone, Headphones, green),
       ("deafen-muted", "DEAF", RedTone, Headphones, red),
       ("deafen-unavailable", "N/A", GreyTone, Headphones, grey),
@@ -587,7 +606,7 @@ proc generateDiscordIcons() =
       image.drawSymbol(sprite, if tone == GreenTone: green else: steel)
       image.drawLabel(label, tone.labelColor())
       image.writeFile(Directory / (prefix & "-" & suffix & ".png"))
-  render(Icon(label: "BACK", tone: GreenTone, sprite: BackSprite,
+  render(Icon(label: "BACK", tone: PurpleTone, sprite: BackSprite,
     colors: palette("#1a1b1d", "#d9dbe0", "#ffffff", "#9a9ca0"))).writeFile(Directory / "back.png")
 
 proc outlinedColors(sprite: Sprite): Sprite =
@@ -724,10 +743,17 @@ proc generateWorkIcons() =
   discord.drawCompactLabel(["DISCORD"], GreenTone.labelColor())
   discord.writeFile(Directory / "discord.png")
   let softmax = newImage(Size, Size)
-  softmax.fillStone(GreenTone)
+  softmax.fillStone(PurpleTone)
   softmax.drawSoftmaxGraph()
-  softmax.drawLabel("SOFT", GreenTone.labelColor())
+  softmax.drawLabel("SOFT", PurpleTone.labelColor())
   softmax.writeFile(Directory / "menu-work.png")
+
+proc generateNavigationIcons() =
+  ## Generate the shared Home face that opens the main Deck menu from the root prefix.
+  const Directory = OutputDirectory.parentDir() / "navigation"
+  createDir(Directory)
+  render(Icon(label: "HOME", tone: PurpleTone, sprite: HomeSprite,
+    colors: palette("#1a1b1d", "#d9dbe0", "#ffffff", "#9a9ca0"))).writeFile(Directory / "home.png")
 
 proc main() =
   ## Regenerate the committed key faces without network access or system fonts.
@@ -738,6 +764,7 @@ proc main() =
     icon.render().writeFile(OutputDirectory / (icon.name & ".png"))
   generateDiscordIcons()
   generateWorkIcons()
+  generateNavigationIcons()
 
 when isMainModule:
   main()

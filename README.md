@@ -74,7 +74,8 @@ The [OBS submenu](docs/obs.md) provides Minecraft recording, pause, commentary
 mute, and a button to resize Minecraft to 1080p, with live state artwork.
 The [Discord submenu](docs/discord.md) separates system mic mute, Discord mute,
 and deafen. The [Softmax submenu](docs/work.md) launches Prism, both WoW clients,
-Discord, Slack, and the research dashboards. The MIDI mixer's top-right button
+Discord, Slack, the research dashboards, and the private WoW server. All three
+share [purple navigation keys](docs/navigation.md) 1-4. The MIDI mixer's top-right button
 brings up a temporary legend without taking focus away from your application.
 
 The viewer uses Windy and Silky and can stay in the system tray. See

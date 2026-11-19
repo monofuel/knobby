@@ -17,6 +17,8 @@
     "action": {"kind": "command", "command": "xdg-open https://fast-xp-k8s-staging.tail0f4a29.ts.net/"}},
   {"key": 10, "title": "Next Games", "art": "work/next-games",
     "action": {"kind": "command", "command": "xdg-open https://fast-xp-k8s-staging.tail0f4a29.ts.net/next/"}},
+  {"key": 11, "title": "Start WoW Server", "art": "work/wow-server",
+    "action": {"kind": "command", "command": "nix develop /home/monofuel/src/wow-coworld/wow-shadow-army --command /home/monofuel/src/wow-coworld/tools/private_realm.sh start"}},
   {"key": 12, "title": "WoW Dashboard", "art": "work/wow-dashboard",
     "action": {"kind": "command", "command": "xdg-open http://127.0.0.1:7777/"}}
 ]

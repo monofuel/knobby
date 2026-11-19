@@ -59,8 +59,15 @@ proc installDiscordMenu*(source: JsonNode, artwork: Table[string, string]): Json
     if not replaced: root[device].add(entry)
   result["menus"].add(menu)
 
+proc matchingButtons(deck, action: JsonNode): seq[JsonNode] =
+  ## Return every Deck entry running an exact action, at any key.
+  for button in deck:
+    if button{"action"} == action: result.add(button)
+
 proc refreshDiscordArtwork*(source: JsonNode, artwork: Table[string, string]): JsonNode =
-  ## Refresh standard Discord key faces, preserving titles, actions, other menus, and custom bindings.
+  ## Refresh standard Discord key faces, preserving titles, actions, keys, other menus, and custom bindings.
+  ## Each standard face is found by its exact action at whichever key it occupies; a standard
+  ## action bound to several keys is refused as ambiguous.
   result = parseJson($source)
   var current: JsonNode
   for menu in result["menus"]:
@@ -69,19 +76,21 @@ proc refreshDiscordArtwork*(source: JsonNode, artwork: Table[string, string]): J
     raise newException(ValueError, "The Discord menu is missing; install it before refreshing artwork.")
   let templateConfig = installDiscordMenu(%*{"version": 1, "root": "root", "menus": [
     {"id": "root", "title": "Main", "mixer": [], "deck": []}]}, artwork)
-  for button in current["deck"]:
-    for standard in templateConfig["menus"][1]["deck"]:
-      if button["key"] == standard["key"] and button["action"] == standard["action"]:
-        button["visual"] = standard["visual"]
+  for standard in templateConfig["menus"][1]["deck"]:
+    let buttons = matchingButtons(current["deck"], standard["action"])
+    if buttons.len > 1:
+      raise newException(ValueError, "Discord " & standard["title"].getStr() &
+        " is bound to several keys; refusing to guess which face to refresh.")
+    for button in buttons: button["visual"] = standard["visual"]
   let rootEntry = templateConfig["menus"][0]["deck"][0]
   for menu in result["menus"]:
     if menu["id"].getStr() == result["root"].getStr():
-      for button in menu["deck"]:
-        if button["key"] == rootEntry["key"] and button["action"] == rootEntry["action"]:
-          button["visual"] = rootEntry["visual"]
+      for button in matchingButtons(menu["deck"], rootEntry["action"]):
+        button["visual"] = rootEntry["visual"]
 
 proc upgradeDiscordMenu*(source: JsonNode, artwork: Table[string, string]): JsonNode =
   ## Add missing answer controls and refresh standard faces without replacing occupied slots.
+  ## An answer control already present at any key is kept where it is instead of being duplicated.
   result = refreshDiscordArtwork(source, artwork)
   let templateConfig = installDiscordMenu(%*{"version": 1, "root": "root", "menus": [
     {"id": "root", "title": "Main", "mixer": [], "deck": []}]}, artwork)
@@ -89,7 +98,7 @@ proc upgradeDiscordMenu*(source: JsonNode, artwork: Table[string, string]): Json
     if menu["id"].getStr() != DiscordMenuId: continue
     for standard in templateConfig["menus"][1]["deck"]:
       let number = standard["key"].getInt()
-      if number notin [6, 7]: continue
+      if number notin [6, 7] or matchingButtons(menu["deck"], standard["action"]).len > 0: continue
       var found = false
       for index in 0..<menu["deck"].len:
         let button = menu["deck"][index]

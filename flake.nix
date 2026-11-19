@@ -79,6 +79,7 @@
           cp -r assets/obs "$out/share/knobby/obs-icons"
           cp -r assets/discord "$out/share/knobby/discord-icons"
           cp -r assets/work "$out/share/knobby/work-icons"
+          cp -r assets/navigation "$out/share/knobby/navigation-icons"
           ln -s ${obsAudioPlugin} "$out/share/knobby/obs-audio-plugin"
           makeWrapper "$out/libexec/knobby" "$out/bin/knobby" \
             --prefix PATH : "${pkgs.lib.makeBinPath runtimeTools}"

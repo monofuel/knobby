@@ -1,23 +1,22 @@
 # Discord controls and the MIDI legend
 
-Main-menu Stream Deck **key 3** opens Discord. The MIDI buttons stay on their
-current assignments while you navigate this Deck submenu.
+Stream Deck **key 3** (CHAT) opens Discord from the main, OBS, and Softmax
+menus. The MIDI buttons stay on their current assignments while you navigate
+this Deck submenu. Keys 1-4 are the [shared purple navigation keys](navigation.md).
 
 | Key | Control | What it changes |
 | --- | --- | --- |
 | 1 | Back | Return to the previous Deck menu. |
-| 2 | System Mic | Toggle all real system microphone inputs together. |
-| 3 | Discord Mic | Toggle Discord's own self-mute. |
-| 4 | Deafen | Toggle Discord's own deafen state. |
-| 5 | Open Discord | Focus Discord, or launch it when closed. |
-| 6 | Answer voice | Answer a currently incoming call using its voice answer control. |
-| 7 | Answer video | Answer a currently incoming call using its video answer control. |
-| 8 | Softmax | Open the Softmax task menu on the Deck. |
+| 2-4 | OBS, CHAT, SOFT | Open the OBS, Discord, or Softmax menu on the Deck. |
+| 5 | System Mic | Toggle all real system microphone inputs together. |
+| 6 | Discord Mic | Toggle Discord's own self-mute. |
+| 7 | Deafen | Toggle Discord's own deafen state. |
+| 8 | Open Discord | Focus Discord, or launch it when closed. |
+| 9 | Answer voice | Answer a currently incoming call using its voice answer control. |
+| 10 | Answer video | Answer a currently incoming call using its video answer control. |
 
-Softmax key 13 opens this controls menu, while its separate Discord launcher
-focuses the app. The reciprocal shortcuts leave the mixer unchanged and retain
-Back on key 1. Install them with `tools/setup_task_links.nim --apply` as described
-in [the Softmax guide](work.md).
+Softmax key 8 is a separate Discord launcher that focuses the app. The
+navigation keys leave the mixer unchanged.
 
 System mic mute affects applications using those microphones. Discord mic mute
 affects Discord only. OBS Commentary remains a separate recording control in

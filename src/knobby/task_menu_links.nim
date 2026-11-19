@@ -10,6 +10,8 @@ type
 const
   SoftmaxDiscordKey* = 13
   DiscordSoftmaxKey* = 8
+  PrefixSoftmaxDiscordKey* = 3
+  PrefixDiscordSoftmaxKey* = 4
   DiscordLinkTitle* = "Discord menu"
   SoftmaxLinkTitle* = "Softmax"
   DiscordLinkArt* = "discord/menu-discord"
@@ -42,15 +44,34 @@ proc linkSlot(menu: JsonNode, link: TaskMenuLink): int =
       raise newException(ValueError, "The " & link.menu & " menu Deck key " & $link.key &
         " already has a different action; refusing to replace it.")
 
+proc prefixLinks(): array[2, TaskMenuLink] =
+  ## Return the task links at their shared navigation-prefix keys.
+  result = TaskMenuLinks
+  result[0].key = PrefixSoftmaxDiscordKey
+  result[1].key = PrefixDiscordSoftmaxKey
+
+proc hasLink(config: JsonNode, link: TaskMenuLink): bool =
+  ## Check whether a link's menu already runs its exact action on its key.
+  for entry in findMenu(config, link.menu)["deck"]:
+    if entry["key"].getInt() == link.key and entry{"action"} == linkAction(link): result = true
+
+proc activeTaskMenuLinks*(config: JsonNode): array[2, TaskMenuLink] =
+  ## Return the shared-prefix link keys when both menus already use them, otherwise the legacy keys.
+  result = prefixLinks()
+  for link in result:
+    if not config.hasLink(link): result = TaskMenuLinks
+
 proc installTaskMenuLinks*(source: JsonNode, artwork: Table[string, string]): JsonNode =
   ## Return an owned configuration with reciprocal Deck keys between the Softmax and Discord menus.
+  ## Links already at the shared navigation prefix are kept there; otherwise the legacy keys are used.
   ## Free keys receive new links; existing matching links keep their titles and only refresh
   ## their image. Any other action on either key is refused before anything changes.
   result = parseJson($source)
+  let links = activeTaskMenuLinks(result)
   var slots: seq[int]
-  for link in TaskMenuLinks:
+  for link in links:
     slots.add(linkSlot(findMenu(result, link.menu), link))
-  for index, link in TaskMenuLinks:
+  for index, link in links:
     let
       menu = findMenu(result, link.menu)
       image = artwork[link.art]

@@ -1,27 +1,27 @@
 # Softmax submenu
 
-Root Stream Deck key 4 opens **Softmax** on the Deck only; the MIDI mixer stays
-where it is. Key 1 is the standard linked Back.
+Stream Deck key 4 opens **Softmax** on the Deck only from the main, OBS, and
+Discord menus; the MIDI mixer stays where it is. Keys 1-4 are the
+[shared purple navigation keys](navigation.md): Back, OBS, CHAT, and SOFT.
 
 | Key | Label | Opens |
 | --- | --- | --- |
-| 2 | PRISM | Open/focus Prism using Knobby's existing launcher (`knobby-obs prism`) |
-| 3 | WOW VANILLA | The genuine 1.12.1 client for the human seat (`make play-classic`) |
-| 4 | WOW NIM | The native Nim WoW client with the human controller (`make play`) |
-| 5 | DISCORD | Discord, focusing an open window first |
-| 6 | SLACK | The installed Slack desktop app |
-| 7 | LAB | The local coworld-autoresearch dashboard |
-| 8 | PROD | The Fast-XP production performance dashboard |
-| 9 | STAGE | The Fast-XP staging performance dashboard |
-| 10 | NEXT | The staging `/next/` list of experimental Polyworld games |
-| 12 | REALM | The separate WoW private-world dashboard at `http://127.0.0.1:7777/` |
-| 13 | CHAT | The Discord controls menu; this does not launch or focus the app |
+| 5 | PRISM | Open/focus Prism using Knobby's existing launcher (`knobby-obs prism`) |
+| 6 | WOW VANILLA | The genuine 1.12.1 client for the human seat (`make play-classic`) |
+| 7 | WOW NIM | The native Nim WoW client with the human controller (`make play`) |
+| 8 | DISCORD | Discord, focusing an open window first |
+| 9 | SLACK | The installed Slack desktop app |
+| 10 | LAB | The local coworld-autoresearch dashboard at port 8103 |
+| 11 | PROD | The Fast-XP production performance dashboard |
+| 12 | STAGE | The Fast-XP staging performance dashboard |
+| 13 | NEXT | The staging `/next/` list of experimental Polyworld games |
+| 14 | REALM | The separate WoW private-world dashboard at `http://127.0.0.1:7777/` |
+| 15 | START | Start WoW Server: start the existing persistent private world |
 
-The **DISCORD** key brings the app to the foreground; **CHAT** opens its controls
-menu. Discord menu key **8** links back to Softmax using the same graph icon.
-Both shortcuts affect only the Deck. Key 1 remains Back. Direct reciprocal
-switches undo the last matching transition, so repeated task swaps keep Back
-useful without filling navigation history.
+The **DISCORD** key brings the app to the foreground; **CHAT** (key 3) opens its
+controls menu, whose key 4 links back to Softmax. Direct reciprocal switches
+undo the last matching transition, so repeated task swaps keep Back useful
+without filling navigation history.
 
 Both WoW keys run the documented human play targets in
 `~/src/wow-coworld/wow-shadow-army` and need its local realm running. The Nim
@@ -33,17 +33,26 @@ Dashboard keys use `xdg-open` to open exact URLs in the normal browser
 (currently Firefox). Fast-XP needs Tailscale access.
 
 The WoW dashboard is distinct from the autoresearch dashboard on port 8103.
-Key 11 is reserved for the private-world Start Server control, pending the
-WoW owner's verified persistent-world launcher. The current upstream Compose
-file ignores `VMANGOS_DB_DIR`, so its existing start paths must not be used
-until that regression is repaired. Knobby setup does not start servers or
-launch applications while installing the menu.
+**START** runs the WoW owner's verified persistent-world helper, independent of
+the current directory:
+
+```sh
+nix develop /home/monofuel/src/wow-coworld/wow-shadow-army --command /home/monofuel/src/wow-coworld/tools/private_realm.sh start
+```
+
+It reuses the existing world and database and reports when the server is
+already running; it never resets or reseeds the world. It does not open a
+browser or start bots, and it replaces the project's older start paths, which
+must not be used. Making the native Nim client playable for the human seat is
+a separate fix still pending with the WoW owner. Knobby setup does not start
+servers or launch applications while installing or reorganizing the menu.
 
 ## Recreating this setup
 
 The machine-specific launch commands and URLs live in
 [work-menu-targets.json](work-menu-targets.json). After installing Knobby, add
-the menu through the shared configuration API:
+the menu through the shared configuration API. The targets file lists Start
+WoW Server at its original key 11; the navigation setup moves it to key 15:
 
 ```sh
 nix develop --command nim r tools/setup_work_buttons.nim --apply
@@ -52,8 +61,8 @@ nix develop --command nim r tools/setup_work_buttons.nim --apply
 Pass a different targets file, and optionally an assets directory, after
 `--apply` to use other launchers. Setup refuses an occupied root Deck key 4 or a
 different standard Work binding, and does nothing when its standard controls
-are already installed. Extra buttons such as task shortcuts or the private
-server control are retained. Other menus, mixer bindings, faders, and editor drafts are
+are already installed at any keys. Extra buttons such as navigation keys or task
+shortcuts are retained. Other menus, mixer bindings, faders, and editor drafts are
 preserved. After installation, change titles, commands, or art in the editor
 or through export/edit/apply like any other button.
 
@@ -63,10 +72,14 @@ After installing both menus, add the reciprocal task shortcuts with:
 nix develop --command nim r tools/setup_task_links.nim --apply
 ```
 
-This refuses occupied foreign bindings on Softmax key 13 or Discord key 8.
+When the shared navigation keys are present (Softmax key 3 and Discord key 4)
+this only refreshes their images. Otherwise it uses Softmax key 13 and Discord
+key 8 and refuses occupied foreign bindings there. Run
+`tools/setup_navigation.nim --apply` last; see [shared navigation](navigation.md).
 
 Artwork is generated alongside the OBS and Discord icons by
-`gui/app/tools/generate_obs_icons.nim`. Prism and Back reuse their existing
+`gui/app/tools/generate_obs_icons.nim`. The root Softmax face and Back use the
+purple navigation frame. Prism and Back reuse their existing
 faces, and Discord reuses the pixel chat sprite under a fixed DISCORD caption;
 the sword, crown, hash, flask, bolts, and gamepad are original Knobby pixel
 art. Two-word and long captions use a compact 3x5 font, so the WoW keys read
@@ -76,16 +89,17 @@ p2 = 1 / (e^z + 1) cross at 0.5 over silver axes.
 
 Setup never replaces artwork on an installed menu. To show regenerated root
 art, refresh only that key image; every other button, menu, and mixer binding
-is kept, and a root Deck key 4 that does not open the Softmax menu is refused:
+is kept, and a missing or duplicated root Softmax key is refused:
 
 ```
 nix develop --command nim r tools/setup_work_buttons.nim --refresh-menu-art
 ```
 
-The WoW Vanilla, WoW Nim, and Discord launchers (keys 3-5) have their own
-refresh. It sets their titles and faces from the targets file and drops the
-Discord key's state images so it always reads DISCORD. It changes nothing else,
-and refuses unless each of those keys already runs its standard action:
+The WoW Vanilla, WoW Nim, and Discord launchers have their own refresh. It
+finds each by its standard action at whatever key it occupies, sets its title
+and face from the targets file, and drops the Discord key's state images so it
+always reads DISCORD. It changes nothing else, and refuses when a launcher is
+missing or bound to several keys:
 
 ```
 nix develop --command nim r tools/setup_work_buttons.nim --refresh-launcher-art

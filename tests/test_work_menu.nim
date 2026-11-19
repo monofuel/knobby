@@ -65,7 +65,7 @@ suite "Work submenu installation":
     check entry["visual"]["image"].getStr() == "assets/menu-work.png"
     let menu = menuAt(updated, WorkMenuId)
     check menu["mixer"].len == 0
-    check menu["deck"].len == 11
+    check menu["deck"].len == 12
     check menu["title"].getStr() == "Softmax"
     check entry["title"].getStr() == "Softmax"
     check buttonAt(updated, WorkMenuId, "deck", 1)["action"]["kind"].getStr() == "back"
@@ -73,13 +73,13 @@ suite "Work submenu installation":
   test "binds the launchers and private realm controls with distinct titles and artwork":
     let updated = installWorkMenu(liveLikeConfig(), targets(), artwork())
     var titles, images: HashSet[string]
-    for key in [2, 3, 4, 5, 6, 7, 8, 9, 10, 12]:
+    for key in [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]:
       let button = buttonAt(updated, WorkMenuId, "deck", key)
       titles.incl(button["title"].getStr())
       images.incl(button["visual"]["image"].getStr())
       check button["visual"]["showTitle"].getBool() == false
-    check titles.len == 10
-    check images.len == 10
+    check titles.len == 11
+    check images.len == 11
     check command(updated, 2) == "\"$HOME/.local/bin/knobby-obs\" prism"
     check command(updated, 3) == "make -C " & WowDirectory & " play-classic"
     check command(updated, 4) == "cd " & WowDirectory & " && nix develop --command make play"
@@ -96,9 +96,12 @@ suite "Work submenu installation":
     check "/next/play/" notin command(updated, 10)
     check command(updated, 12) == "xdg-open http://127.0.0.1:7777/"
     check command(updated, 12) != command(updated, 7)
+    check buttonAt(updated, WorkMenuId, "deck", 11)["title"].getStr() == "Start WoW Server"
+    check command(updated, 11) == "nix develop " & WowDirectory &
+      " --command /home/monofuel/src/wow-coworld/tools/private_realm.sh start"
 
   test "every referenced artwork file exists in the repository":
-    check workArtworkNames(targets()).len == 12
+    check workArtworkNames(targets()).len == 13
     for name in workArtworkNames(targets()):
       check fileExists(AssetsDirectory / (name & ".png"))
 
@@ -112,7 +115,7 @@ suite "Work submenu installation":
     expanded["menus"][expanded["menus"].len - 1]["deck"].add(%*{
       "key": 13, "title": "Discord menu", "action": {"kind": "menu", "menu": "discord", "target": "deck"}})
     expanded["menus"][expanded["menus"].len - 1]["deck"].add(%*{
-      "key": 11, "title": "Private realm", "action": {"kind": "command", "command": "echo private-status"}})
+      "key": 14, "title": "Private realm", "action": {"kind": "command", "command": "echo private-status"}})
     validateButtonConfig(expanded)
     check installWorkMenu(expanded, targets(), renamed) == expanded
     let edited = parseJson($installed)
@@ -133,7 +136,7 @@ suite "Work submenu installation":
 
   test "refreshing root art changes only the Softmax key image and refuses foreign bindings":
     let source = installWorkMenu(liveLikeConfig(), targets(), artwork())
-    source["menus"][source["menus"].len - 1]["deck"].add(%*{"key": 11, "title": "Future",
+    source["menus"][source["menus"].len - 1]["deck"].add(%*{"key": 14, "title": "Future",
       "action": {"kind": "command", "command": "true"}, "visual": {"image": "assets/future.png"}})
     let
       original = $source
@@ -163,7 +166,7 @@ suite "Work submenu installation":
     for name in ["discord/open-idle", "discord/open-running"]:
       earlierArt[name] = "assets/" & name.extractFilename() & ".png"
     let source = installWorkMenu(liveLikeConfig(), earlier, earlierArt)
-    source["menus"][source["menus"].len - 1]["deck"].add(%*{"key": 11, "title": "Start Server",
+    source["menus"][source["menus"].len - 1]["deck"].add(%*{"key": 14, "title": "Start Server",
       "action": {"kind": "command", "command": "true"}, "visual": {"image": "assets/server.png"}})
     for button in source["menus"][0]["deck"]:
       if button["key"].getInt() == WorkRootKey: button["visual"]["image"] = %"assets/graph.png"

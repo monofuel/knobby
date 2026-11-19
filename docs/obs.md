@@ -24,17 +24,19 @@ links during recording. An already-running browser is unaffected.
 
 ## Stream Deck
 
-Main-menu key 2 opens the OBS submenu on the Deck. Entering the menu does
-not launch OBS or start recording. The Arduino keeps its current menu.
+Deck key 2 opens the OBS submenu from the main, Discord, and Softmax menus.
+Entering the menu does not launch OBS or start recording. The Arduino keeps its
+current menu. Keys 1-4 are the [shared purple navigation keys](navigation.md).
 
 | Key | Action |
 | --- | --- |
 | 1 | Back to the parent menu |
-| 2 | Start/stop recording |
-| 3 | Pause/resume recording |
-| 4 | Mute/unmute OBS Commentary |
-| 5 | Open/focus OBS and select the Minecraft project when idle |
-| 6 | Launch Prism if Minecraft is closed; otherwise resize Minecraft to 1920×1080 |
+| 2-4 | Open the OBS, Discord, or Softmax menu on the Deck |
+| 5 | Start/stop recording |
+| 6 | Pause/resume recording |
+| 7 | Mute/unmute OBS Commentary |
+| 8 | Open/focus OBS and select the Minecraft project when idle |
+| 9 | Launch Prism if Minecraft is closed; otherwise resize Minecraft to 1920×1080 |
 
 Recording, pause, and mic artwork follows actual OBS events and periodic
 queries. Grey unavailable artwork means the connection or required workspace
