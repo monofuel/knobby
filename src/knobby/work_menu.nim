@@ -35,12 +35,14 @@ proc sameControl(current, wanted: JsonNode): bool =
   for field in ["key", "title", "action"]:
     if current{field} != wanted[field]: result = false
 
-proc sameControls(current, wanted: JsonNode): bool =
-  ## Compare button arrays in order by key, title, and action, ignoring artwork paths.
-  result = current.len == wanted.len
-  if result:
-    for index in 0..<wanted.len:
-      if not sameControl(current[index], wanted[index]): result = false
+proc containsControls(current, wanted: JsonNode): bool =
+  ## Check standard controls by key, title, and action while retaining extra user buttons.
+  result = true
+  for expected in wanted:
+    var found = false
+    for installed in current:
+      if sameControl(installed, expected): found = true
+    if not found: result = false
 
 proc installWorkMenu*(source, targets: JsonNode, artwork: Table[string, string]): JsonNode =
   ## Return an owned configuration adding the Deck-only Softmax menu at root Deck key 4.
@@ -67,7 +69,7 @@ proc installWorkMenu*(source, targets: JsonNode, artwork: Table[string, string])
     if root["deck"][index]["key"].getInt() == WorkRootKey: slot = index
   if not existing.isNil:
     let unchanged = slot >= 0 and sameControl(root["deck"][slot], entry) and
-      existing["mixer"].len == 0 and sameControls(existing["deck"], menu["deck"])
+      existing["mixer"].len == 0 and containsControls(existing["deck"], menu["deck"])
     if not unchanged:
       raise newException(ValueError, "A different Softmax menu already exists; use the editor to change it.")
   elif slot >= 0 and root["deck"][slot]["action"]["kind"].getStr() != "none":

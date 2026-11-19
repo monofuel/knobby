@@ -15,6 +15,13 @@ where it is. Key 1 is the standard linked Back.
 | 9 | STAGE | The Fast-XP staging performance dashboard |
 | 10 | NEXT | The staging `/next/` list of experimental Polyworld games |
 | 12 | REALM | The separate WoW private-world dashboard at `http://127.0.0.1:7777/` |
+| 13 | CHAT | The Discord controls menu; this does not launch or focus the app |
+
+The **DISCORD** key brings the app to the foreground; **CHAT** opens its controls
+menu. Discord menu key **8** links back to Softmax using the same graph icon.
+Both shortcuts affect only the Deck. Key 1 remains Back. Direct reciprocal
+switches undo the last matching transition, so repeated task swaps keep Back
+useful without filling navigation history.
 
 Both WoW keys run the documented human play targets in
 `~/src/wow-coworld/wow-shadow-army` and need its local realm running. The Nim
@@ -44,10 +51,19 @@ nix develop --command nim r tools/setup_work_buttons.nim --apply
 
 Pass a different targets file, and optionally an assets directory, after
 `--apply` to use other launchers. Setup refuses an occupied root Deck key 4 or a
-different existing Work menu, and does nothing when the same Work menu is
-already installed. Other menus, mixer bindings, faders, and editor drafts are
+different standard Work binding, and does nothing when its standard controls
+are already installed. Extra buttons such as task shortcuts or the private
+server control are retained. Other menus, mixer bindings, faders, and editor drafts are
 preserved. After installation, change titles, commands, or art in the editor
 or through export/edit/apply like any other button.
+
+After installing both menus, add the reciprocal task shortcuts with:
+
+```sh
+nix develop --command nim r tools/setup_task_links.nim --apply
+```
+
+This refuses occupied foreign bindings on Softmax key 13 or Discord key 8.
 
 Artwork is generated alongside the OBS and Discord icons by
 `gui/app/tools/generate_obs_icons.nim`. Prism and Back reuse their existing

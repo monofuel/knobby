@@ -12,6 +12,12 @@ current assignments while you navigate this Deck submenu.
 | 5 | Open Discord | Focus Discord, or launch it when closed. |
 | 6 | Answer voice | Answer a currently incoming call using its voice answer control. |
 | 7 | Answer video | Answer a currently incoming call using its video answer control. |
+| 8 | Softmax | Open the Softmax task menu on the Deck. |
+
+Softmax key 13 opens this controls menu, while its separate Discord launcher
+focuses the app. The reciprocal shortcuts leave the mixer unchanged and retain
+Back on key 1. Install them with `tools/setup_task_links.nim --apply` as described
+in [the Softmax guide](work.md).
 
 System mic mute affects applications using those microphones. Discord mic mute
 affects Discord only. OBS Commentary remains a separate recording control in

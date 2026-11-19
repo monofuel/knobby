@@ -108,6 +108,13 @@ suite "Work submenu installation":
     var renamed = initTable[string, string]()
     for name, path in artwork(): renamed[name] = "assets/other-" & path.extractFilename()
     check installWorkMenu(installed, targets(), renamed) == installed
+    let expanded = parseJson($installed)
+    expanded["menus"][expanded["menus"].len - 1]["deck"].add(%*{
+      "key": 13, "title": "Discord menu", "action": {"kind": "menu", "menu": "discord", "target": "deck"}})
+    expanded["menus"][expanded["menus"].len - 1]["deck"].add(%*{
+      "key": 11, "title": "Private realm", "action": {"kind": "command", "command": "echo private-status"}})
+    validateButtonConfig(expanded)
+    check installWorkMenu(expanded, targets(), renamed) == expanded
     let edited = parseJson($installed)
     for button in edited["menus"][edited["menus"].len - 1]["deck"]:
       if button["key"].getInt() == 6: button["action"]["command"] = %"my-slack"
