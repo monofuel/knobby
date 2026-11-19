@@ -8,7 +8,7 @@ const
   DefaultAssetsDirectory = RepositoryDirectory / "assets"
 
 proc main() =
-  ## Install the Deck-only Work menu through the shared configuration API.
+  ## Install the Deck-only Softmax menu through the shared configuration API.
   let args = commandLineParams()
   if args.len notin 1..3 or args[0] != "--apply":
     quit("Usage: setup_work_buttons --apply [TARGETS_FILE [ASSETS_DIRECTORY]]", 2)
@@ -23,7 +23,7 @@ proc main() =
   let preview = installWorkMenu(envelope["config"], targets, artwork)
   validateButtonConfig(preview)
   if preview == envelope["config"]:
-    echo "The Work menu is already installed; nothing to apply."
+    echo "The Softmax menu is already installed; nothing to apply."
   else:
     for name in names:
       let record = runConfigOperation("config.importAsset",

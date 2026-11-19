@@ -65,36 +65,38 @@ suite "Work submenu installation":
     check entry["visual"]["image"].getStr() == "assets/menu-work.png"
     let menu = menuAt(updated, WorkMenuId)
     check menu["mixer"].len == 0
-    check menu["deck"].len == 10
+    check menu["deck"].len == 11
+    check menu["title"].getStr() == "Softmax"
+    check entry["title"].getStr() == "Softmax"
     check buttonAt(updated, WorkMenuId, "deck", 1)["action"]["kind"].getStr() == "back"
 
-  test "binds the nine verified launchers with distinct titles and artwork":
+  test "binds the launchers and private realm controls with distinct titles and artwork":
     let updated = installWorkMenu(liveLikeConfig(), targets(), artwork())
     var titles, images: HashSet[string]
-    for key in 2..10:
+    for key in [2, 3, 4, 5, 6, 7, 8, 9, 10, 12]:
       let button = buttonAt(updated, WorkMenuId, "deck", key)
       titles.incl(button["title"].getStr())
       images.incl(button["visual"]["image"].getStr())
       check button["visual"]["showTitle"].getBool() == false
-    check titles.len == 9
-    check images.len == 9
-    check "--unit=knobby-prism.service" in command(updated, 2)
-    check "--property=KillMode=process" in command(updated, 2)
-    check command(updated, 2).endsWith("-- \"$HOME/bin/prism\"")
+    check titles.len == 10
+    check images.len == 10
+    check command(updated, 2) == "\"$HOME/.local/bin/knobby-obs\" prism"
     check command(updated, 3) == "make -C " & WowDirectory & " play-classic"
-    check command(updated, 4) == "make -C " & WowDirectory & " play"
+    check command(updated, 4) == "cd " & WowDirectory & " && nix develop --command make play"
     check buttonAt(updated, WorkMenuId, "deck", 5)["action"] == %*{"kind": "openDiscord"}
     check buttonAt(updated, WorkMenuId, "deck", 5)["visual"]["states"]["ready"].getStr() ==
       "assets/open-running.png"
     check command(updated, 6) == "slack -s"
-    check command(updated, 7) == "firefox --new-window http://127.0.0.1:8103/"
-    check command(updated, 8) == "firefox --new-window https://fast-xp-k8s-prod.tail0f4a29.ts.net/"
-    check command(updated, 9) == "firefox --new-window " & StagingUrl
-    check command(updated, 10) == "firefox --new-window " & StagingUrl & "next/"
+    check command(updated, 7) == "xdg-open http://127.0.0.1:8103/"
+    check command(updated, 8) == "xdg-open https://fast-xp-k8s-prod.tail0f4a29.ts.net/"
+    check command(updated, 9) == "xdg-open " & StagingUrl
+    check command(updated, 10) == "xdg-open " & StagingUrl & "next/"
     check "/next/play/" notin command(updated, 10)
+    check command(updated, 12) == "xdg-open http://127.0.0.1:7777/"
+    check command(updated, 12) != command(updated, 7)
 
   test "every referenced artwork file exists in the repository":
-    check workArtworkNames(targets()).len == 12
+    check workArtworkNames(targets()).len == 13
     for name in workArtworkNames(targets()):
       check fileExists(AssetsDirectory / (name & ".png"))
 

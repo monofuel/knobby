@@ -599,6 +599,16 @@ proc generateWorkIcons() =
       "...hhhhhhhhhh...", "..hrrrrrrrrrrr..", ".hrrkrrrrrrrarr.", ".rrkkkrrrrrarar.",
       ".rrrkrrrrrrrarr.", ".rrrrrrrrrrrrrr.", ".rrrrddddddrrrr.", ".rrrd......drrr.",
       "..dd........dd..", "................", "................", "................"]
+    Server = @[
+      "................", "..############..", "..#hhhhhhhhhh#..", "..#rrrrrrrrll#..",
+      "..#dddddddddd#..", "..############..", "..#hhhhhhhhhh#..", "..#rrrrrrrrll#..",
+      "..#dddddddddd#..", "..############..", "..#hhhhhhhhhh#..", "..#rrrrrrrrll#..",
+      "..#dddddddddd#..", "..############..", "................", "................"]
+    Dashboard = @[
+      "................", ".##############.", ".#hhhhhhhhhhhh#.", ".#dddddddddddd#.",
+      ".#rrrrrrrrrrrr#.", ".#rrrllrrrrrrr#.", ".#rrrllrrrrllr#.", ".#rrrllrrrrllr#.",
+      ".#rllllrrllllr#.", ".#rllllrrllllr#.", ".#rrrrrrrrrrrr#.", ".##############.",
+      ".......ss.......", ".....ssssss.....", "................", "................"]
   let
     leather = palette("#2a1606", "#9a5b2a", "#d08a4a", "#5e3414", [('l', "#f0c040")])
     steel = palette("#16181b", "#b4b8bf", "#eceef2", "#71757c",
@@ -609,16 +619,20 @@ proc generateWorkIcons() =
     glass = palette("#16181b", "#c8d6e0", "#ffffff", "#2f8a4a", [('w', "#a9bccb"), ('l', "#5fe08a")])
     bolt = palette("#2e1c04", "#ffd84a", "#fff3a0", "#d08a12")
     pad = palette("#1c2049", "#8a7bd9", "#c4baff", "#4e4290", [('k', "#1e1a3a"), ('a', "#ff6a6a")])
+    rack = palette("#16181b", "#aab1bc", "#e8edf3", "#697382", [('l', "#6ee17a")])
+    dashboard = palette("#122138", "#35639b", "#91c8ee", "#203b61", [('l', "#85d46c"), ('s', "#b4b8bf")])
   createDir(Directory)
   for (name, label, tone, sprite, colors) in [
-      ("menu-work", "WORK", GreenTone, Briefcase, leather),
+      ("menu-work", "SOFT", GreenTone, Briefcase, leather),
       ("wow-classic", "WOW", GreenTone, Sword, steel),
       ("wow-nim", "NIM", GreenTone, Crown, gold),
       ("slack", "SLACK", GreenTone, slackSprite(), slack),
       ("autoresearch", "LAB", GreenTone, Flask, glass),
       ("xp-prod", "PROD", GreenTone, Bolt, bolt),
       ("xp-staging", "STAGE", AmberTone, Bolt, bolt),
-      ("next-games", "NEXT", AmberTone, Gamepad, pad)]:
+      ("next-games", "NEXT", AmberTone, Gamepad, pad),
+      ("wow-server", "START", GreenTone, Server, rack),
+      ("wow-dashboard", "REALM", GreenTone, Dashboard, dashboard)]:
     for line in sprite:
       doAssert line.len == 16, name & " sprite rows must be 16 cells wide."
     let image = newImage(Size, Size)

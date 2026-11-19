@@ -6,7 +6,8 @@ import
 const
   Usage = """Usage:
   knobby_obs request REQUEST [JSON]   Run one OBS request and print responseData.
-  knobby_obs bridge                   Bridge stdin commands to OBS status lines."""
+  knobby_obs bridge                   Bridge stdin commands to OBS status lines.
+  knobby_obs prism                    Open or focus the existing Prism launcher."""
   MaxFrameBytes = 1024 * 1024
   ReadChunkBytes = 65536
   PollMs = 25
@@ -178,6 +179,8 @@ proc main() =
     runRequest(args[1], if args.len == 3: parseJson(args[2]) else: nil)
   elif args == @["bridge"]:
     runBridge()
+  elif args == @["prism"]:
+    launchPrism()
   else:
     stderr.writeLine(Usage)
     quit(UsageExitCode)

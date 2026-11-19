@@ -3,6 +3,7 @@ import
 
 const
   WorkMenuId* = "work"
+  WorkMenuTitle* = "Softmax"
   WorkRootKey* = 4
   WorkMenuArt* = "work/menu-work"
   WorkBackArt* = "obs/back"
@@ -41,7 +42,7 @@ proc sameControls(current, wanted: JsonNode): bool =
       if not sameControl(current[index], wanted[index]): result = false
 
 proc installWorkMenu*(source, targets: JsonNode, artwork: Table[string, string]): JsonNode =
-  ## Return an owned configuration adding the Deck-only Work menu at root Deck key 4.
+  ## Return an owned configuration adding the Deck-only Softmax menu at root Deck key 4.
   ## An identical existing installation is returned unchanged; any other occupant is refused.
   result = parseJson($source)
   var root, existing: JsonNode
@@ -50,14 +51,14 @@ proc installWorkMenu*(source, targets: JsonNode, artwork: Table[string, string])
     if menu["id"].getStr() == result["root"].getStr(): root = menu
   if root.isNil:
     raise newException(ValueError, "The root menu is missing.")
-  let menu = %*{"id": WorkMenuId, "title": "Work", "mixer": [], "deck": [
+  let menu = %*{"id": WorkMenuId, "title": WorkMenuTitle, "mixer": [], "deck": [
     {"key": 1, "title": "Back", "action": {"kind": "back"},
       "visual": {"image": artwork[WorkBackArt], "showTitle": false}}]}
   for target in targets:
     if target["key"].getInt() == 1:
-      raise newException(ValueError, "Work key 1 is reserved for Back.")
+      raise newException(ValueError, "Softmax key 1 is reserved for Back.")
     menu["deck"].add(workButton(target, artwork))
-  let entry = %*{"key": WorkRootKey, "title": "Work",
+  let entry = %*{"key": WorkRootKey, "title": WorkMenuTitle,
     "action": {"kind": "menu", "menu": WorkMenuId, "target": "deck"},
     "visual": {"image": artwork[WorkMenuArt], "showTitle": false}}
   var slot = -1
@@ -67,7 +68,7 @@ proc installWorkMenu*(source, targets: JsonNode, artwork: Table[string, string])
     let unchanged = slot >= 0 and sameControl(root["deck"][slot], entry) and
       existing["mixer"].len == 0 and sameControls(existing["deck"], menu["deck"])
     if not unchanged:
-      raise newException(ValueError, "A different Work menu already exists; use the editor to change it.")
+      raise newException(ValueError, "A different Softmax menu already exists; use the editor to change it.")
   elif slot >= 0 and root["deck"][slot]["action"]["kind"].getStr() != "none":
     raise newException(ValueError, "Root deck key " & $WorkRootKey & " already has an action; refusing to replace it.")
   else:
