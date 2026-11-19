@@ -36,7 +36,8 @@ suite "Discord submenu installation":
     check buttonAt(updated, "root", "deck", 2) == buttonAt(source, "root", "deck", 2)
     check buttonAt(updated, "root", "deck", 3)["action"]["target"].getStr() == "deck"
     check buttonAt(updated, "root", "mixer", 3)["action"]["kind"].getStr() == "mixerOverlay"
-    for (key, kind) in [(1, "back"), (2, "microphones"), (3, "discord"), (4, "discordDeafen"), (5, "openDiscord")]:
+    for (key, kind) in [(1, "back"), (2, "microphones"), (3, "discord"), (4, "discordDeafen"),
+        (5, "openDiscord"), (6, "discordAcceptVoice"), (7, "discordAcceptVideo")]:
       check buttonAt(updated, "discord", "deck", key)["action"]["kind"].getStr() == kind
     check updated["menus"][updated["menus"].len - 1]["mixer"].len == 0
 
@@ -97,3 +98,28 @@ suite "Discord submenu installation":
     check updated["menus"][1]["deck"][1]["visual"]["image"].getStr() == changed["system-live"]
     check updated["menus"][1]["deck"][4] == source["menus"][1]["deck"][4]
     expect ValueError: discard refreshDiscordArtwork(defaultButtonConfig(), changed)
+
+  test "call upgrade is idempotent and preserves existing menus, mixer, and custom titles":
+    let source = installDiscordMenu(defaultButtonConfig(), artwork())
+    source["menus"][1]["deck"].elems.setLen(5)
+    source["menus"][1]["deck"][1]["title"] = %"My microphones"
+    let original = $source
+    let updated = upgradeDiscordMenu(source, artwork())
+    validateButtonConfig(updated)
+    check $source == original
+    check updated["menus"][0] == source["menus"][0]
+    check updated["menus"][1]["mixer"] == source["menus"][1]["mixer"]
+    check updated["menus"][1]["deck"][1]["title"].getStr() == "My microphones"
+    check buttonAt(updated, "discord", "deck", 6)["action"]["kind"].getStr() == "discordAcceptVoice"
+    check buttonAt(updated, "discord", "deck", 7)["action"]["kind"].getStr() == "discordAcceptVideo"
+    check upgradeDiscordMenu(updated, artwork()) == updated
+
+  test "call upgrade refuses occupied slots without modifying the source":
+    for number in [6, 7]:
+      let source = installDiscordMenu(defaultButtonConfig(), artwork())
+      for button in source["menus"][1]["deck"]:
+        if button["key"].getInt() == number:
+          button["action"] = %*{"kind": "command", "command": "keep-my-button"}
+      let original = $source
+      expect ValueError: discard upgradeDiscordMenu(source, artwork())
+      check $source == original

@@ -11,7 +11,8 @@ type
     MicrophonesAction = "microphones", DiscordAction = "discord",
     MenuAction = "menu", BackAction = "back", HomeAction = "home",
     ObsAction = "obs", DiscordDeafenAction = "discordDeafen",
-    OpenDiscordAction = "openDiscord", MixerOverlayAction = "mixerOverlay"
+    OpenDiscordAction = "openDiscord", MixerOverlayAction = "mixerOverlay",
+    DiscordAcceptVoiceAction = "discordAcceptVoice", DiscordAcceptVideoAction = "discordAcceptVideo"
   ButtonTarget* = enum
     TargetMixer = "mixer", TargetDeck = "deck", TargetBoth = "both"
   ButtonDevice* = enum
@@ -60,7 +61,8 @@ const
   VisualKeys = ["image", "showTitle", "builtinNumber", "states"]
   ActionFields = ["command", "menu", "target", "operation"]
   NamedActionKinds* = {GrokAction, ClaudeAction, FfxivAction, MicrophonesAction, DiscordAction,
-    DiscordDeafenAction, OpenDiscordAction, MixerOverlayAction}
+    DiscordDeafenAction, OpenDiscordAction, MixerOverlayAction,
+    DiscordAcceptVoiceAction, DiscordAcceptVideoAction}
   Sha256Initial = [0x6a09e667'u32, 0xbb67ae85'u32, 0x3c6ef372'u32, 0xa54ff53a'u32,
     0x510e527f'u32, 0x9b05688c'u32, 0x1f83d9ab'u32, 0x5be0cd19'u32]
   Sha256Rounds = [
@@ -432,6 +434,8 @@ proc namedActionDescription*(kind: ConfigActionKind): string =
   case kind
   of DiscordDeafenAction: "Toggle Discord deafen through local RPC."
   of OpenDiscordAction: "Open or focus Discord."
+  of DiscordAcceptVoiceAction: "Answer an incoming Discord call with voice."
+  of DiscordAcceptVideoAction: "Answer an incoming Discord call with video."
   of MixerOverlayAction: "Show the mixer overlay."
   else: ""
 

@@ -1,6 +1,6 @@
 import
   std/[json, locks, monotimes, times],
-  ./[audio_status, obs_state]
+  ./[audio_status, discord_calls, obs_state]
 
 type
   MicObservation* = object
@@ -20,7 +20,8 @@ type
     updatedMs*: int64
 
 const
-  ControlActionKinds* = ["microphones", "discord", "discordDeafen", "openDiscord"]
+  ControlActionKinds* = ["microphones", "discord", "discordDeafen", "openDiscord",
+    "discordAcceptVoice", "discordAcceptVideo"]
   ControlStaleMs* = 4000
   LiveState* = "live"
   MutedMicState* = "muted"
@@ -144,6 +145,7 @@ proc readControlStatus*(): JsonNode {.gcsafe.} =
       deepCopy(mic, micShared)
       deepCopy(discord, discordShared)
   result = controlStatusJson(mic, discord, controlClockMs())
+  result["calls"] = readDiscordCallStatus()
 
 proc readIndicators*(): JsonNode {.gcsafe.} =
   ## Return the OBS and control status that selects Deck state artwork.
@@ -184,6 +186,12 @@ proc controlVisualState*(action: string, controls: JsonNode): string =
   of "openDiscord":
     if controls.discordReady(): result = ReadyVisual
     elif discord.flag("running"): result = RunningVisual
+  of "discordAcceptVoice", "discordAcceptVideo":
+    let calls = controls{"calls"}
+    if calls{"state"}.getStr() notin ["idle", "ringing"]: result = UnavailableVisual
+    elif calls{"state"}.getStr() == "ringing" and
+        calls.flag(if action == "discordAcceptVideo": "videoAvailable" else: "voiceAvailable"):
+      result = ReadyVisual
   else:
     discard
 
@@ -209,6 +217,14 @@ proc controlStatusDescription*(action: string, controls: JsonNode): string =
     if controls.discordReady(): result = "Discord open and connected"
     elif discord.flag("running"): result = "Discord open; control connection unavailable"
     else: result = "Discord closed; press to open"
+  of "discordAcceptVoice", "discordAcceptVideo":
+    let calls = controls{"calls"}
+    if calls{"state"}.getStr() notin ["idle", "ringing"]:
+      result = "Discord call controls unavailable: " & calls{"error"}.getStr("Waiting for desktop controls")
+    elif calls{"state"}.getStr() == "ringing" and
+        calls.flag(if action == "discordAcceptVideo": "videoAvailable" else: "voiceAvailable"):
+      result = if action == "discordAcceptVideo": "Incoming call; answer with video" else: "Incoming call; answer with voice"
+    else: result = "Waiting for an incoming call with this answer option"
   else:
     result = ""
 

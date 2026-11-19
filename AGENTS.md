@@ -30,6 +30,7 @@
 - `src/knobby/daemon_workers.nim` - independent button, fader, Stream Deck, audio, IPC, and cache workers.
 - `src/knobby/obs_worker.nim` - supervised headless OBS helper with bounded queues and no command replay.
 - `src/knobby/obs_state.nim` - authoritative OBS observations and pure state-art selection.
+- `src/knobby/discord_calls.nim` - bounded incoming-call AT-SPI observation and explicit voice/video answer queue.
 - `src/knobby/discord_worker.nim`, `controls_state.nim` - isolated Discord RPC supervision and shared observed microphone/control state.
 - `src/knobby/overlay_state.nim`, `overlay_activation.nim` - transient MIDI help requests and explicit overlay service activation.
 - `src/knobby/gui_activation.nim` - activate one GUI instance through its user service.

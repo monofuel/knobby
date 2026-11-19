@@ -27,21 +27,7 @@ const
   LabelTop = 50
   LabelBandTop = 45
   Seed = 0x2f6e2b1'u32
-  ChatBotMask = @[
-    "......####......",
-    "......####......",
-    ".......##.......",
-    ".......##.......",
-    "..############..",
-    ".##############.",
-    ".##############.",
-    "####..####..####",
-    "####..####..####",
-    ".##############.",
-    ".##############.",
-    ".####......####.",
-    ".##############.",
-    "..############.."]
+  DiscordLogoPath = OutputDirectory.parentDir() / "branding" / "discord-clyde.svg"
   SymbolCenter = (Border + LabelBandTop) div 2
   GearCells = 16
   GearTeeth = 8
@@ -68,6 +54,7 @@ const
     'O': @[".###.", "#...#", "#...#", "#...#", "#...#", "#...#", ".###."],
     'P': @["####.", "#...#", "#...#", "####.", "#....", "#....", "#...."],
     'R': @["####.", "#...#", "#...#", "####.", "#.#..", "#..#.", "#...#"],
+    'W': @["#...#", "#...#", "#...#", "#.#.#", "#.#.#", "##.##", "#...#"],
     'S': @[".####", "#....", "#....", ".###.", "....#", "....#", "####."],
     'T': @["#####", "..#..", "..#..", "..#..", "..#..", "..#..", "..#.."],
     'U': @["#...#", "#...#", "#...#", "#...#", "#...#", "#...#", ".###."],
@@ -447,14 +434,6 @@ proc gearSprite(): Sprite =
         (radius <= GearBodyRadius or tooth and radius <= GearToothRadius)
   outlinedSprite(mask)
 
-proc chatBotSprite(): Sprite =
-  ## Build the original voice-chat bot face used as the Discord menu identity.
-  var mask = paddedMask(ChatBotMask[0].len, ChatBotMask.len)
-  for row, line in ChatBotMask:
-    for column, symbol in line:
-      mask[row + 1][column + 1] = symbol == '#'
-  outlinedSprite(mask)
-
 proc centeredTop(sprite: Sprite): int =
   ## Return the top edge that vertically centers a sprite's painted rows in the symbol area.
   var first, last = -1
@@ -500,15 +479,24 @@ proc generateDiscordIcons() =
       "..#rr#....#rr#..", "..#rr#....#rr#..", ".##rr#....#rr##.", ".#rrr#....#rrr#.",
       ".#rrr#....#rrr#.", ".#rrr#....#rrr#.", ".#rrd#....#drr#.", ".#ddd#....#ddd#.",
       "..###......###..", "................", "................", "................"]
+    Phone = @[
+      "................", "..####..........", ".#hhrr#.........", ".#hrrr#.........",
+      ".#rrrr#.........", "..#rr#..........", "..#rr#..........", "...#rr#.........",
+      "....#rr#........", ".....#rr#.......", "......#rr####...", ".......#rhhrr#..",
+      "........#hrrr#..", ".........#ddd#..", "..........###...", "................"]
+    Video = @[
+      "................", "................", "................", ".#########......",
+      ".#hhrrrrrr#...#..", ".#hrrrrrrr#..##..", ".#rrrrrrrr#.###..", ".#rrrrrrrr####r#.",
+      ".#rrrrrrrr###rr#.", ".#rrrrrrrr#.###..", ".#rrrrrrrd#..##..", ".#dddddddd#...#..",
+      ".#########......", "................", "................", "................"]
   let
-    bot = chatBotSprite()
+    logo = readImage(DiscordLogoPath).resize(42, 31)
     green = palette("#0f2a0a", "#5fb83a", "#a6e67a", "#2f7a1c")
     red = palette("#2a0605", "#d42a1e", "#ff7a5c", "#8a130d")
     grey = palette("#1e1f21", "#6a6c70", "#84868a", "#4c4d50", [('e', "#2a2b2e")])
-    blurple = palette("#141633", "#5865f2", "#a3abff", "#3c45b0", [('e', "#141633")])
     steel = palette("#16181b", "#b4b8bf", "#eceef2", "#71757c", [('e', "#16181b")])
   createDir(Directory)
-  for (prefix, sprite, colors) in [("system", gearSprite(), steel), ("discord", bot, blurple)]:
+  for prefix in ["system", "discord"]:
     for (suffix, label, tone, slashed) in [
         ("live", "LIVE", GreenTone, false),
         ("muted", "MUTED", RedTone, true),
@@ -519,21 +507,31 @@ proc generateDiscordIcons() =
           (prefix == "discord" and suffix == "mixed"): continue
       let image = newImage(Size, Size)
       image.fillStone(tone)
-      image.drawSymbol(sprite, if tone == GreyTone: grey else: colors, slashed)
+      if prefix == "discord": image.draw(logo, translate(vec2(15, 9)))
+      else: image.drawSymbol(gearSprite(), if tone == GreyTone: grey else: steel, slashed)
       image.drawLabel(label, tone.labelColor())
       image.writeFile(Directory / (prefix & "-" & suffix & ".png"))
   for (name, label, tone, sprite, colors) in [
-      ("menu-discord", "CHAT", GreenTone, bot, blurple),
+      ("menu-discord", "CHAT", GreenTone, newSeq[string](), green),
       ("deafen-live", "HEAR", GreenTone, Headphones, green),
       ("deafen-muted", "DEAF", RedTone, Headphones, red),
       ("deafen-unavailable", "N/A", GreyTone, Headphones, grey),
-      ("open-idle", "OPEN", GreyTone, bot, blurple),
-      ("open-running", "READY", GreenTone, bot, blurple)]:
+      ("open-idle", "OPEN", GreyTone, newSeq[string](), green),
+      ("open-running", "READY", GreenTone, newSeq[string](), green)]:
     let image = newImage(Size, Size)
     image.fillStone(tone)
-    image.drawSymbol(sprite, colors, name == "deafen-muted")
+    if sprite.len == 0: image.draw(logo, translate(vec2(15, 9)))
+    else: image.drawSymbol(sprite, colors, name == "deafen-muted")
     image.drawLabel(label, tone.labelColor())
     image.writeFile(Directory / (name & ".png"))
+  for (prefix, sprite) in [("voice", Phone), ("video", Video)]:
+    for (suffix, label, tone) in [("wait", "WAIT", GreyTone),
+        ("ready", "READY", GreenTone), ("unavailable", "N/A", GreyTone)]:
+      let image = newImage(Size, Size)
+      image.fillStone(tone)
+      image.drawSymbol(sprite, if tone == GreenTone: green else: steel)
+      image.drawLabel(label, tone.labelColor())
+      image.writeFile(Directory / (prefix & "-" & suffix & ".png"))
   render(Icon(label: "BACK", tone: GreenTone, sprite: BackSprite,
     colors: palette("#1a1b1d", "#d9dbe0", "#ffffff", "#9a9ca0"))).writeFile(Directory / "back.png")
 

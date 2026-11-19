@@ -6,7 +6,8 @@ const
   DiscordArtworkNames* = ["menu-discord", "back", "system-live", "system-muted",
     "system-mixed", "system-unavailable", "discord-live", "discord-muted",
     "discord-deafened", "discord-unavailable", "deafen-live", "deafen-muted",
-    "deafen-unavailable", "open-idle", "open-running"]
+    "deafen-unavailable", "open-idle", "open-running", "voice-wait", "voice-ready",
+    "voice-unavailable", "video-wait", "video-ready", "video-unavailable"]
 
 proc installDiscordMenu*(source: JsonNode, artwork: Table[string, string]): JsonNode =
   ## Return an owned configuration adding Discord and Help without replacing existing bindings.
@@ -40,6 +41,10 @@ proc installDiscordMenu*(source: JsonNode, artwork: Table[string, string]): Json
     [("deafened", "deafen-muted"), ("unavailable", "deafen-unavailable")]))
   menu["deck"].add(key(5, "Open Discord", "openDiscord", "open-idle",
     [("running", "open-running"), ("ready", "open-running"), ("unavailable", "open-idle")]))
+  menu["deck"].add(key(6, "Answer voice", "discordAcceptVoice", "voice-wait",
+    [("ready", "voice-ready"), ("unavailable", "voice-unavailable")]))
+  menu["deck"].add(key(7, "Answer video", "discordAcceptVideo", "video-wait",
+    [("ready", "video-ready"), ("unavailable", "video-unavailable")]))
   let
     deckEntry = key(3, "Discord", "menu", "menu-discord")
     mixerEntry = %*{"key": 3, "title": "Show buttons", "action": {"kind": "mixerOverlay"}}
@@ -74,3 +79,24 @@ proc refreshDiscordArtwork*(source: JsonNode, artwork: Table[string, string]): J
       for button in menu["deck"]:
         if button["key"] == rootEntry["key"] and button["action"] == rootEntry["action"]:
           button["visual"] = rootEntry["visual"]
+
+proc upgradeDiscordMenu*(source: JsonNode, artwork: Table[string, string]): JsonNode =
+  ## Add missing answer controls and refresh standard faces without replacing occupied slots.
+  result = refreshDiscordArtwork(source, artwork)
+  let templateConfig = installDiscordMenu(%*{"version": 1, "root": "root", "menus": [
+    {"id": "root", "title": "Main", "mixer": [], "deck": []}]}, artwork)
+  for menu in result["menus"]:
+    if menu["id"].getStr() != DiscordMenuId: continue
+    for standard in templateConfig["menus"][1]["deck"]:
+      let number = standard["key"].getInt()
+      if number notin [6, 7]: continue
+      var found = false
+      for index in 0..<menu["deck"].len:
+        let button = menu["deck"][index]
+        if button["key"].getInt() != number: continue
+        found = true
+        if button["action"] == standard["action"]: continue
+        if button["action"]["kind"].getStr() != "none" or button{"visual"} != nil:
+          raise newException(ValueError, "Discord key " & $number & " is occupied; refusing to replace it.")
+        menu["deck"].elems[index] = standard
+      if not found: menu["deck"].add(standard)

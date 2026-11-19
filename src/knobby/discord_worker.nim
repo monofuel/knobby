@@ -39,7 +39,7 @@ const
   CommandMaxAgeMs* = 3000
   RpcTimeoutMs = 2000
   WorkerSleepMs = 20
-  DiscordLaunchCommand* = "Discord"
+  DiscordLaunchCommand* = "Discord --force-renderer-accessibility"
   DiscordWindowClass* = "discord"
   DiscordProcessName = "Discord"
   DiscordWrappedProcessName = ".Discord-wrappe"

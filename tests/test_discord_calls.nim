@@ -251,8 +251,29 @@ suite "Discord call worker":
     check not worker.app.known
     check worker.status.state == CallUnavailable
     bus.failures.del(DialogMatch)
-    worker.step(10_000 + CallPollMs + 20)
+    worker.step(10_000 + CallPollMs + InitialDiscoveryBackoffMs)
     check worker.app.known
+
+  test "persistent scan failures back off rediscovery instead of spinning":
+    let bus = newFakeBus()
+    var worker = newCallWorker(bus.transport(), publishDiscordCallStatus, ignoreLog)
+    worker.step(10_000)
+    bus.failures[DialogMatch] = "too many dialogs"
+    worker.step(10_000 + CallPollMs)
+    let before = bus.calls.len
+    worker.step(10_000 + CallPollMs + 20)
+    check bus.calls.len == before
+    worker.step(10_000 + CallPollMs + InitialDiscoveryBackoffMs)
+    check not worker.app.known
+    check worker.discoveryBackoffMs == InitialDiscoveryBackoffMs * 4
+    let nextAttempt = worker.nextDiscoveryMs
+    let after = bus.calls.len
+    worker.step(nextAttempt - 1)
+    check bus.calls.len == after
+    bus.failures.del(DialogMatch)
+    worker.step(nextAttempt)
+    check worker.app.known
+    check worker.discoveryBackoffMs == InitialDiscoveryBackoffMs
 
   test "slow requests exceed the operation budget":
     let bus = newFakeBus()
@@ -288,6 +309,19 @@ suite "Discord call worker":
     queueDiscordCall(false, bus.nowMs)
     worker.step(bus.nowMs)
     check bus.doActions() == @["call :1.50 /voice org.a11y.atspi.Action DoAction i 1"]
+
+  test "a queued press cannot answer a replacement incoming call":
+    let bus = newFakeBus()
+    bus.addDialog("/dialog", "Incoming Call", @[("/voice", "Join Call")])
+    bus.showDialogs(@["/dialog"])
+    var worker = newCallWorker(bus.transport(), publishDiscordCallStatus, ignoreLog)
+    worker.step(10_000)
+    queueDiscordCall(false, bus.nowMs)
+    bus.addDialog("/replacement", "Incoming Call", @[("/new-voice", "Join Call")])
+    bus.showDialogs(@["/replacement"])
+    worker.step(bus.nowMs)
+    check bus.doActions().len == 0
+    check takeDiscordCalls().len == 0
 
   test "failed action is invoked once and later presses in the batch are discarded":
     let bus = newFakeBus()

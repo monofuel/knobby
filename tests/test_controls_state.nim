@@ -93,6 +93,25 @@ suite "control visual selection":
     check "unavailable" in controlStatusDescription("discordDeafen", unavailableControlStatus())
     check controlStatusDescription("microphones", ready(false, false)) == "All 1 microphones live"
 
+  test "answer visuals distinguish idle, actual incoming modes, and unavailable controls":
+    for action in ["discordAcceptVoice", "discordAcceptVideo"]:
+      check action.isControlAction()
+      check controlVisualState(action, %*{}) == "unavailable"
+      check controlVisualState(action, %*{"calls": {"state": "idle"}}) == ""
+      check controlVisualState(action, %*{"calls": {"state": "idle",
+        "voiceAvailable": true, "videoAvailable": true}}) == ""
+      check controlVisualState(action, %*{"calls": {"state": "unavailable",
+        "voiceAvailable": true, "videoAvailable": true}}) == "unavailable"
+      check "Waiting" in controlStatusDescription(action, %*{"calls": {"state": "idle"}})
+    let incoming = %*{"calls": {"state": "ringing", "voiceAvailable": true, "videoAvailable": false}}
+    check controlVisualState("discordAcceptVoice", incoming) == "ready"
+    check controlVisualState("discordAcceptVideo", incoming) == ""
+    incoming["calls"]["videoAvailable"] = %true
+    check controlVisualState("discordAcceptVideo", incoming) == "ready"
+    let key = %*{"normal": [], "controlAction": "discordAcceptVoice",
+      "states": {"ready": {"normal": [{"path": "answer.jpg"}]}}}
+    check selectKeyVisual(key, %*{"controls": incoming}) == key["states"]["ready"]
+
   test "manifest entries select control and OBS variants through one function":
     let
       indicators = %*{"obs": {"connected": true, "workspaceReady": true, "minecraftReady": true,

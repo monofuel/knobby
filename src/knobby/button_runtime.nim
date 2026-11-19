@@ -371,7 +371,8 @@ proc buttonDescription(button: ConfiguredButton, buttons: ButtonSet): string =
       if binding.action == compiled:
         description = binding.description
     description
-  of DiscordDeafenAction, OpenDiscordAction, MixerOverlayAction:
+  of DiscordDeafenAction, OpenDiscordAction, MixerOverlayAction,
+      DiscordAcceptVoiceAction, DiscordAcceptVideoAction:
     namedActionDescription(button.action.kind)
 
 proc activeMixerCatalog*(): JsonNode =

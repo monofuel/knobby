@@ -46,9 +46,11 @@ type
     error*: string
     observedMs*: int64
     updatedMs*: int64
+    voiceTarget*, videoTarget*: AtspiRef
   QueuedCall* = object
     video*: bool
     queuedMs*: int64
+    target*: AtspiRef
   CallWorker* = object
     transport*: CallTransport
     publish*: proc (status: DiscordCallStatus): int
@@ -72,6 +74,7 @@ const
   MaxQueuedCalls* = 2
   OperationBudgetMs* = 2000
   BusctlTimeoutMs* = 300
+  BusctlExitMarginMs = 25
   InitialDiscoveryBackoffMs* = 1000
   MaxDiscoveryBackoffMs* = 10_000
   MaxCallsPerOperation* = 256
@@ -230,7 +233,7 @@ proc freshStatus(status: DiscordCallStatus, nowMs: int64): DiscordCallStatus =
   if not status.published:
     result = DiscordCallStatus(state: CallUnavailable,
       error: "Discord call status not observed yet")
-  elif nowMs - status.observedMs > CallStaleMs:
+  elif nowMs < status.observedMs or nowMs - status.observedMs > CallStaleMs:
     result.state = CallUnavailable
     result.voiceAvailable = false
     result.videoAvailable = false
@@ -266,7 +269,8 @@ proc queueDiscordCall*(video: bool, nowMs = callClockMs()) {.gcsafe.} =
       if callQueue.len >= MaxQueuedCalls:
         raise newException(DiscordCallQueueError, "Discord " & kind &
           " answer ignored: an earlier answer press is still pending.")
-      callQueue.add(QueuedCall(video: video, queuedMs: nowMs))
+      callQueue.add(QueuedCall(video: video, queuedMs: nowMs,
+        target: if video: status.videoTarget else: status.voiceTarget))
 
 proc takeDiscordCalls*(): seq[QueuedCall] {.gcsafe.} =
   ## Transfer queued answer presses to the worker in press order.
@@ -449,7 +453,9 @@ proc publishStatus(worker: var CallWorker, state: DiscordCallState, error: strin
   ## Publish an observation stamped after the operation that produced it.
   worker.status = DiscordCallStatus(published: true, state: state,
     voiceAvailable: voice, videoAvailable: video, error: error,
-    observedMs: worker.transport.clock(), updatedMs: wallMs())
+    observedMs: worker.transport.clock(), updatedMs: wallMs(),
+    voiceTarget: if voice: worker.scan.voice.target else: AtspiRef(),
+    videoTarget: if video: worker.scan.video.target else: AtspiRef())
   if not worker.publish.isNil:
     let discarded = worker.publish(worker.status)
     if discarded > 0:
@@ -461,10 +467,11 @@ proc publishScan(worker: var CallWorker) =
     worker.scan.voiceFound, worker.scan.videoFound)
 
 proc forgetApp(worker: var CallWorker, reason: string, nowMs: int64) =
-  ## Drop the cached app after a failure and rediscover on the next step.
+  ## Drop the cached app after a failure and rediscover with bounded backoff.
   worker.app = DiscordApp()
   worker.scan = CallScan(state: CallUnavailable, error: reason)
-  worker.nextDiscoveryMs = nowMs
+  worker.nextDiscoveryMs = nowMs + worker.discoveryBackoffMs
+  worker.discoveryBackoffMs = min(worker.discoveryBackoffMs * 2, MaxDiscoveryBackoffMs)
   worker.note("Discord call controls unavailable: " & reason & ".")
   worker.publishStatus(CallUnavailable, reason)
 
@@ -491,7 +498,6 @@ proc discover(worker: var CallWorker, nowMs: int64) =
     worker.note("Discord call controls unavailable: " & failure & ".")
     worker.publishStatus(CallUnavailable, failure)
   else:
-    worker.discoveryBackoffMs = InitialDiscoveryBackoffMs
     worker.nextPollMs = nowMs
     worker.note("Discord accessibility found on " & worker.app.root.bus & " (pid " &
       $worker.app.pid & ").")
@@ -515,6 +521,7 @@ proc poll(worker: var CallWorker, nowMs: int64) =
   if failure.len > 0:
     worker.forgetApp("Discord call scan failed: " & failure, nowMs)
   else:
+    worker.discoveryBackoffMs = InitialDiscoveryBackoffMs
     worker.publishScan()
 
 proc invoke(worker: var CallWorker, press: QueuedCall, nowMs: int64) =
@@ -525,6 +532,7 @@ proc invoke(worker: var CallWorker, press: QueuedCall, nowMs: int64) =
     op = newOperation(worker.transport, worker.app.address)
     target: CallButton
     found = false
+    targetChanged = false
     fresh: CallButton
     index = -1
     failure = ""
@@ -533,15 +541,19 @@ proc invoke(worker: var CallWorker, press: QueuedCall, nowMs: int64) =
     found = if press.video: worker.scan.videoFound else: worker.scan.voiceFound
     if found:
       target = if press.video: worker.scan.video else: worker.scan.voice
-      index = op.pressActionIndex(target.target)
-      fresh = op.readButton(target.target)
+      targetChanged = press.target.bus.len > 0 and target.target != press.target
+      if not targetChanged:
+        index = op.pressActionIndex(target.target)
+        fresh = op.readButton(target.target)
   except CatchableError as error:
     failure = error.msg
   if failure.len > 0:
     worker.forgetApp("Discord " & kind & " answer not attempted: " & failure, nowMs)
   else:
     worker.publishScan()
-    if not found:
+    if targetChanged:
+      worker.note("Discord " & kind & " answer ignored: the incoming answer control changed after the press.")
+    elif not found:
       let reason = if worker.scan.error.len > 0: worker.scan.error
         elif worker.scan.state == CallRinging: "no " & kind & " answer button"
         else: "no incoming call"
@@ -599,7 +611,7 @@ proc shutdown*(worker: var CallWorker) =
 proc busctlCall(address: string, args: seq[string], timeoutMs: int): JsonNode =
   ## Run busctl against the accessibility bus with a bounded method-call timeout.
   let output = runAudioCommand("busctl", @["--address=" & address,
-    "--timeout=" & $timeoutMs & "ms", "--json=short"] & args)
+    "--timeout=" & $max(1, timeoutMs - BusctlExitMarginMs) & "ms", "--json=short"] & args, timeoutMs)
   if output.len > MaxReplyBytes:
     raise newException(IOError, "AT-SPI reply exceeded " & $MaxReplyBytes & " bytes")
   parseJson(output)
@@ -609,7 +621,8 @@ proc resolveAtspiAddress(): string =
   result = getEnv("AT_SPI_BUS_ADDRESS")
   if result.len == 0:
     let output = runAudioCommand("busctl", @["--user", "--timeout=" & $BusctlTimeoutMs & "ms",
-      "--json=short", "call", "org.a11y.Bus", "/org/a11y/bus", "org.a11y.Bus", "GetAddress"])
+      "--json=short", "call", "org.a11y.Bus", "/org/a11y/bus", "org.a11y.Bus", "GetAddress"],
+      BusctlTimeoutMs)
     let value = parseJson(output).firstArg()
     if value.kind != JString or value.getStr().len == 0:
       raise newException(IOError, "Accessibility bus address unavailable")

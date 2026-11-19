@@ -1,7 +1,7 @@
 import
   std/[atomics, json, locks, os, strutils],
   ./[actions, audio_status, bindings, button_config, button_media, button_runtime,
-    common, controls_state, discord_worker, fader_cache, ipc, midi_events, obs_state, obs_worker,
+    common, controls_state, discord_calls, discord_worker, fader_cache, ipc, midi_events, obs_state, obs_worker,
     razer_lighting, runtime, status, stream_deck]
 
 from ./stream_deck_player import runConfiguredSession
@@ -281,6 +281,7 @@ proc startDeviceWorkers*() =
   initializeState($getCurrentProcessId() & "-" & $nowMs(), saved)
   startObsWorker()
   startDiscordWorker()
+  startDiscordCallsWorker()
   pending = emptyActions()
   persistenceStopping.store(false)
   createThread(actionThread, runActions)
@@ -302,4 +303,5 @@ proc stopDeviceWorkers*() =
   joinThread(persistenceThread)
   stopObsWorker()
   stopDiscordWorker()
+  stopDiscordCallsWorker()
   stopButtonWorker()

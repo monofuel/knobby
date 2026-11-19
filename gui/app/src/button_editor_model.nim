@@ -35,7 +35,7 @@ const
   BackKey* = 1
   ActionLabels*: array[ConfigActionKind, string] = ["None", "Command", "Grok",
     "Claude", "FFXIV", "Microphones", "Discord mute", "Open menu", "Back", "Home", "OBS",
-    "Discord deafen", "Open Discord", "Mixer overlay"]
+    "Discord deafen", "Open Discord", "Mixer overlay", "Answer voice", "Answer video"]
   TargetLabels*: array[ButtonTarget, string] = ["Mixer", "Deck", "Both"]
   DeviceLabels*: array[ButtonDevice, string] = ["Arduino mixer", "Stream Deck"]
   StaleCode* = "stale"
@@ -130,6 +130,7 @@ proc controlStates*(kind: string): seq[string] =
   of "discord": @["muted", "deafened", "unavailable"]
   of "discordDeafen": @["deafened", "unavailable"]
   of "openDiscord": @["running", "ready"]
+  of "discordAcceptVoice", "discordAcceptVideo": @["ready", "unavailable"]
   else: @[]
 
 proc entryStates*(entry: JsonNode): seq[string] =

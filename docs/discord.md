@@ -10,6 +10,8 @@ current assignments while you navigate this Deck submenu.
 | 3 | Discord Mic | Toggle Discord's own self-mute. |
 | 4 | Deafen | Toggle Discord's own deafen state. |
 | 5 | Open Discord | Focus Discord, or launch it when closed. |
+| 6 | Answer voice | Answer a currently incoming call using its voice answer control. |
+| 7 | Answer video | Answer a currently incoming call using its video answer control. |
 
 System mic mute affects applications using those microphones. Discord mic mute
 affects Discord only. OBS Commentary remains a separate recording control in
@@ -17,9 +19,10 @@ the OBS submenu. Duplicate MIDI and Deck buttons use the same actions.
 
 The icons show observations rather than guessing from the last press: green
 **LIVE**, red **MUTED** or **DEAF**, amber **MIXED** when microphone inputs
-disagree, and grey **N/A** when state cannot be established. A teal **SYSTEM**
-header and a purple **DISCORD** header distinguish the microphone controls,
-including when both are muted. Open Discord shows grey
+disagree, and grey **N/A** when state cannot be established. A large silver
+**gear** identifies system microphone controls; Discord's official blurple
+**Clyde logo** identifies Discord controls. There are no source-word headers.
+Open Discord shows grey
 **OPEN** when closed and green **READY** when running; it does not imply RPC
 authorization succeeded.
 
@@ -28,6 +31,36 @@ Discord status uses the existing local RPC authorization described in
 checks for changes made inside Discord too. Closing Discord or losing its RPC
 connection does not interrupt the faders, OBS controls, or other devices.
 No microphone or deafen button automatically launches Discord.
+
+## Answering incoming calls
+
+Keys 6 and 7 use Discord's Linux accessibility interface (AT-SPI), because its
+documented local RPC does not provide separate incoming voice/video answer
+commands. The phone and camera symbols show grey **WAIT** while idle, green
+**READY** when that specific incoming answer control is available, or **N/A**
+if the desktop controls cannot be read. A voice-only incoming call may offer
+only the voice answer option. Neither key starts an outgoing call or launches
+Discord. Video answer uses Discord's own video-answer control; it does not
+toggle a camera in an existing call.
+
+The session accessibility bridge must be enabled and Discord must expose its
+renderer accessibility tree. On high-steel it was enabled before restarting
+Discord with `--force-renderer-accessibility`; Knobby's Open Discord action
+includes that flag for future launches. No screen reader is started.
+Other launchers may need the same flag and a normal Discord reopen if the keys
+show N/A. The bridge can be checked with:
+
+```sh
+busctl --user get-property org.a11y.Bus /org/a11y/bus org.a11y.Status IsEnabled
+```
+
+The worker matches visible incoming-call dialogs and exact answer captions,
+rechecks a target before pressing it, and never retries an uncertain answer.
+Missing, translated, or ambiguous controls fail without clicking another UI
+element. English Discord captions are currently supported. It runs separately
+from the fader and mute workers. Closing/reopening Discord is rediscovered.
+Automated tests use injected accessibility fixtures and never place or accept
+real calls; actual incoming voice/video acceptance still needs human use.
 
 ## MIDI button legend
 
@@ -69,5 +102,10 @@ either device. Use the editor or export/edit/apply to change an existing setup.
 Other bindings, OBS menus, faders, and unfinished editor drafts are preserved.
 Use `--refresh-art` instead of `--apply` to update the standard key faces in an
 existing Discord menu while retaining titles and bindings.
-Artwork is original, generated alongside the OBS icons by
-`gui/app/tools/generate_obs_icons.nim`.
+Use `--upgrade` to add the answer controls to unused Discord keys 6 and 7 and
+refresh standard faces; occupied custom keys are refused before applying any
+configuration. Applying is revision checked and keeps the last valid config.
+Artwork is generated alongside the OBS icons by
+`gui/app/tools/generate_obs_icons.nim`. The Discord mark comes from
+[Discord's official branding](../assets/branding/README.md); the surrounding
+pixel frames, gear, phone, and camera are Knobby artwork.

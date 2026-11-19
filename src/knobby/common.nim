@@ -59,7 +59,7 @@ proc spawnAudioCommand(command: string, args: seq[string]): Process =
       result.close()
       raise
 
-proc runAudioCommand*(command: string, args: seq[string]): string =
+proc runAudioCommand*(command: string, args: seq[string], timeoutMs = AudioCommandTimeoutMs): string =
   ## Capture bounded stdout/stderr without holding other workers behind process I/O.
   let
     process = spawnAudioCommand(command, args)
@@ -89,13 +89,13 @@ proc runAudioCommand*(command: string, args: seq[string]): string =
         ended[pipe] = true
       elif errno != EAGAIN and errno != EINTR:
         raiseOSError(osLastError())
-    if (getMonoTime() - started).inMilliseconds >= AudioCommandTimeoutMs:
+    if (getMonoTime() - started).inMilliseconds >= timeoutMs:
       raise newException(OSError, command & " " & args.join(" ") &
-        ": timed out after " & $AudioCommandTimeoutMs & " ms.")
+        ": timed out after " & $timeoutMs & " ms.")
     if not received and not (ended[0] and ended[1]):
       sleep(AudioCommandPollMs)
   while running(process):
-    if (getMonoTime() - started).inMilliseconds >= AudioCommandTimeoutMs:
+    if (getMonoTime() - started).inMilliseconds >= timeoutMs:
       raise newException(OSError, command & " " & args.join(" ") & ": timed out.")
     sleep(AudioCommandPollMs)
   let exitCode = waitForExit(process)

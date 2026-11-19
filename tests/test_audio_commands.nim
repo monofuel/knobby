@@ -27,6 +27,12 @@ proc parallelCommandLatency(): int64 =
   if output != "ready\n": raise newException(IOError, "Parallel command fixture did not answer.")
 
 suite "bounded audio commands":
+  test "caller deadlines terminate a stuck helper before the default timeout":
+    let started = getMonoTime()
+    expect OSError:
+      discard runAudioCommand("/bin/sh", @["-c", "while :; do :; done"], 50)
+    check (getMonoTime() - started).inMilliseconds < 700
+
   test "a waiting desktop helper cannot hold the audio subprocess lock":
     check parallelCommandLatency() < ParallelCommandLimitMs
 

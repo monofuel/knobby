@@ -279,10 +279,14 @@ suite "Button configuration":
     check parsed.menus[1].deck[3].action.kind == OpenDiscordAction
     check parsed.menus[1].deck[4].action.kind == MixerOverlayAction
     check parsed.menus[1].deck[5].action.kind == DiscordAction
-    for kind in [DiscordDeafenAction, OpenDiscordAction, MixerOverlayAction]:
+    for kind in [DiscordDeafenAction, OpenDiscordAction, MixerOverlayAction,
+        DiscordAcceptVoiceAction, DiscordAcceptVideoAction]:
       check kind in NamedActionKinds
       check isQueuedAction(kind)
       check namedActionDescription(kind).len > 0
+      let answered = baseConfig()
+      answered["menus"][1]["deck"] = %*[{"key": 6, "title": "Answer", "action": {"kind": $kind}}]
+      check parseButtonSet(answered).menus[1].deck[5].action.kind == kind
     config["menus"][1]["deck"] = %*[{"key": 2, "title": "x",
       "action": {"kind": "openDiscord", "command": "Discord"}}]
     check rejectedField(config) == "menus[1].deck[0].action.command"
