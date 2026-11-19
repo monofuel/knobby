@@ -37,7 +37,7 @@ The WoW dashboard is distinct from the autoresearch dashboard on port 8103.
 the current directory:
 
 ```sh
-nix develop /home/monofuel/src/wow-coworld/wow-shadow-army --command /home/monofuel/src/wow-coworld/tools/private_realm.sh start
+cd /home/monofuel/src/wow-coworld && nix develop /home/monofuel/src/wow-coworld/wow-shadow-army --command bash /home/monofuel/src/wow-coworld/tools/private_realm.sh start
 ```
 
 It reuses the existing world and database and reports when the server is

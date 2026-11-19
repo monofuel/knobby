@@ -31,7 +31,7 @@ or paused, grey closed or unavailable. Action faces are unchanged.
 | Softmax | 5 PRISM, 6 WOW VANILLA, 7 WOW NIM, 8 DISCORD (foreground the app), 9 SLACK, 10 LAB (autoresearch, port 8103), 11 PROD, 12 STAGE, 13 NEXT (staging game list), 14 REALM (WoW dashboard, port 7777), 15 START (Start WoW Server) |
 
 Softmax key 15 runs exactly
-`nix develop /home/monofuel/src/wow-coworld/wow-shadow-army --command /home/monofuel/src/wow-coworld/tools/private_realm.sh start`.
+`cd /home/monofuel/src/wow-coworld && nix develop /home/monofuel/src/wow-coworld/wow-shadow-army --command bash /home/monofuel/src/wow-coworld/tools/private_realm.sh start`.
 It starts the existing persistent private world, or reports that it is already
 running. See [the Softmax guide](work.md).
 

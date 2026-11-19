@@ -97,8 +97,8 @@ suite "Work submenu installation":
     check command(updated, 12) == "xdg-open http://127.0.0.1:7777/"
     check command(updated, 12) != command(updated, 7)
     check buttonAt(updated, WorkMenuId, "deck", 11)["title"].getStr() == "Start WoW Server"
-    check command(updated, 11) == "nix develop " & WowDirectory &
-      " --command /home/monofuel/src/wow-coworld/tools/private_realm.sh start"
+    check command(updated, 11) == "cd /home/monofuel/src/wow-coworld && nix develop " & WowDirectory &
+      " --command bash /home/monofuel/src/wow-coworld/tools/private_realm.sh start"
 
   test "every referenced artwork file exists in the repository":
     check workArtworkNames(targets()).len == 13

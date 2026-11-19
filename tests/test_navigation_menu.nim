@@ -5,8 +5,9 @@ import
 const
   TargetsFile = currentSourcePath().parentDir().parentDir() / "docs/work-menu-targets.json"
   AssetsDirectory = currentSourcePath().parentDir().parentDir() / "assets"
-  StartCommand = "nix develop /home/monofuel/src/wow-coworld/wow-shadow-army --command " &
-    "/home/monofuel/src/wow-coworld/tools/private_realm.sh start"
+  StartCommand = "cd /home/monofuel/src/wow-coworld && " &
+    "nix develop /home/monofuel/src/wow-coworld/wow-shadow-army --command " &
+    "bash /home/monofuel/src/wow-coworld/tools/private_realm.sh start"
   KnownMenus = ["root", "obs", "discord", "work"]
   ObsTitles = ["Record", "Pause", "Commentary", "Open OBS", "Minecraft 1080p"]
   DiscordTitles = ["System Mic", "Discord Mic", "Deafen", "Open Discord", "Answer voice", "Answer video"]
@@ -216,6 +217,49 @@ suite "Shared navigation prefix":
     check entry(updated, "root", 1)["title"].getStr() == "Home"
     check migrate(updated) == updated
 
+  test "custom image-only controls survive and an organized Start is moved to its reserved slot":
+    let source = liveLikeConfig()
+    entry(source, "root", 1)["title"] = %"Status image"
+    entry(source, "root", 1)["visual"] = %*{"image": "assets/status.png", "showTitle": false}
+    let updated = migrate(source)
+    let imageOnly = parseJson($entry(source, "root", 1))
+    imageOnly["key"] = %5
+    check entry(updated, "root", 5) == imageOnly
+    let organized = migrate(liveLikeConfig())
+    var kept = newJArray()
+    for button in storedMenu(organized, "work")["deck"]:
+      if button["key"].getInt() notin [14, 15]: kept.add(button)
+    let start = parseJson($entry(organized, "work", 15))
+    start["key"] = %14
+    kept.add(start)
+    storedMenu(organized, "work")["deck"] = kept
+    let restored = migrate(organized)
+    check entry(restored, "work", 14).isNil
+    let relocated = parseJson($start)
+    relocated["key"] = %15
+    check entry(restored, "work", 15) == relocated
+    check migrate(restored) == restored
+
+  test "the reserved Start slot refuses foreign commands and decorative controls without losing them":
+    for control in [
+        %*{"key": 15, "title": "Mine", "action": {"kind": "command", "command": "echo mine"}},
+        %*{"key": 15, "title": "Image", "action": {"kind": "none"},
+          "visual": {"image": "assets/image.png"}},
+        %*{"key": 15, "title": "States", "action": {"kind": "none"},
+          "visual": {"states": {"ready": "assets/ready.png"}}}]:
+      let source = migrate(liveLikeConfig())
+      var kept = newJArray()
+      for button in storedMenu(source, "work")["deck"]:
+        if button["key"].getInt() notin [14, 15]: kept.add(button)
+      let start = parseJson($entry(source, "work", 15))
+      start["key"] = %14
+      kept.add(start)
+      kept.add(control)
+      storedMenu(source, "work")["deck"] = kept
+      let original = $source
+      expect ValueError: discard migrate(source)
+      check $source == original
+
   test "links to other menus or devices stay as actions":
     let source = liveLikeConfig()
     storedMenu(source, "discord")["deck"].add(%*{"key": 12, "title": "OBS both",
@@ -227,6 +271,18 @@ suite "Shared navigation prefix":
     check entry(updated, "discord", 11)["title"].getStr() == "OBS both"
     check entry(updated, "obs", 10)["title"].getStr() == "Games"
     check entry(updated, "work", 15)["action"] == startServerAction()
+
+  test "a differently configured Start control is refused even when both would fit":
+    let source = liveLikeConfig()
+    var kept = newJArray()
+    for button in storedMenu(source, "work")["deck"]:
+      if button["key"].getInt() != 12: kept.add(button)
+    kept.add(%*{"key": 11, "title": StartServerTitle,
+      "action": {"kind": "command", "command": "make start-server"}})
+    storedMenu(source, "work")["deck"] = kept
+    let original = $source
+    expect ValueError: discard migrate(source)
+    check $source == original
 
   test "overflow, missing menus, ambiguous Start, foreign key 15, and unverified seeds are refused unchanged":
     var cases: seq[JsonNode]

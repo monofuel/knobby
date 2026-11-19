@@ -16,8 +16,9 @@ const
   StartServerKey* = 15
   StartServerTitle* = "Start WoW Server"
   StartServerArt* = "work/wow-server"
-  StartServerCommand* = "nix develop /home/monofuel/src/wow-coworld/wow-shadow-army --command " &
-    "/home/monofuel/src/wow-coworld/tools/private_realm.sh start"
+  StartServerCommand* = "cd /home/monofuel/src/wow-coworld && " &
+    "nix develop /home/monofuel/src/wow-coworld/wow-shadow-army --command " &
+    "bash /home/monofuel/src/wow-coworld/tools/private_realm.sh start"
 
 proc navigationArtworkNames*(): seq[string] =
   ## Return every artwork name the navigation prefix and the Start WoW Server key use.
@@ -62,8 +63,9 @@ proc isNavigation(action, rootId: JsonNode): bool =
     if action == menuLink(menu): result = true
 
 proc isPlaceholder(entry: JsonNode): bool =
-  ## Recognize an unassigned key that may be dropped where something else lands.
-  entry{"action"}{"kind"}.getStr() == "none"
+  ## Recognize an unassigned placeholder, keeping custom image-only buttons as controls.
+  entry{"action"}{"kind"}.getStr() == "none" and
+    entry{"visual"}{"image"}.isNil and entry{"visual"}{"states"}.isNil
 
 proc findMenu(config: JsonNode, id: string): JsonNode =
   ## Return a configured menu by id, refusing to proceed when it is missing.
@@ -85,6 +87,10 @@ proc organizeDeck(menu: JsonNode, rootId: JsonNode, isRoot, isWork: bool,
   let id = menu["id"].getStr()
   var actions, placeholders, starts: seq[JsonNode]
   for entry in menu["deck"]:
+    if isWork and entry{"title"}.getStr() == StartServerTitle and
+        entry["action"] != startServerAction():
+      raise newException(ValueError, "The existing " & StartServerTitle &
+        " key does not use the verified helper; refusing an ambiguous start binding.")
     if isNavigation(entry["action"], rootId): continue
     if entry.isPlaceholder(): placeholders.add(entry)
     elif isWork and entry["action"] == startServerAction(): starts.add(entry)
@@ -97,12 +103,13 @@ proc organizeDeck(menu: JsonNode, rootId: JsonNode, isRoot, isWork: bool,
   for entry in actions & starts:
     if entry["key"].getInt() < FirstActionKey: organized = false
   if organized:
-    if isWork and starts.len == 0:
+    if isWork:
       for entry in actions:
         if entry["key"].getInt() == StartServerKey:
           raise newException(ValueError, "The " & id & " menu Deck key " & $StartServerKey &
             " already has a different action; refusing to place " & StartServerTitle & ".")
-      starts.add(startEntry(startTarget, artwork))
+      if starts.len == 0: starts.add(startEntry(startTarget, artwork))
+      starts[0]["key"] = %StartServerKey
   else:
     let lastKey = if isWork: StartServerKey - 1 else: LastDeckKey
     if actions.len > lastKey - FirstActionKey + 1:
