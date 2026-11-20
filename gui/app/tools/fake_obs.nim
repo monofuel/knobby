@@ -15,6 +15,12 @@ const
   SuccessCode = 100
 
 type
+  FakeCollection* = object
+    ## Scenes, inputs, and program scene stored by one fake scene collection.
+    scenes*: seq[string]
+    inputs*: seq[tuple[name, kind: string]]
+    programScene*: string
+
   FakeOverride* = proc (socket: WebSocket, requestType, requestId: string,
     data: JsonNode): Future[bool] {.gcsafe.}
 
@@ -31,9 +37,11 @@ type
     hangupOn*: seq[string]
     override*: FakeOverride
     profile*, collection*, programScene*: string
+    profiles*, collections*: seq[string]
+    stored*: Table[string, FakeCollection]
     scenes*: seq[string]
     inputs*: seq[tuple[name, kind: string]]
-    recording*, paused*, streaming*, micMuted*: bool
+    recording*, paused*, streaming*, reconnecting*, micMuted*: bool
     settings*: Table[string, JsonNode]
     items*: Table[string, JsonNode]
     stopped: bool
@@ -101,10 +109,10 @@ proc handleRequest(fake: FakeObs, socket: WebSocket, requestType,
   of "GetVersion":
     ok(%*{"obsVersion": "32.1.2", "obsWebSocketVersion": "5.7.3", "rpcVersion": 1})
   of "GetProfileList":
-    ok(%*{"currentProfileName": fake.profile, "profiles": [fake.profile]})
+    ok(%*{"currentProfileName": fake.profile, "profiles": fake.profiles})
   of "GetSceneCollectionList":
     ok(%*{"currentSceneCollectionName": fake.collection,
-      "sceneCollections": [fake.collection]})
+      "sceneCollections": fake.collections})
   of "GetSceneList":
     var scenes = newJArray()
     for scene in fake.scenes:
@@ -114,14 +122,41 @@ proc handleRequest(fake: FakeObs, socket: WebSocket, requestType,
     ok(%*{"currentProgramSceneName": fake.programScene,
       "sceneName": fake.programScene})
   of "SetCurrentProgramScene":
-    fake.programScene = data{"sceneName"}.getStr()
-    ok()
+    if data{"sceneName"}.getStr() notin fake.scenes:
+      fail(ResourceNotFoundCode, "No scene was found.")
+    else:
+      fake.programScene = data{"sceneName"}.getStr()
+      ok()
+      await fake.broadcast("CurrentProgramSceneChanged", %*{"sceneName": fake.programScene})
   of "SetCurrentProfile":
-    fake.profile = data{"profileName"}.getStr()
-    ok()
+    let profile = data{"profileName"}.getStr()
+    if profile notin fake.profiles:
+      fail(ResourceNotFoundCode, "No profile was found.")
+    else:
+      await fake.broadcast("CurrentProfileChanging", %*{"profileName": fake.profile})
+      fake.profile = profile
+      ok()
+      await fake.broadcast("CurrentProfileChanged", %*{"profileName": profile})
   of "SetCurrentSceneCollection":
-    fake.collection = data{"sceneCollectionName"}.getStr()
-    ok()
+    let collection = data{"sceneCollectionName"}.getStr()
+    if collection notin fake.collections:
+      fail(ResourceNotFoundCode, "No scene collection was found.")
+    else:
+      await fake.broadcast("CurrentSceneCollectionChanging",
+        %*{"sceneCollectionName": fake.collection})
+      let previous = FakeCollection(scenes: fake.scenes, inputs: fake.inputs,
+        programScene: fake.programScene)
+      # Unstored collections keep the current content, matching tests that edit fields directly.
+      if collection in fake.stored:
+        let next = fake.stored[collection]
+        fake.scenes = next.scenes
+        fake.inputs = next.inputs
+        fake.programScene = next.programScene
+      fake.stored[fake.collection] = previous
+      fake.collection = collection
+      ok()
+      await fake.broadcast("CurrentSceneCollectionChanged",
+        %*{"sceneCollectionName": collection})
   of "GetInputList":
     var inputs = newJArray()
     for input in fake.inputs:
@@ -130,7 +165,7 @@ proc handleRequest(fake: FakeObs, socket: WebSocket, requestType,
   of "GetRecordStatus":
     ok(%*{"outputActive": fake.recording, "outputPaused": fake.paused})
   of "GetStreamStatus":
-    ok(%*{"outputActive": fake.streaming})
+    ok(%*{"outputActive": fake.streaming, "outputReconnecting": fake.reconnecting})
   of "GetInputMute":
     if fake.hasInput(inputName):
       ok(%*{"inputMuted": fake.micMuted})
@@ -246,12 +281,15 @@ proc acceptLoop(fake: FakeObs) {.async.} =
       await sleepAsync(AcceptPauseMs)
 
 proc newFakeObs*(password = ""): FakeObs =
-  ## Start a fake OBS 5 server on a free loopback port with a ready Minecraft workspace.
+  ## Start a fake OBS 5 server on a free loopback port with a ready Minecraft workspace
+  ## and a stored, complete Firefox Demos profile and scene collection.
   result = FakeObs(
     password: password,
     server: newAsyncHttpServer(),
     profile: "Minecraft AI Demos",
     collection: "Minecraft AI Demos",
+    profiles: @["Minecraft AI Demos", "Firefox Demos", "Untitled"],
+    collections: @["Minecraft AI Demos", "Firefox Demos", "Untitled"],
     programScene: "Minecraft",
     scenes: @["Minecraft"],
     inputs: @[("Minecraft Video", "xcomposite_input"),
@@ -259,6 +297,12 @@ proc newFakeObs*(password = ""): FakeObs =
       ("Commentary", "pulse_input_capture")],
     micMuted: true
   )
+  result.stored["Firefox Demos"] = FakeCollection(scenes: @["Firefox"],
+    inputs: @[("Firefox Video", "xcomposite_input"),
+      ("Firefox Audio", "pipewire_audio_application_capture"),
+      ("Commentary", "pulse_input_capture")],
+    programScene: "Firefox")
+  result.stored["Untitled"] = FakeCollection(scenes: @["Scene"], programScene: "Scene")
   result.server.listen(Port(0), "127.0.0.1")
   result.port = result.server.getPort().int
   asyncCheck result.acceptLoop()

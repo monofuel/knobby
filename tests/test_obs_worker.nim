@@ -94,6 +94,22 @@ sleep 3
     check not readObsStatus()["connected"].getBool()
     check readFaderPositions() == [47, 127, 127, 127]
 
+  test "setup selection needs a live connection while the Firefox launcher does not":
+    let f = fixture("""
+IFS= read -r line
+printf '%s\n' "$line" >> @EVENTS@
+sleep 3
+""")
+    startObsWorker(f.helper)
+    defer:
+      stopObsWorker()
+      removeDir(f.directory)
+    for operation in ["selectMinecraft", "selectFirefox"]:
+      expect IOError: discard queueObsOperation(operation)
+    discard queueObsOperation("firefox1080")
+    awaitCondition(proc (): bool = lineCount(f.directory / "events") == 1)
+    check "firefox1080" in readFile(f.directory / "events")
+
   test "a stalled helper becomes unavailable without claiming recording stopped":
     let f = fixture("""
 printf '%s\n' @READY@

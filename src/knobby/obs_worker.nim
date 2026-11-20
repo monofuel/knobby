@@ -32,13 +32,13 @@ proc queueObsOperation*(operation: string): string {.gcsafe.} =
   if not isObsOperation(operation):
     raise newException(ValueError, "Unknown OBS operation: " & operation)
   let state = readObsStatus()
-  if operation notin ["open", "minecraft1080"] and not state{"connected"}.getBool():
+  if operation notin ObsLocalOperations and not state{"connected"}.getBool():
     raise newException(IOError, "OBS is unavailable; use Open OBS first.")
   {.cast(gcsafe).}:
     withLock queueLock:
       if not workerRunning or stopping.load():
         raise newException(IOError, "OBS control is not running.")
-      if operation notin ["open", "minecraft1080"] and not helperReady:
+      if operation notin ObsLocalOperations and not helperReady:
         raise newException(IOError, "OBS control is reconnecting; press again when ready.")
       if commands.len >= MaxObsCommands:
         raise newException(IOError, "OBS command queue is full.")

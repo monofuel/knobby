@@ -1,11 +1,18 @@
 import
-  std/[json, os, osproc, streams, strtabs, strutils, tables, tempfiles],
+  std/[asyncdispatch, json, os, osproc, streams, strtabs, strutils, tables, tempfiles],
+  ws,
   obs_client, obs_workspace, obs_targets, minecraft_window, ./fake_obs
 
 const
   MinecraftWindow = "4194307\r\nMinecraft* 1.21.4 - Singleplayer\r\nMinecraft* 1.21.4"
   WikiWindow = "62914561\r\nMinecraft Wiki - Mozilla Firefox\r\nfirefox"
   TerminalWindow = "71303169\r\nfish\r\nAlacritty"
+  FirefoxDemoWindow = "83886081\r\nDemo page - Mozilla Firefox\r\nknobby-firefox-demos"
+  RetitledDemoWindow = "83886081\r\nAnother page - Mozilla Firefox\r\nknobby-firefox-demos"
+  OtherDemoWindow = "92274689\r\nDemo page - Mozilla Firefox\r\nknobby-firefox-demos"
+  FirefoxAudioLabel = "knobby-firefox"
+  FirefoxProfile = "Firefox Demos"
+  FirefoxIsolationFailure = "Audio label knobby-firefox also captures Firefox (PID 77) outside the Firefox demo."
   MinecraftApp = "Minecraft* 1.21.4"
   MinecraftAudioLabel = "knobby-minecraft-audio"
   JavaApp = "java"
@@ -32,6 +39,10 @@ type
     port: int
     videoTarget, audioTarget: string
     videoError, audioError: string
+    firefoxRunning, firefoxSized: bool
+    firefoxLaunches, firefoxResizes: int
+    firefoxVideo, firefoxVideoError, firefoxAudioError: string
+    firefoxPending: bool
 
 proc windowItems(values: varargs[string]): JsonNode =
   ## Build xcomposite capture_window property items.
@@ -53,7 +64,7 @@ proc newHarness(minecraft = true, port = 0, targets = false, present = false): H
   ## OBS and a 1920x1080 Minecraft window are observed from the first status.
   let harness = Harness(fake: newFakeObs("pw"), videoTarget: MinecraftWindow,
     audioTarget: MinecraftAudioLabel, running: present,
-    minecraftRunning: present, minecraftSized: present)
+    minecraftRunning: present, minecraftSized: present, firefoxVideo: FirefoxDemoWindow)
   harness.port = if port == 0: harness.fake.port else: port
   harness.fake.settings["Minecraft Video"] = %*{"capture_window": TerminalWindow}
   harness.fake.settings["Minecraft Audio"] = %*{"TargetName": JavaApp}
@@ -80,6 +91,21 @@ proc newHarness(minecraft = true, port = 0, targets = false, present = false): H
   hooks.resizeMinecraft = proc () {.gcsafe.} =
     inc harness.resizes
     harness.minecraftSized = true
+  hooks.firefoxState = proc (): tuple[running, sized: bool] {.gcsafe.} =
+    (harness.firefoxRunning, harness.firefoxSized)
+  hooks.launchFirefox = proc () {.gcsafe.} =
+    inc harness.firefoxLaunches
+  hooks.resizeFirefox = proc () {.gcsafe.} =
+    inc harness.firefoxResizes
+    harness.firefoxSized = true
+  hooks.firefoxVideoTarget = proc (): string {.gcsafe.} =
+    if harness.firefoxVideoError.len > 0:
+      raise newException(ObsError, harness.firefoxVideoError)
+    harness.firefoxVideo
+  hooks.firefoxAudioTarget = proc (): tuple[target: string, pending: bool] {.gcsafe.} =
+    if harness.firefoxAudioError.len > 0:
+      raise newException(ObsError, harness.firefoxAudioError)
+    (FirefoxAudioLabel, harness.firefoxPending)
   hooks.emit = proc (line: JsonNode) {.gcsafe.} =
     harness.lines.add(line)
   hooks.log = proc (message: string) {.gcsafe.} =
@@ -99,9 +125,12 @@ proc newHarness(minecraft = true, port = 0, targets = false, present = false): H
 
 proc close(harness: Harness) =
   ## Stop the bridge and fake server.
+  ## Driving the dispatcher while a failed assertion unwinds loses that failure,
+  ## so the final drain runs only on success.
   harness.bridge.stop()
   harness.fake.stop()
-  pumpFor(50)
+  if getCurrentException() == nil:
+    pumpFor(50)
 
 proc resultFor(harness: Harness, id: int): JsonNode =
   ## Wait for the result line of one command.
@@ -192,7 +221,9 @@ proc testMinecraftAbsent() =
     status.connected and status.workspaceReady)
   pumpFor(100)
   doAssert not harness.bridge.status.minecraftReady
-  doAssert harness.fake.count("SetInputSettings") == 0
+  doAssert harness.fake.settings["Minecraft Video"]["capture_window"].getStr() == TerminalWindow
+  doAssert harness.fake.settings["Minecraft Audio"]["TargetName"].getStr() == "",
+    "unproven audio selects nothing rather than every Java program"
   let start = harness.command(1, "recordToggle")
   doAssert not start["ok"].getBool()
   doAssert "Minecraft is not running" in start["error"].getStr()
@@ -569,6 +600,243 @@ proc testAudioCleanupWithEmptyTarget() =
   doAssert harness.fake.count("SetInputSettings") == writes,
     "clean settings are not rewritten on every resync"
 
+
+proc mutations(harness: Harness): int =
+  ## Count requests that change OBS setup, outputs, mute, or capture settings.
+  for request in ["SetCurrentProfile", "SetCurrentSceneCollection", "SetCurrentProgramScene",
+      "StartRecord", "StopRecord", "PauseRecord", "ResumeRecord", "SetInputMute",
+      "SetInputSettings", "CreateProfile", "CreateSceneCollection"]:
+    result += harness.fake.count(request)
+
+proc firefoxReady(harness: Harness): bool =
+  ## Wait for the Firefox Demos pair to be recognized and captured.
+  harness.waitStatus(proc (status: ObsStatus): bool =
+    status.connected and status.activeProject == "firefox" and status.workspaceReady and
+      status.captureReady and not status.minecraftReady)
+
+proc testSwitchPairsBetweenRecordings() =
+  ## Switch to Firefox Demos and back, recording each setup only through its own pair.
+  let harness = newHarness(targets = true)
+  defer: harness.close()
+  doAssert harness.ready()
+  doAssert harness.bridge.status.activeProject == "minecraft"
+  doAssert harness.bridge.status.captureReady
+  doAssert harness.command(1, "selectFirefox")["ok"].getBool()
+  doAssert harness.fake.profile == FirefoxProfile
+  doAssert harness.fake.collection == FirefoxProfile
+  doAssert harness.fake.programScene == "Firefox"
+  doAssert harness.firefoxReady()
+  doAssert harness.fake.settings["Firefox Video"]["capture_window"].getStr() == FirefoxDemoWindow
+  let audio = harness.fake.settings["Firefox Audio"]
+  doAssert audio["TargetName"].getStr() == FirefoxAudioLabel
+  doAssert audio["CaptureMode"].getInt() == 0 and not audio["ExceptApp"].getBool()
+  doAssert audio["MatchPriorty"].getInt() == 1
+  let statusLine = harness.statusLines()[^1]
+  doAssert statusLine["activeProject"].getStr() == "firefox"
+  doAssert statusLine["profile"].getStr() == FirefoxProfile
+  doAssert not statusLine["minecraftReady"].getBool()
+  doAssert harness.command(2, "recordToggle")["ok"].getBool()
+  doAssert harness.waitStatus(proc (status: ObsStatus): bool =
+    status.recording and not status.transitioning)
+  let before = harness.mutations()
+  for (id, operation) in [(3, "selectMinecraft"), (4, "selectFirefox")]:
+    let refused = harness.command(id, operation)
+    if operation == "selectMinecraft":
+      doAssert not refused["ok"].getBool()
+      doAssert "recording" in refused["error"].getStr(), refused["error"].getStr()
+    else:
+      doAssert refused["ok"].getBool(), "the selected setup is a no-op while recording"
+  doAssert harness.command(5, "pauseToggle")["ok"].getBool()
+  doAssert harness.waitStatus(proc (status: ObsStatus): bool = status.paused)
+  let paused = harness.command(6, "selectMinecraft")
+  doAssert not paused["ok"].getBool() and "recording" in paused["error"].getStr()
+  doAssert harness.mutations() == before + 1, "only PauseRecord changed OBS"
+  doAssert harness.command(7, "recordToggle")["ok"].getBool()
+  doAssert harness.waitStatus(proc (status: ObsStatus): bool = not status.recording)
+  doAssert harness.command(8, "selectMinecraft")["ok"].getBool()
+  doAssert harness.fake.profile == ObsProfileName and harness.fake.programScene == ObsSceneName
+  doAssert harness.ready()
+  doAssert harness.bridge.status.activeProject == "minecraft"
+  let idle = harness.mutations()
+  doAssert harness.command(9, "selectMinecraft")["ok"].getBool()
+  doAssert harness.mutations() == idle, "selecting the active setup changes nothing"
+  doAssert harness.fake.count("SetInputMute") == 0
+  doAssert harness.command(10, "recordToggle")["ok"].getBool()
+  doAssert harness.fake.recording
+  doAssert harness.fake.count("StartRecord") == 2
+
+proc respondMalformed(field: string): FakeOverride =
+  ## Answer one status request with a wrongly typed or missing field.
+  result = proc (socket: WebSocket, requestType, requestId: string,
+      data: JsonNode): Future[bool] {.async, gcsafe.} =
+    if requestType == field:
+      let body = if field == "GetRecordStatus": %*{"outputActive": "no", "outputPaused": false}
+        else: %*{"outputActive": false}
+      await socket.respond(requestType, requestId, body)
+      result = true
+
+proc testSelectionRefusals() =
+  ## Refuse streaming, malformed, missing, and mid-switch output changes before mutating.
+  let harness = newHarness(targets = true)
+  defer: harness.close()
+  doAssert harness.ready()
+  pumpFor(100)
+  let bound = harness.mutations()
+  harness.fake.streaming = true
+  let streaming = harness.command(1, "selectFirefox")
+  doAssert not streaming["ok"].getBool() and "streaming" in streaming["error"].getStr()
+  harness.fake.streaming = false
+  harness.fake.reconnecting = true
+  doAssert not harness.command(2, "selectFirefox")["ok"].getBool()
+  harness.fake.reconnecting = false
+  for (id, request) in [(3, "GetRecordStatus"), (4, "GetStreamStatus")]:
+    harness.fake.override = respondMalformed(request)
+    let malformed = harness.command(id, "selectFirefox")
+    doAssert not malformed["ok"].getBool()
+    doAssert "lacks" in malformed["error"].getStr(), malformed["error"].getStr()
+  harness.fake.override = nil
+  harness.fake.profiles = @[ObsProfileName]
+  let missing = harness.command(5, "selectFirefox")
+  doAssert not missing["ok"].getBool() and "does not exist" in missing["error"].getStr()
+  doAssert harness.mutations() == bound
+  harness.fake.profiles.add(FirefoxProfile)
+  let fake = harness.fake
+  fake.override = proc (socket: WebSocket, requestType, requestId: string,
+      data: JsonNode): Future[bool] {.async, gcsafe.} =
+    if requestType == "SetCurrentProfile":
+      fake.recording = true
+  let raced = harness.command(6, "selectFirefox")
+  doAssert not raced["ok"].getBool()
+  let error = raced["error"].getStr()
+  doAssert "recording" in error and "profile \"Firefox Demos\"" in error and
+    "scene collection \"Minecraft AI Demos\"" in error, error
+  doAssert harness.fake.count("SetCurrentProfile") == 1
+  doAssert harness.fake.count("SetCurrentSceneCollection") == 0
+  doAssert harness.waitStatus(proc (status: ObsStatus): bool =
+    status.connected and status.activeProject == "" and not status.workspaceReady and
+      status.recording)
+  doAssert harness.command(7, "recordToggle")["ok"].getBool() == false
+  doAssert harness.fake.count("StopRecord") == 0, "an unknown pair is never controlled"
+  doAssert harness.fake.count("StartRecord") == 0
+
+proc testSelectionNeverReplays() =
+  ## A selection whose result was lost is reported unknown and never resent.
+  let harness = newHarness(targets = true)
+  defer: harness.close()
+  doAssert harness.ready()
+  harness.fake.hangupOn = @["SetCurrentSceneCollection"]
+  let lost = harness.command(1, "selectFirefox")
+  doAssert not lost["ok"].getBool() and "unknown" in lost["error"].getStr()
+  harness.fake.hangupOn = @[]
+  doAssert harness.waitStatus(proc (status: ObsStatus): bool = status.connected)
+  pumpFor(CleanResyncWaitMs)
+  doAssert harness.fake.count("SetCurrentSceneCollection") == 1
+  doAssert harness.fake.identifies == 2
+  doAssert harness.bridge.status.activeProject == ""
+  doAssert harness.fake.count("StartRecord") == 0
+
+proc testUnknownPairNeverCaptures() =
+  ## A half-matching pair is unrecognized: no capture binding, recording, or mic control.
+  let harness = newHarness(targets = true)
+  defer: harness.close()
+  harness.fake.profile = FirefoxProfile
+  doAssert harness.waitStatus(proc (status: ObsStatus): bool =
+    status.connected and "not a known setup" in status.error)
+  pumpFor(100)
+  let status = harness.bridge.status
+  doAssert status.activeProject == "" and not status.workspaceReady and not status.captureReady
+  for (id, operation) in [(1, "recordToggle"), (2, "micToggle"), (3, "pauseToggle")]:
+    doAssert not harness.command(id, operation)["ok"].getBool()
+  doAssert harness.mutations() == 0
+
+proc testFirefoxCaptureIsolation() =
+  ## Bind only the exact demo window and label; ambiguity or loss is unavailable.
+  let harness = newHarness(targets = true)
+  defer: harness.close()
+  harness.firefoxPending = true
+  doAssert harness.ready()
+  doAssert harness.command(1, "selectFirefox")["ok"].getBool()
+  doAssert harness.firefoxReady()
+  doAssert harness.bridge.status.audioPending
+  doAssert harness.statusLines()[^1]["audioPending"].getBool()
+  harness.firefoxVideo = RetitledDemoWindow
+  pumpFor(CleanResyncWaitMs)
+  doAssert harness.fake.settings["Firefox Video"]["capture_window"].getStr() == FirefoxDemoWindow,
+    "a page title change does not rebind the same window"
+  harness.firefoxAudioError = FirefoxIsolationFailure
+  doAssert harness.waitStatus(proc (status: ObsStatus): bool =
+    not status.captureReady and FirefoxIsolationFailure in status.error)
+  doAssert harness.fake.settings["Firefox Audio"]["TargetName"].getStr() == ""
+  let refused = harness.command(2, "recordToggle")
+  doAssert not refused["ok"].getBool() and "also captures" in refused["error"].getStr()
+  harness.firefoxAudioError = ""
+  harness.firefoxVideoError = "Found 2 Firefox demo windows; refusing to guess."
+  doAssert harness.waitStatus(proc (status: ObsStatus): bool =
+    not status.captureReady and "refusing to guess" in status.error)
+  harness.firefoxVideoError = ""
+  harness.firefoxVideo = ""
+  doAssert harness.waitStatus(proc (status: ObsStatus): bool =
+    not status.captureReady and "not open" in status.error)
+  doAssert not harness.command(3, "recordToggle")["ok"].getBool()
+  doAssert harness.fake.count("StartRecord") == 0
+  harness.firefoxVideo = FirefoxDemoWindow
+  harness.firefoxPending = false
+  doAssert harness.firefoxReady()
+  doAssert not harness.bridge.status.audioPending
+  doAssert harness.command(4, "recordToggle")["ok"].getBool()
+  doAssert harness.waitStatus(proc (status: ObsStatus): bool = status.recording)
+  let settled = harness.fake.count("SetInputSettings")
+  harness.firefoxVideo = OtherDemoWindow
+  doAssert harness.waitStatus(proc (status: ObsStatus): bool =
+    status.recording and not status.captureReady and "left unchanged" in status.error)
+  harness.firefoxVideoError = "Found 2 Firefox demo windows; refusing to guess."
+  doAssert harness.waitStatus(proc (status: ObsStatus): bool =
+    status.recording and "refusing to guess" in status.error)
+  pumpFor(CleanResyncWaitMs)
+  doAssert harness.fake.count("SetInputSettings") == settled, "recording never rebinds"
+  doAssert harness.fake.settings["Firefox Video"]["capture_window"].getStr() == FirefoxDemoWindow
+  doAssert harness.fake.settings["Firefox Audio"]["TargetName"].getStr() == FirefoxAudioLabel
+  doAssert harness.command(5, "micToggle")["ok"].getBool()
+  doAssert harness.fake.requestData[^1]["inputName"].getStr() == ObsMicName
+  doAssert harness.command(6, "recordToggle")["ok"].getBool()
+  doAssert not harness.fake.recording
+
+proc testFirefoxSceneAndOpen() =
+  ## Refuse recording off the Firefox scene and keep a recognized setup when opening OBS.
+  let harness = newHarness(targets = true)
+  defer: harness.close()
+  doAssert harness.ready()
+  doAssert harness.command(1, "selectFirefox")["ok"].getBool()
+  doAssert harness.firefoxReady()
+  harness.fake.scenes.add("Intro")
+  harness.fake.programScene = "Intro"
+  let scene = harness.command(2, "recordToggle")
+  doAssert not scene["ok"].getBool() and "Firefox scene" in scene["error"].getStr()
+  doAssert harness.command(3, "open")["ok"].getBool()
+  doAssert harness.focuses == 1
+  doAssert harness.fake.profile == FirefoxProfile and harness.fake.programScene == "Firefox"
+  doAssert harness.fake.count("SetCurrentProfile") == 1
+  doAssert harness.fake.count("StartRecord") == 0
+
+proc testFirefox1080Offline() =
+  ## Launch the dedicated demo when absent, otherwise resize or focus it, without OBS.
+  let harness = newHarness(port = closedPort())
+  defer: harness.close()
+  doAssert harness.waitStatus(proc (status: ObsStatus): bool = not status.connected)
+  doAssert harness.command(1, "firefox1080")["ok"].getBool()
+  doAssert harness.firefoxLaunches == 1 and harness.firefoxResizes == 0
+  harness.firefoxRunning = true
+  doAssert harness.waitStatus(proc (status: ObsStatus): bool =
+    status.firefoxRunning and not status.firefoxSized)
+  doAssert harness.command(2, "firefox1080")["ok"].getBool()
+  doAssert harness.firefoxLaunches == 1 and harness.firefoxResizes == 1
+  doAssert harness.bridge.status.firefoxSized
+  for (id, operation) in [(3, "selectFirefox"), (4, "selectMinecraft")]:
+    let response = harness.command(id, operation)
+    doAssert not response["ok"].getBool() and "not connected" in response["error"].getStr()
+  doAssert harness.prismLaunches == 0 and harness.resizes == 0
+  doAssert harness.fake.requests.len == 0
+
 proc main() =
   ## Run bridge tests against a local fake OBS server.
   doAssert isMinecraftItem("xcomposite_input", "", MinecraftWindow)
@@ -611,6 +879,16 @@ proc main() =
   testAudioGuardFailureWhileRecording()
   testStartRefusals()
   testAudioCleanupWithEmptyTarget()
+  testSwitchPairsBetweenRecordings()
+  testSelectionRefusals()
+  testSelectionNeverReplays()
+  testUnknownPairNeverCaptures()
+  testFirefoxCaptureIsolation()
+  testFirefoxSceneAndOpen()
+  testFirefox1080Offline()
+  doAssert sameXCompositeWindow(FirefoxDemoWindow, RetitledDemoWindow)
+  doAssert not sameXCompositeWindow(FirefoxDemoWindow, OtherDemoWindow)
+  doAssert not sameXCompositeWindow(WikiWindow, FirefoxDemoWindow)
   testBridgeProcess()
 
 when isMainModule:

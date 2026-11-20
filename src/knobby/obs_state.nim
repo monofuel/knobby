@@ -1,18 +1,27 @@
 import
-  std/[json, locks, strutils]
+  std/[json, locks, strutils],
+  ./obs_projects
 
 const
-  ObsOperations* = ["recordToggle", "pauseToggle", "micToggle", "open", "minecraft1080"]
-  ObsVisualStates* = ["recording", "paused", "muted", "unavailable", "running", "ready"]
+  ObsOperations* = ["recordToggle", "pauseToggle", "micToggle", "open",
+    ObsProjectOperations[0], ObsProjectOperations[1], ObsProjectOperations[2], "minecraft1080"]
+  # Operations that observe or launch desktop apps and work without an OBS connection.
+  ObsLocalOperations* = ["open", "minecraft1080", "firefox1080"]
+  ObsVisualStates* = ["recording", "paused", "muted", "unavailable", "running", "ready",
+    "active", "blocked"]
   VisualStates* = ["recording", "paused", "muted", "unavailable", "running", "ready",
-    "mixed", "deafened"]
-  ObsStatusFields* = ["connected", "workspaceReady", "minecraftReady",
-    "recording", "paused", "micMuted", "transitioning", "error", "obsRunning",
-    "minecraftRunning", "minecraftSized"]
+    "active", "blocked", "mixed", "deafened"]
+  ObsStatusFields* = ["connected", "workspaceReady", "minecraftReady", "captureReady",
+    "recording", "paused", "streaming", "micMuted", "transitioning", "error", "obsRunning",
+    "minecraftRunning", "minecraftSized", "firefoxRunning", "firefoxSized", "audioPending",
+    "activeProject", "profile", "collection"]
+  ObsStatusTextFields = ["error", "activeProject", "profile", "collection"]
   RecordingState = "recording"
   PausedState = "paused"
   MutedState = "muted"
   UnavailableState = "unavailable"
+  ActiveState = "active"
+  BlockedState = "blocked"
   BaseState = ""
 
 var
@@ -26,7 +35,7 @@ proc unavailableObsStatus*(): JsonNode =
   ## Return the status reported before OBS is known: everything false, no error.
   result = newJObject()
   for field in ObsStatusFields:
-    result[field] = if field == "error": %"" else: %false
+    result[field] = if field in ObsStatusTextFields: %"" else: %false
 
 proc setObsStatus*(status: JsonNode) {.gcsafe.} =
   ## Replace the shared OBS status snapshot with an owned copy of an object.
@@ -58,6 +67,9 @@ proc obsOperationLabel*(operation: string): string =
   of "micToggle": "Mic"
   of "open": "Open OBS"
   of "minecraft1080": "Minecraft 1080p"
+  of "selectMinecraft": "Minecraft setup"
+  of "selectFirefox": "Firefox setup"
+  of "firefox1080": "Firefox 1080p"
   else: operation
 
 proc obsOperationDescription*(operation: string): string =
@@ -68,12 +80,44 @@ proc obsOperationDescription*(operation: string): string =
   of "micToggle": "Mute or unmute the OBS Commentary microphone."
   of "open": "Open or focus OBS."
   of "minecraft1080": "Launch Prism when Minecraft is closed, or resize Minecraft to 1920 by 1080 pixels."
+  of "selectMinecraft", "selectFirefox":
+    "Switch OBS to the " & projectSpec(projectForOperation(operation)).label &
+      " profile, scene collection, and scene while nothing is recording or streaming."
+  of "firefox1080": "Open the dedicated Firefox demo window, resize it to 1920 by 1080 pixels, " &
+    "or focus it once sized."
   else: "Unknown OBS operation " & operation & "."
 
 proc flag(status: JsonNode, field: string): bool =
   ## Read a boolean status field, treating anything else as false.
   let node = status{field}
   result = not node.isNil and node.kind == JBool and node.getBool()
+
+proc captureReady*(status: JsonNode): bool =
+  ## Report whether the active setup can capture, falling back to the Minecraft-only legacy field.
+  if not status.isNil and status.kind == JObject and status{"captureReady"} != nil:
+    result = status.flag("captureReady")
+  else:
+    result = status.flag("minecraftReady")
+
+proc activeProjectId*(status: JsonNode): string =
+  ## Return the recognized paired setup, treating legacy status without the field as Minecraft.
+  if status.isNil or status.kind != JObject: return ""
+  let active = status{"activeProject"}
+  if active.isNil:
+    result = projectSpec(MinecraftProject).id
+  elif active.kind == JString:
+    result = active.getStr()
+
+proc activeProjectLabel(status: JsonNode): string =
+  ## Name the recognized setup for descriptions, or "" when OBS is on an unknown pair.
+  let id = activeProjectId(status)
+  for spec in ObsProjects:
+    if spec.id == id: result = spec.label
+
+proc selectionBlocked(status: JsonNode): bool =
+  ## Report whether an active or changing output forbids switching setups.
+  status.flag("recording") or status.flag("paused") or status.flag("streaming") or
+    status.flag("transitioning")
 
 proc obsVisualState*(operation: string, status: JsonNode): string =
   ## Choose the visual state for an OBS-bound key, or "" for its base visual.
@@ -88,7 +132,7 @@ proc obsVisualState*(operation: string, status: JsonNode): string =
     if not ready: result = UnavailableState
     elif status.flag("paused"): result = PausedState
     elif status.flag("recording"): result = RecordingState
-    elif not status.flag("minecraftReady"): result = UnavailableState
+    elif not captureReady(status): result = UnavailableState
   of "pauseToggle":
     if not ready or not status.flag("recording"): result = UnavailableState
     elif status.flag("paused"): result = PausedState
@@ -107,6 +151,15 @@ proc obsVisualState*(operation: string, status: JsonNode): string =
     if not status.flag("minecraftRunning"): result = UnavailableState
     elif status.flag("minecraftSized"): result = "ready"
     else: result = "running"
+  of "firefox1080":
+    if not status.flag("firefoxRunning"): result = UnavailableState
+    elif status.flag("firefoxSized"): result = "ready"
+    else: result = "running"
+  of "selectMinecraft", "selectFirefox":
+    if not connected: result = UnavailableState
+    elif activeProjectId(status) == projectSpec(projectForOperation(operation)).id:
+      result = ActiveState
+    elif selectionBlocked(status): result = BlockedState
   else:
     discard
 
@@ -121,14 +174,38 @@ proc obsStatusDescription*(operation: string, status: JsonNode): string =
     if not status.flag("minecraftRunning"): result = "Minecraft closed; press to open Prism"
     elif status.flag("minecraftSized"): result = "Minecraft is 1920 by 1080"
     else: result = "Resize Minecraft to 1920 by 1080"
-  else:
+  of "firefox1080":
+    if not status.flag("firefoxRunning"): result = "Firefox demo closed; press to open it"
+    elif status.flag("firefoxSized"): result = "Firefox demo is 1920 by 1080; press to focus"
+    else: result = "Resize the Firefox demo to 1920 by 1080"
+  of "selectMinecraft", "selectFirefox":
+    let label = projectSpec(projectForOperation(operation)).label
     if not status.flag("connected"): result = "OBS control unavailable"
-    elif not status.flag("workspaceReady"): result = "Minecraft AI Demos workspace unavailable"
+    elif activeProjectId(status) == projectSpec(projectForOperation(operation)).id:
+      result = label & " selected"
+    elif status.flag("recording") or status.flag("paused"):
+      result = "Stop recording before switching to " & label
+    elif status.flag("streaming"): result = "Stop streaming before switching to " & label
+    elif status.flag("transitioning"): result = "OBS output is changing; wait to switch"
+    else: result = "Switch OBS to " & label
+  else:
+    let
+      label = activeProjectLabel(status)
+      firefox = label == projectSpec(FirefoxProject).label
+    if not status.flag("connected"): result = "OBS control unavailable"
+    elif label.len == 0: result = "OBS setup not recognized; choose an OBS setup"
+    elif not status.flag("workspaceReady"): result = label & " workspace unavailable"
     elif operation == "recordToggle":
       if status.flag("paused"): result = "Recording paused"
       elif status.flag("recording"): result = "Recording"
-      elif not status.flag("minecraftRunning"): result = "Open Minecraft before recording"
-      elif not status.flag("minecraftReady"): result = "Waiting for Minecraft capture"
+      elif firefox and not status.flag("firefoxRunning"):
+        result = "Open the Firefox demo before recording"
+      elif firefox and not captureReady(status): result = "Waiting for Firefox demo capture"
+      elif firefox and status.flag("audioPending"):
+        result = "Ready to record; Firefox audio joins when the page plays sound"
+      elif not firefox and not status.flag("minecraftRunning"):
+        result = "Open Minecraft before recording"
+      elif not captureReady(status): result = "Waiting for Minecraft capture"
       else: result = "Ready to record"
     elif operation == "pauseToggle":
       if not status.flag("recording"): result = "Not recording"
@@ -136,7 +213,7 @@ proc obsStatusDescription*(operation: string, status: JsonNode): string =
       else: result = "Recording"
     elif operation == "micToggle":
       result = if status.flag("micMuted"): "Commentary muted" else: "Commentary enabled"
-    if operation == "recordToggle" and not status.flag("minecraftReady") and not status.flag("recording"):
+    if operation == "recordToggle" and not captureReady(status) and not status.flag("recording"):
       let error = status{"error"}.getStr().splitLines()
       if error.len > 0 and error[0].len > 0: result = error[0]
 

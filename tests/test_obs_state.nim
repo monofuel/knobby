@@ -106,6 +106,78 @@ suite "OBS state":
     waiting["recording"] = %true
     check obsStatusDescription("recordToggle", waiting) == "Recording"
 
+  test "setup selection faces follow the observed pair and active outputs":
+    let minecraft = status()
+    minecraft["activeProject"] = %"minecraft"
+    minecraft["captureReady"] = %true
+    check obsVisualState("selectMinecraft", minecraft) == "active"
+    check obsVisualState("selectFirefox", minecraft) == ""
+    check obsStatusDescription("selectMinecraft", minecraft) == "Minecraft AI Demos selected"
+    check obsStatusDescription("selectFirefox", minecraft) == "Switch OBS to Firefox Demos"
+    for field in ["recording", "paused", "streaming", "transitioning"]:
+      let busy = minecraft.copy()
+      busy[field] = %true
+      check obsVisualState("selectFirefox", busy) == "blocked"
+      check obsVisualState("selectMinecraft", busy) == "active"
+    let recording = minecraft.copy()
+    recording["recording"] = %true
+    check obsStatusDescription("selectFirefox", recording) ==
+      "Stop recording before switching to Firefox Demos"
+    let streaming = minecraft.copy()
+    streaming["streaming"] = %true
+    check obsStatusDescription("selectFirefox", streaming) ==
+      "Stop streaming before switching to Firefox Demos"
+    let unknown = status(workspaceReady = false)
+    unknown["activeProject"] = %""
+    check obsVisualState("selectMinecraft", unknown) == ""
+    check obsVisualState("selectFirefox", unknown) == ""
+    check obsVisualState("recordToggle", unknown) == "unavailable"
+    check obsStatusDescription("recordToggle", unknown) ==
+      "OBS setup not recognized; choose an OBS setup"
+    for operation in ["selectMinecraft", "selectFirefox"]:
+      check obsVisualState(operation, unavailableObsStatus()) == "unavailable"
+      check obsStatusDescription(operation, unavailableObsStatus()) == "OBS control unavailable"
+      check isObsOperation(operation)
+    check unavailableObsStatus()["activeProject"] == %""
+
+  test "capture readiness follows the active setup with a Minecraft-only legacy fallback":
+    let firefox = status(minecraftReady = false)
+    firefox["activeProject"] = %"firefox"
+    firefox["captureReady"] = %true
+    firefox["firefoxRunning"] = %true
+    check captureReady(firefox)
+    check obsVisualState("recordToggle", firefox) == ""
+    check obsStatusDescription("recordToggle", firefox) == "Ready to record"
+    firefox["audioPending"] = %true
+    check obsStatusDescription("recordToggle", firefox) ==
+      "Ready to record; Firefox audio joins when the page plays sound"
+    firefox["captureReady"] = %false
+    check obsVisualState("recordToggle", firefox) == "unavailable"
+    check obsStatusDescription("recordToggle", firefox) == "Waiting for Firefox demo capture"
+    firefox["firefoxRunning"] = %false
+    check obsStatusDescription("recordToggle", firefox) == "Open the Firefox demo before recording"
+    firefox["workspaceReady"] = %false
+    check obsStatusDescription("micToggle", firefox) == "Firefox Demos workspace unavailable"
+    let mismatch = status(minecraftReady = true)
+    mismatch["captureReady"] = %false
+    check not captureReady(mismatch)
+    check captureReady(status(minecraftReady = true))
+    check activeProjectId(status()) == "minecraft"
+
+  test "Firefox demo artwork follows dedicated window presence without OBS":
+    let offline = status(connected = false)
+    check obsVisualState("firefox1080", offline) == "unavailable"
+    check obsStatusDescription("firefox1080", offline) == "Firefox demo closed; press to open it"
+    offline["firefoxRunning"] = %true
+    check obsVisualState("firefox1080", offline) == "running"
+    check obsStatusDescription("firefox1080", offline) == "Resize the Firefox demo to 1920 by 1080"
+    offline["firefoxSized"] = %true
+    check obsVisualState("firefox1080", offline) == "ready"
+    check obsStatusDescription("firefox1080", offline) ==
+      "Firefox demo is 1920 by 1080; press to focus"
+    check obsOperationLabel("firefox1080") == "Firefox 1080p"
+    check obsOperationLabel("selectFirefox") == "Firefox setup"
+
   test "selection returns a prepared variant or the base entry":
     let entry = variantEntry()
     check selectObsVisual(entry, status(recording = true)) == entry["states"]["recording"]

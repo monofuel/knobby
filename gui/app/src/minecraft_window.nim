@@ -28,6 +28,9 @@ type
 
   XErrorHandler = proc (display: pointer, event: ptr XErrorEvent): cint {.cdecl.}
 
+  WindowSelector* = proc (windows: openArray[ClientWindow]): ClientWindow {.closure, gcsafe.}
+    ## Choose exactly one verified client window or raise.
+
   XClientMessageEvent = object
     kind: cint
     serial: culong
@@ -351,8 +354,9 @@ proc listClientWindows*(displayName = ""): seq[ClientWindow] {.gcsafe.} =
     defer: session.closeSession()
     result = session.clientWindows()
 
-proc resizeMinecraft1080*(displayName = ""): ClientWindow {.gcsafe.} =
-  ## Make the Minecraft client area exactly 1920x1080 and return its verified state.
+proc resizeSelected1080*(select: WindowSelector, subject: string,
+    displayName = ""): ClientWindow {.gcsafe.} =
+  ## Make the client area of the single window chosen by select exactly 1920x1080.
   ## Only the selected window is changed: fullscreen and maximized states are
   ## removed, the size is requested through the EWMH window manager, and the
   ## position, focus, stacking, and screen resolution are left alone. It
@@ -361,13 +365,17 @@ proc resizeMinecraft1080*(displayName = ""): ClientWindow {.gcsafe.} =
   withLock operationLock:
     let session = openSession(displayName)
     defer: session.closeSession()
-    var window = selectMinecraftWindow(session.clientWindows())
+    var window = select(session.clientWindows())
     for _ in 1..ResizeAttempts:
       if not window.atTarget():
         window = session.settle(window)
     if not window.atTarget():
       raise newException(MinecraftWindowError,
-        &"Minecraft window {window.describe()} did not reach {TargetWidth}x{TargetHeight} " &
+        &"{subject} window {window.describe()} did not reach {TargetWidth}x{TargetHeight} " &
         &"after {ResizeAttempts} attempts (states: {window.states}); its size hints or " &
         "the window manager may be preventing the exact size.")
     result = window
+
+proc resizeMinecraft1080*(displayName = ""): ClientWindow {.gcsafe.} =
+  ## Make the Minecraft client area exactly 1920x1080 and return its verified state.
+  resizeSelected1080(selectMinecraftWindow, "Minecraft", displayName)

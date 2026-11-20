@@ -1,7 +1,7 @@
 import
   std/[asyncdispatch, json, os, posix, strutils],
   knobby/common,
-  obs_client, obs_workspace, obs_targets, minecraft_window
+  obs_client, obs_workspace, obs_targets, minecraft_window, firefox_demo
 
 const
   Usage = """Usage:
@@ -151,6 +151,11 @@ proc runBridge() =
     resizeMinecraft: resizeMinecraftWindow,
     audioTarget: minecraftAudioTarget,
     videoTarget: minecraftVideoTarget,
+    firefoxState: firefoxDemoState,
+    launchFirefox: launchFirefoxDemo,
+    resizeFirefox: resizeFirefoxDemo,
+    firefoxVideoTarget: firefoxDemoVideoTarget,
+    firefoxAudioTarget: firefoxDemoAudioTarget,
     emit: emitLine,
     log: logLine
   ))
