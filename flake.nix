@@ -62,6 +62,7 @@
           nim r gui/app/tools/test_obs_client.nim
           nim r gui/app/tools/test_obs_bridge.nim
           nim r gui/app/tools/test_minecraft_window.nim
+          nim r gui/app/tools/test_firefox_demo.nim
           nim r gui/app/tools/test_minecraft_audio.nim
           nim r gui/app/tools/test_setup_obs.nim
           sh gui/app/tools/editor_smoke.sh
