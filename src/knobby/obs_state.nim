@@ -14,7 +14,7 @@ const
   ObsStatusFields* = ["connected", "workspaceReady", "minecraftReady", "captureReady",
     "recording", "paused", "streaming", "micMuted", "transitioning", "error", "obsRunning",
     "minecraftRunning", "minecraftSized", "firefoxRunning", "firefoxSized", "audioPending",
-    "activeProject", "profile", "collection"]
+    "activeProject", "profile", "collection", "customScene"]
   ObsStatusTextFields = ["error", "activeProject", "profile", "collection"]
   RecordingState = "recording"
   PausedState = "paused"
@@ -129,12 +129,13 @@ proc obsVisualState*(operation: string, status: JsonNode): string =
   result = BaseState
   case operation
   of "recordToggle":
-    if not ready: result = UnavailableState
+    if not connected or (not ready and not status.flag("customScene")): result = UnavailableState
     elif status.flag("paused"): result = PausedState
     elif status.flag("recording"): result = RecordingState
-    elif not captureReady(status): result = UnavailableState
+    elif not captureReady(status) and not status.flag("customScene"): result = UnavailableState
   of "pauseToggle":
-    if not ready or not status.flag("recording"): result = UnavailableState
+    if not connected or (not ready and not status.flag("customScene")) or
+        not status.flag("recording"): result = UnavailableState
     elif status.flag("paused"): result = PausedState
     else: result = RecordingState
   of "micToggle":
@@ -194,6 +195,11 @@ proc obsStatusDescription*(operation: string, status: JsonNode): string =
       firefox = label == projectSpec(FirefoxProject).label
     if not status.flag("connected"): result = "OBS control unavailable"
     elif label.len == 0: result = "OBS setup not recognized; choose an OBS setup"
+    elif operation in ["recordToggle", "pauseToggle"] and status.flag("customScene"):
+      if status.flag("paused"): result = "Recording paused"
+      elif status.flag("recording"): result = "Recording"
+      elif operation == "pauseToggle": result = "Not recording"
+      else: result = "Record the selected OBS scene"
     elif not status.flag("workspaceReady"): result = label & " workspace unavailable"
     elif operation == "recordToggle":
       if status.flag("paused"): result = "Recording paused"
@@ -213,7 +219,8 @@ proc obsStatusDescription*(operation: string, status: JsonNode): string =
       else: result = "Recording"
     elif operation == "micToggle":
       result = if status.flag("micMuted"): "Commentary muted" else: "Commentary enabled"
-    if operation == "recordToggle" and not captureReady(status) and not status.flag("recording"):
+    if operation == "recordToggle" and not captureReady(status) and not status.flag("recording") and
+        not status.flag("customScene"):
       let error = status{"error"}.getStr().splitLines()
       if error.len > 0 and error[0].len > 0: result = error[0]
 

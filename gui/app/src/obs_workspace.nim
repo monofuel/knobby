@@ -40,6 +40,7 @@ type
     minecraftSized*: bool
     firefoxRunning*: bool
     firefoxSized*: bool
+    customScene*: bool
     workspaceReady*: bool
     minecraftReady*: bool
     captureReady*: bool
@@ -77,7 +78,7 @@ type
     operation: string
 
   WorkspaceSnapshot = object
-    profile, collection: string
+    profile, collection, programScene: string
     known: bool
     project: ObsProject
     sceneReady, videoReady, audioReady, micReady: bool
@@ -115,6 +116,7 @@ proc statusJson*(status: ObsStatus): JsonNode =
     "minecraftSized": status.minecraftSized,
     "firefoxRunning": status.firefoxRunning,
     "firefoxSized": status.firefoxSized,
+    "customScene": status.customScene,
     "workspaceReady": status.workspaceReady,
     "minecraftReady": status.minecraftReady,
     "captureReady": status.captureReady,
@@ -242,6 +244,8 @@ proc readWorkspace(client: ObsClient): Future[WorkspaceSnapshot] {.async.} =
   let names = await client.readProfileAndCollection()
   result.profile = names.profile
   result.collection = names.collection
+  result.programScene = (await client.request("GetCurrentProgramScene")).requireStr(
+    "currentProgramSceneName", "GetCurrentProgramScene")
   let record = await client.readRecordState()
   result.recording = record.active
   result.paused = record.paused
@@ -284,6 +288,11 @@ proc workspaceError(snapshot: WorkspaceSnapshot): string =
     result = "OBS input \"" & spec.audio & "\" is missing."
   elif not snapshot.micReady:
     result = "OBS input \"" & spec.mic & "\" is missing."
+
+proc customProgramScene(snapshot: WorkspaceSnapshot): bool =
+  ## Distinguish a human-selected scene from the managed demo scene without changing either.
+  snapshot.known and snapshot.programScene.len > 0 and
+    snapshot.programScene != projectSpec(snapshot.project).scene
 
 proc bindMinecraftInput*(client: ObsClient, inputName,
     inputKind: string, exactTarget = ""): Future[bool] {.async.} =
@@ -500,6 +509,7 @@ proc handleEvent(bridge: ObsBridge, eventType: string, data: JsonNode) =
     bridge.status.minecraftReady = false
     bridge.status.captureReady = false
     bridge.status.audioPending = false
+    bridge.status.customScene = false
     let
       profile = data{"profileName"}
       collection = data{"sceneCollectionName"}
@@ -572,7 +582,7 @@ proc resync(bridge: ObsBridge) {.async.} =
     readOk = true
     error = snapshot.workspaceError()
     workspaceReady = error.len == 0
-    if error.len == 0:
+    if error.len == 0 and not snapshot.customProgramScene():
       case snapshot.project
       of MinecraftProject:
         captureReady = await bridge.bindGameVideo(snapshot.videoKind)
@@ -600,6 +610,7 @@ proc resync(bridge: ObsBridge) {.async.} =
       snapshot.project == MinecraftProject
     bridge.status.error = error
     bridge.status.activeProject = ""
+    bridge.status.customScene = readOk and snapshot.customProgramScene()
     if readOk:
       bridge.status.profile = snapshot.profile
       bridge.status.collection = snapshot.collection
@@ -639,18 +650,23 @@ proc toggleRecording(bridge: ObsBridge) {.async.} =
   if record.active:
     discard await client.request("StopRecord")
   else:
+    let scene = await client.request("GetCurrentProgramScene")
+    let selectedScene = scene.requireStr("currentProgramSceneName", "GetCurrentProgramScene")
+    if selectedScene.len == 0:
+      raise newException(ObsCommandError, "Select an OBS scene before recording.")
+    if selectedScene != projectSpec(project).scene:
+      discard await client.request("StartRecord")
+      return
     let
       snapshot = await client.readWorkspace()
       error = snapshot.workspaceError()
-      spec = projectSpec(project)
     if error.len > 0:
       raise newException(ObsCommandError, error)
     if snapshot.project != project:
       raise newException(ObsCommandError, "The OBS setup changed; recording was not started.")
-    let scene = await client.request("GetCurrentProgramScene")
-    if scene{"currentProgramSceneName"}.getStr() != spec.scene:
-      raise newException(ObsCommandError, "Select the " & spec.scene &
-        " scene before recording.")
+    if (await client.request("GetCurrentProgramScene")).requireStr(
+        "currentProgramSceneName", "GetCurrentProgramScene") != selectedScene:
+      raise newException(ObsCommandError, "The OBS scene changed; press Record again.")
     case project
     of MinecraftProject:
       if not await bridge.bindGameVideo(snapshot.videoKind):

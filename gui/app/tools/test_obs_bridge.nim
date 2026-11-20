@@ -564,15 +564,46 @@ proc testAudioGuardFailureWhileRecording() =
   doAssert harness.fake.count("StartRecord") == 0
   doAssert harness.fake.count("StopRecord") == 1
 
-proc testStartRefusals() =
-  ## Refuse to start without the audio input or outside the Minecraft program scene.
+proc testCustomProgramSceneRecording() =
+  ## Record the human-selected WoW scene without selecting or rebinding Minecraft sources.
   let harness = newHarness(targets = true)
   defer: harness.close()
   doAssert harness.ready()
-  harness.fake.programScene = "Scene"
-  let scene = harness.command(1, "recordToggle")
-  doAssert not scene["ok"].getBool()
-  doAssert "Minecraft scene" in scene["error"].getStr()
+  harness.fake.scenes.add("wow")
+  harness.fake.programScene = "wow"
+  harness.fake.inputs = @[]
+  harness.videoError = "Minecraft is not running."
+  harness.audioError = "Minecraft audio is absent."
+  let before = harness.fake.count("SetInputSettings")
+  doAssert harness.command(1, "recordToggle")["ok"].getBool()
+  doAssert harness.fake.recording
+  doAssert harness.fake.programScene == "wow"
+  doAssert harness.fake.count("SetCurrentProgramScene") == 0
+  doAssert harness.fake.count("SetInputSettings") == before
+  doAssert harness.command(2, "pauseToggle")["ok"].getBool()
+  doAssert harness.fake.paused
+  doAssert harness.command(3, "pauseToggle")["ok"].getBool()
+  doAssert not harness.fake.paused
+  doAssert harness.command(4, "recordToggle")["ok"].getBool()
+  doAssert not harness.fake.recording
+  doAssert harness.fake.count("StartRecord") == 1
+  harness.fake.override = proc (socket: WebSocket, requestType, requestId: string,
+      data: JsonNode): Future[bool] {.async, gcsafe.} =
+    if requestType == "StartRecord":
+      await socket.respond(requestType, requestId, ok = false, code = 500,
+        comment = "Recording encoder unavailable.")
+      result = true
+  let failed = harness.command(5, "recordToggle")
+  doAssert not failed["ok"].getBool()
+  doAssert "Recording encoder unavailable" in failed["error"].getStr()
+  doAssert not harness.fake.recording
+  doAssert harness.fake.count("StartRecord") == 2
+
+proc testStartRefusals() =
+  ## Refuse to start the managed Minecraft scene without its application audio input.
+  let harness = newHarness(targets = true)
+  defer: harness.close()
+  doAssert harness.ready()
   harness.fake.programScene = ObsSceneName
   harness.fake.inputs = @[("Minecraft Video", "xcomposite_input"),
     ("Commentary", "pulse_input_capture")]
@@ -802,7 +833,7 @@ proc testFirefoxCaptureIsolation() =
   doAssert not harness.fake.recording
 
 proc testFirefoxSceneAndOpen() =
-  ## Refuse recording off the Firefox scene and keep a recognized setup when opening OBS.
+  ## Record a custom scene unchanged and keep the selected setup when opening OBS.
   let harness = newHarness(targets = true)
   defer: harness.close()
   doAssert harness.ready()
@@ -811,12 +842,14 @@ proc testFirefoxSceneAndOpen() =
   harness.fake.scenes.add("Intro")
   harness.fake.programScene = "Intro"
   let scene = harness.command(2, "recordToggle")
-  doAssert not scene["ok"].getBool() and "Firefox scene" in scene["error"].getStr()
+  doAssert scene["ok"].getBool()
+  doAssert harness.fake.programScene == "Intro" and harness.fake.recording
+  doAssert harness.command(4, "recordToggle")["ok"].getBool()
   doAssert harness.command(3, "open")["ok"].getBool()
   doAssert harness.focuses == 1
   doAssert harness.fake.profile == FirefoxProfile and harness.fake.programScene == "Firefox"
   doAssert harness.fake.count("SetCurrentProfile") == 1
-  doAssert harness.fake.count("StartRecord") == 0
+  doAssert harness.fake.count("StartRecord") == 1
 
 proc testFirefox1080Offline() =
   ## Launch the dedicated demo when absent, otherwise resize or focus it, without OBS.
@@ -839,6 +872,7 @@ proc testFirefox1080Offline() =
 
 proc main() =
   ## Run bridge tests against a local fake OBS server.
+  testCustomProgramSceneRecording()
   doAssert isMinecraftItem("xcomposite_input", "", MinecraftWindow)
   doAssert not isMinecraftItem("xcomposite_input", "", WikiWindow)
   doAssert not isMinecraftItem("pipewire_audio_application_capture", JavaApp, JavaApp)

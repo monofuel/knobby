@@ -19,6 +19,19 @@ proc variantEntry(): JsonNode =
       "unavailable": {"normal": [{"path": "/c/off.jpg", "durationMs": 0}], "pressed": "/c/off-p.jpg"}}}
 
 suite "OBS state":
+  test "a custom OBS scene can record without the managed game window":
+    let custom = status(minecraftReady = false)
+    custom["customScene"] = %true
+    custom["error"] = %"No Minecraft client window found."
+    check obsVisualState("recordToggle", custom) == ""
+    check obsStatusDescription("recordToggle", custom) == "Record the selected OBS scene"
+    custom["recording"] = %true
+    check obsVisualState("recordToggle", custom) == "recording"
+    custom["workspaceReady"] = %false
+    check obsVisualState("pauseToggle", custom) == "recording"
+    check obsStatusDescription("pauseToggle", custom) == "Recording"
+    custom["connected"] = %false
+    check obsVisualState("recordToggle", custom) == "unavailable"
   test "shared status starts unavailable and is stored and read as owned copies":
     let initial = readObsStatus()
     check initial == unavailableObsStatus()

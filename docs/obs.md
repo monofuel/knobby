@@ -60,6 +60,11 @@ another available setup. Unavailable changes appear grey. OBS key 2 returns
 to the recording controls. The recording, pause, and Commentary buttons work
 with the selected recognized setup.
 
+An explicitly selected custom scene in either demo collection can also be
+recorded. Record uses that scene as configured in OBS and does not select a
+demo scene or rebind its inputs. The managed Minecraft and Firefox scenes
+retain their exact window and application-audio checks.
+
 Recording, pause, and mic artwork follows actual OBS events and periodic
 queries. Grey unavailable artwork means the connection or required workspace
 is unavailable. Commands are never retried after an uncertain result, and
