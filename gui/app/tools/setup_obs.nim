@@ -1,5 +1,6 @@
 import
   std/[asyncdispatch, json, os, posix, strutils, times],
+  knobby/obs_projects,
   obs_client, obs_workspace, obs_targets
 
 const
@@ -11,9 +12,16 @@ const
   setup_obs configure-offline --render-device PATH [--config-dir DIR] [--record-dir DIR]
       With OBS stopped, write the profile's VAAPI H.264 MKV recording settings
       into its basic.ini and recordEncoder.json, keeping private backups.
+  setup_obs provision-firefox [--render-device PATH] [--config-dir DIR] [--record-dir DIR]
+      With OBS running and idle, temporarily select or create the Firefox Demos
+      collection and profile, provision its Firefox scene, unbound inputs,
+      tracks, and 1080p60 video, then restore the original profile, collection,
+      and program scene. Only then write the inactive Firefox profile's VAAPI
+      H.264 MKV recording files, keeping private backups. The render device
+      defaults to the Minecraft AI Demos profile's VAAPI device.
 
-Both modes are repeatable; a run that finds nothing to change changes nothing.
-prepare-online changes nothing while OBS is recording or streaming."""
+Every mode is repeatable; a run that finds nothing to change changes nothing.
+The online modes change nothing while OBS is recording or streaming."""
   UsageExitCode = 2
   FailureExitCode = 1
   LogPrefix = "setup_obs: "
@@ -43,6 +51,19 @@ prepare-online changes nothing while OBS is recording or streaming."""
     "pipewire_audio_output_capture", "pipewire_audio_application_capture"
   ]
   SpecialInputKeys = ["desktop1", "desktop2", "mic1", "mic2", "mic3", "mic4"]
+  # The scene OBS puts in every new collection (Basic.Scene, en-US).
+  DefaultSceneName = "Scene"
+  ProfileSwitchPolls = 50
+  ProfileSwitchPollMs = 100
+  MicDeviceKey = "device_id"
+  AudioSection = "Audio"
+  SampleRateKey = "SampleRate"
+  ChannelSetupKey = "ChannelSetup"
+  # OBS asks to restart when a profile switch changes these, so every
+  # profile setup switches between must already share them.
+  RequiredSampleRate = "48000"
+  RequiredChannelSetup = "Stereo"
+  AsyncTracebackHeader = "\nAsync traceback:"
 
   ObsConfigDirName = "obs-studio"
   ProfilesRelativePath = "basic/profiles"
@@ -69,6 +90,10 @@ type
 
   OnlineSetup = ref object
     client: ObsClient
+    spec: ObsProjectSpec
+    # Minecraft setup removes other scenes and capture inputs; Firefox setup
+    # refuses them instead and only removes OBS's empty default scene.
+    removeExtras: bool
     liveTargets: bool
     changes: seq[string]
     log: SetupLog
@@ -79,6 +104,17 @@ type
     changes*: seq[string]
     minecraftVideoBound*: bool
     minecraftAudioBound*: bool
+
+  ObsSelection* = object
+    profile*, collection*, programScene*: string
+
+  FirefoxReport* = object
+    ## changes lists OBS requests, including temporary selections and their
+    ## restoration; files lists inactive-profile file writes.
+    changes*: seq[string]
+    files*: seq[string]
+    original*: ObsSelection
+    renderDevice*: string
 
 proc logStderr*(message: string) {.gcsafe.} =
   ## Write one setup progress line to stderr.
@@ -173,38 +209,56 @@ proc change(setup: OnlineSetup, requestType: string, data: JsonNode,
   setup.changes.add(description)
   setup.log(description)
 
+proc currentProfile(client: ObsClient): Future[string] {.async.} =
+  ## Return the name of the active OBS profile.
+  result = (await client.request("GetProfileList")){"currentProfileName"}.getStr()
+
+proc currentCollection(client: ObsClient): Future[string] {.async.} =
+  ## Return the name of the active OBS scene collection.
+  result = (await client.request("GetSceneCollectionList")){
+    "currentSceneCollectionName"}.getStr()
+
 proc ensureProfile(setup: OnlineSetup) {.async.} =
   ## Select the project profile, creating a clean one when it does not exist.
-  let profiles = await setup.client.request("GetProfileList")
-  if profiles{"currentProfileName"}.getStr() != ObsProfileName:
-    if ObsProfileName in stringsIn(profiles{"profiles"}):
+  ## OBS queues CreateProfile on its UI thread, so the switch is awaited by polling.
+  let
+    name = setup.spec.profile
+    profiles = await setup.client.request("GetProfileList")
+  if profiles{"currentProfileName"}.getStr() != name:
+    if name in stringsIn(profiles{"profiles"}):
       discard await setup.change("SetCurrentProfile",
-        %*{"profileName": ObsProfileName}, "Selected profile \"" & ObsProfileName & "\".")
+        %*{"profileName": name}, "Selected profile \"" & name & "\".")
     else:
       discard await setup.change("CreateProfile",
-        %*{"profileName": ObsProfileName}, "Created profile \"" & ObsProfileName & "\".")
-  let current = (await setup.client.request("GetProfileList")){"currentProfileName"}.getStr()
-  if current != ObsProfileName:
+        %*{"profileName": name}, "Created profile \"" & name & "\".")
+  var current = await setup.client.currentProfile()
+  for _ in 1..ProfileSwitchPolls:
+    if current == name:
+      break
+    await sleepAsync(ProfileSwitchPollMs)
+    current = await setup.client.currentProfile()
+  if current != name:
     raise setupError("OBS stayed on profile \"" & current & "\"; expected \"" &
-      ObsProfileName & "\".")
+      name & "\".")
 
 proc ensureCollection(setup: OnlineSetup) {.async.} =
   ## Select the project scene collection, creating it when it does not exist.
-  let collections = await setup.client.request("GetSceneCollectionList")
-  if collections{"currentSceneCollectionName"}.getStr() != ObsCollectionName:
-    if ObsCollectionName in stringsIn(collections{"sceneCollections"}):
+  let
+    name = setup.spec.collection
+    collections = await setup.client.request("GetSceneCollectionList")
+  if collections{"currentSceneCollectionName"}.getStr() != name:
+    if name in stringsIn(collections{"sceneCollections"}):
       discard await setup.change("SetCurrentSceneCollection",
-        %*{"sceneCollectionName": ObsCollectionName},
-        "Selected scene collection \"" & ObsCollectionName & "\".")
+        %*{"sceneCollectionName": name},
+        "Selected scene collection \"" & name & "\".")
     else:
       discard await setup.change("CreateSceneCollection",
-        %*{"sceneCollectionName": ObsCollectionName},
-        "Created scene collection \"" & ObsCollectionName & "\".")
-  let current = (await setup.client.request("GetSceneCollectionList")){
-    "currentSceneCollectionName"}.getStr()
-  if current != ObsCollectionName:
+        %*{"sceneCollectionName": name},
+        "Created scene collection \"" & name & "\".")
+  let current = await setup.client.currentCollection()
+  if current != name:
     raise setupError("OBS stayed on scene collection \"" & current &
-      "\"; expected \"" & ObsCollectionName & "\".")
+      "\"; expected \"" & name & "\".")
 
 proc ensureVideo(setup: OnlineSetup) {.async.} =
   ## Set the project profile to a 1080p canvas and output at 60 fps.
@@ -216,7 +270,7 @@ proc ensureVideo(setup: OnlineSetup) {.async.} =
       "Set video to " & $CanvasWidth & "x" & $CanvasHeight & " at " &
       $FramesPerSecond & " fps.")
 
-proc requireNoGlobalAudio(client: ObsClient) {.async.} =
+proc requireNoGlobalAudio(client: ObsClient, collection: string) {.async.} =
   ## Refuse a collection with global desktop or mic audio devices.
   ## Removing an input does not clear OBS's global audio channel, so these
   ## must be disabled in OBS Settings > Audio rather than removed here.
@@ -227,7 +281,7 @@ proc requireNoGlobalAudio(client: ObsClient) {.async.} =
     if name.len > 0:
       enabled.add(name)
   if enabled.len > 0:
-    raise setupError("Scene collection \"" & ObsCollectionName &
+    raise setupError("Scene collection \"" & collection &
       "\" has global audio devices enabled (" & enabled.join(", ") &
       "); disable them in OBS Settings > Audio and run setup again.")
 
@@ -240,34 +294,47 @@ proc requireInputKinds(client: ObsClient) {.async.} =
       raise setupError("OBS lacks input kind \"" & kind & "\".")
 
 proc ensureScene(setup: OnlineSetup) {.async.} =
-  ## Make the Minecraft scene the program scene and the collection's only scene.
-  let scenes = await setup.client.request("GetSceneList")
+  ## Make the project scene the program scene and the collection's only scene.
+  ## Without removeExtras only an empty OBS default scene may be removed.
+  let
+    sceneName = setup.spec.scene
+    scenes = await setup.client.request("GetSceneList")
   var names: seq[string]
   for scene in scenes{"scenes"}:
     names.add(scene{"sceneName"}.getStr())
-  if ObsSceneName notin names:
-    discard await setup.change("CreateScene", %*{"sceneName": ObsSceneName},
-      "Created scene \"" & ObsSceneName & "\".")
-  if scenes{"currentProgramSceneName"}.getStr() != ObsSceneName:
+  if sceneName notin names:
+    discard await setup.change("CreateScene", %*{"sceneName": sceneName},
+      "Created scene \"" & sceneName & "\".")
+  if scenes{"currentProgramSceneName"}.getStr() != sceneName:
     discard await setup.change("SetCurrentProgramScene",
-      %*{"sceneName": ObsSceneName}, "Showed scene \"" & ObsSceneName & "\".")
+      %*{"sceneName": sceneName}, "Showed scene \"" & sceneName & "\".")
   for name in names:
-    if name != ObsSceneName:
+    if name != sceneName:
+      if not setup.removeExtras:
+        let items = (await setup.client.request("GetSceneItemList",
+          %*{"sceneName": name})){"sceneItems"}
+        if name != DefaultSceneName or items == nil or items.kind != JArray or items.len > 0:
+          raise setupError("Scene collection \"" & setup.spec.collection &
+            "\" has scene \"" & name & "\"; setup removes no scenes it did not create.")
       discard await setup.change("RemoveScene", %*{"sceneName": name},
         "Removed scene \"" & name & "\".")
 
-proc ensureInputs(setup: OnlineSetup) {.async.} =
-  ## Create the three project inputs and remove every other capture input.
+proc projectInputs(spec: ObsProjectSpec, micSettings: JsonNode):
+    array[3, tuple[name, kind: string, settings: JsonNode, muted: bool]] =
+  ## Return the project inputs with the settings and mute state used on creation.
+  [
+    (name: spec.video, kind: VideoKind, settings: newJObject(), muted: false),
+    (name: spec.audio, kind: AudioKind, settings: applicationAudioSettings(), muted: false),
+    (name: spec.mic, kind: MicKind, settings: micSettings, muted: true)
+  ]
+
+proc ensureInputs(setup: OnlineSetup, micSettings = newJObject()) {.async.} =
+  ## Create missing project inputs; with removeExtras, remove other capture inputs.
   let listed = await setup.client.request("GetInputList")
   var existing: seq[tuple[name, kind: string]]
   for input in listed{"inputs"}:
     existing.add((input{"inputName"}.getStr(), input{"inputKind"}.getStr()))
-  let required = [
-    (name: ObsVideoName, kind: VideoKind, settings: newJObject(), muted: false),
-    (name: ObsAudioName, kind: AudioKind, settings: applicationAudioSettings(), muted: false),
-    (name: ObsMicName, kind: MicKind, settings: newJObject(), muted: true)
-  ]
-  for want in required:
+  for want in projectInputs(setup.spec, micSettings):
     var found = false
     for input in existing:
       if input.name == want.name:
@@ -277,7 +344,7 @@ proc ensureInputs(setup: OnlineSetup) {.async.} =
             "\"; expected \"" & want.kind & "\". Remove or rename it and run setup again.")
     if not found:
       discard await setup.change("CreateInput", %*{
-        "sceneName": ObsSceneName, "inputName": want.name,
+        "sceneName": setup.spec.scene, "inputName": want.name,
         "inputKind": want.kind, "inputSettings": want.settings,
         "sceneItemEnabled": true
       }, "Created input \"" & want.name & "\" (" & want.kind & ").")
@@ -285,28 +352,31 @@ proc ensureInputs(setup: OnlineSetup) {.async.} =
         discard await setup.change("SetInputMute",
           %*{"inputName": want.name, "inputMuted": true},
           "Muted new input \"" & want.name & "\".")
-  for input in existing:
-    if input.kind in CaptureInputKinds and
-        input.name notin [ObsVideoName, ObsAudioName, ObsMicName]:
-      discard await setup.change("RemoveInput", %*{"inputName": input.name},
-        "Removed capture input \"" & input.name & "\" (" & input.kind & ").")
+  if setup.removeExtras:
+    for input in existing:
+      if input.kind in CaptureInputKinds and
+          input.name notin [setup.spec.video, setup.spec.audio, setup.spec.mic]:
+        discard await setup.change("RemoveInput", %*{"inputName": input.name},
+          "Removed capture input \"" & input.name & "\" (" & input.kind & ").")
 
 proc ensureAudioSettings(setup: OnlineSetup) {.async.} =
-  ## Keep the Minecraft audio capture limited to one matched application.
+  ## Keep the project audio capture limited to one matched application.
+  ## The target application itself is left to the runtime binding.
   let
     current = await setup.client.request("GetInputSettings",
-      %*{"inputName": ObsAudioName})
+      %*{"inputName": setup.spec.audio})
     desired = applicationAudioSettings()
   if not current{"inputSettings"}.matchesDesired(desired):
     discard await setup.change("SetInputSettings", %*{
-      "inputName": ObsAudioName, "inputSettings": desired, "overlay": true
-    }, "Set \"" & ObsAudioName & "\" to capture one matched application.")
+      "inputName": setup.spec.audio, "inputSettings": desired, "overlay": true
+    }, "Set \"" & setup.spec.audio & "\" to capture one matched application.")
 
 proc ensureSceneItems(setup: OnlineSetup) {.async.} =
-  ## Show each project input in the Minecraft scene and fit the video to the canvas.
+  ## Show each project input in the project scene and fit the video to the canvas.
+  let sceneName = setup.spec.scene
   var items = (await setup.client.request("GetSceneItemList",
-    %*{"sceneName": ObsSceneName})){"sceneItems"}
-  for name in [ObsVideoName, ObsAudioName, ObsMicName]:
+    %*{"sceneName": sceneName})){"sceneItems"}
+  for name in [setup.spec.video, setup.spec.audio, setup.spec.mic]:
     var
       itemId = -1
       enabled = false
@@ -316,23 +386,23 @@ proc ensureSceneItems(setup: OnlineSetup) {.async.} =
         enabled = item{"sceneItemEnabled"}.getBool()
     if itemId < 0:
       let created = await setup.change("CreateSceneItem", %*{
-        "sceneName": ObsSceneName, "sourceName": name, "sceneItemEnabled": true
-      }, "Added \"" & name & "\" to scene \"" & ObsSceneName & "\".")
+        "sceneName": sceneName, "sourceName": name, "sceneItemEnabled": true
+      }, "Added \"" & name & "\" to scene \"" & sceneName & "\".")
       itemId = created{"sceneItemId"}.getInt(-1)
       if itemId < 0:
         raise setupError("OBS did not report a scene item id for \"" & name & "\".")
     elif not enabled:
       discard await setup.change("SetSceneItemEnabled", %*{
-        "sceneName": ObsSceneName, "sceneItemId": itemId, "sceneItemEnabled": true
-      }, "Enabled \"" & name & "\" in scene \"" & ObsSceneName & "\".")
-    if name == ObsVideoName:
+        "sceneName": sceneName, "sceneItemId": itemId, "sceneItemEnabled": true
+      }, "Enabled \"" & name & "\" in scene \"" & sceneName & "\".")
+    if name == setup.spec.video:
       let
         transform = (await setup.client.request("GetSceneItemTransform", %*{
-          "sceneName": ObsSceneName, "sceneItemId": itemId})){"sceneItemTransform"}
+          "sceneName": sceneName, "sceneItemId": itemId})){"sceneItemTransform"}
         desired = desiredTransform()
       if not transform.matchesDesired(desired):
         discard await setup.change("SetSceneItemTransform", %*{
-          "sceneName": ObsSceneName, "sceneItemId": itemId,
+          "sceneName": sceneName, "sceneItemId": itemId,
           "sceneItemTransform": desired
         }, "Fit \"" & name & "\" inside the " & $CanvasWidth & "x" &
           $CanvasHeight & " canvas.")
@@ -354,6 +424,15 @@ proc ensureAudioRouting(setup: OnlineSetup, inputName: string,
     discard await setup.change("SetInputAudioMonitorType", %*{
       "inputName": inputName, "monitorType": MonitorOff
     }, "Turned off monitoring for \"" & inputName & "\".")
+
+proc ensureProjectSources(setup: OnlineSetup, micSettings = newJObject()) {.async.} =
+  ## Provision the active collection's scene, inputs, scene items, and audio tracks.
+  await setup.ensureScene()
+  await setup.ensureInputs(micSettings)
+  await setup.ensureAudioSettings()
+  await setup.ensureSceneItems()
+  await setup.ensureAudioRouting(setup.spec.audio, @GameTracks)
+  await setup.ensureAudioRouting(setup.spec.mic, @MicTracks)
 
 proc bindTarget(setup: OnlineSetup, inputName, inputKind: string): Future[bool] {.async.} =
   ## Point one input at a running Minecraft, reporting whether it is bound.
@@ -377,19 +456,15 @@ proc prepareOnline*(client: ObsClient, log: SetupLog = logStderr, liveTargets = 
     Future[OnlineReport] {.async.} =
   ## Provision the Minecraft AI Demos profile and collection through OBS.
   ## Other profiles and collections are never modified or removed.
-  let setup = OnlineSetup(client: client, log: log, liveTargets: liveTargets)
+  let setup = OnlineSetup(client: client, spec: projectSpec(MinecraftProject),
+    removeExtras: true, log: log, liveTargets: liveTargets)
   await client.requireIdle()
   await setup.ensureProfile()
   await setup.ensureCollection()
   await setup.ensureVideo()
-  await client.requireNoGlobalAudio()
+  await client.requireNoGlobalAudio(setup.spec.collection)
   await client.requireInputKinds()
-  await setup.ensureScene()
-  await setup.ensureInputs()
-  await setup.ensureAudioSettings()
-  await setup.ensureSceneItems()
-  await setup.ensureAudioRouting(ObsAudioName, @GameTracks)
-  await setup.ensureAudioRouting(ObsMicName, @MicTracks)
+  await setup.ensureProjectSources()
   result.minecraftVideoBound = await setup.bindTarget(ObsVideoName, VideoKind)
   result.minecraftAudioBound = await setup.bindTarget(ObsAudioName, AudioKind)
   result.changes = setup.changes
@@ -401,6 +476,10 @@ proc defaultObsConfigDir*(): string =
 proc defaultRecordDir*(): string =
   ## Return the Minecraft recording directory in the user's home.
   getHomeDir() / DefaultRecordRelativePath
+
+proc defaultFirefoxRecordDir*(): string =
+  ## Return the Firefox demo recording directory in the user's home.
+  getHomeDir() / projectSpec(FirefoxProject).recordDirectory
 
 proc iniEscape(value: string): string =
   ## Escape a value the way libobs config_save does.
@@ -478,8 +557,8 @@ proc recordingIniValues*(recordDir: string): seq[IniValue] =
     ("AdvOut", "RecUseRescale", "false"),
     ("AdvOut", "RecTracks", $recorded),
     ("Video", "AutoRemux", "true"),
-    ("Audio", "SampleRate", "48000"),
-    ("Audio", "ChannelSetup", "Stereo")
+    (AudioSection, SampleRateKey, RequiredSampleRate),
+    (AudioSection, ChannelSetupKey, RequiredChannelSetup)
   ]
   for track in 1..TrackCount:
     if (recorded and (1 shl (track - 1))) != 0:
@@ -576,15 +655,15 @@ proc requireRenderDevice*(renderDevice: string) =
   if not S_ISCHR(info.st_mode):
     raise setupError("Render device " & renderDevice & " is not a character device.")
 
-proc configureOffline*(configDir, renderDevice, recordDir: string,
-    stamp = now().format(BackupStampFormat)): seq[string] =
-  ## Write the project profile's recording settings; OBS must not be running.
-  ## Returns one line per changed file or created directory.
+proc writeProfileRecording(configDir, profileName, renderDevice, recordDir,
+    stamp: string): seq[string] =
+  ## Write one profile's recording settings, keeping private backups.
+  ## Callers must ensure OBS cannot overwrite the profile meanwhile.
   requireRenderDevice(renderDevice)
   if not recordDir.isAbsolute:
     raise setupError("Recording directory " & recordDir & " is not an absolute path.")
   let
-    profileDir = findProfileDir(configDir, ObsProfileName)
+    profileDir = findProfileDir(configDir, profileName)
     iniPath = profileDir / ProfileSettingsFile
     encoderPath = profileDir / RecordEncoderFile
     iniText = setIniValues(readFile(iniPath), recordingIniValues(recordDir))
@@ -599,6 +678,206 @@ proc configureOffline*(configDir, renderDevice, recordDir: string,
       let backup = replacePrivate(path, content, stamp)
       result.add(if existed: "Updated " & path & " (backup " & backup & ")."
         else: "Created " & path & ".")
+
+proc configureOffline*(configDir, renderDevice, recordDir: string,
+    stamp = now().format(BackupStampFormat)): seq[string] =
+  ## Write the project profile's recording settings; OBS must not be running.
+  ## Returns one line per changed file or created directory.
+  writeProfileRecording(configDir, ObsProfileName, renderDevice, recordDir, stamp)
+
+proc configureInactiveProfile*(client: ObsClient, configDir, profileName,
+    renderDevice, recordDir: string, stamp = now().format(BackupStampFormat)):
+    Future[seq[string]] {.async.} =
+  ## Write an existing but inactive profile's recording files while OBS runs.
+  ## OBS reads a profile's basic.ini and encoder settings only when activating
+  ## it and saves only the active profile, so fresh read-only queries must show
+  ## OBS idle on another profile first. Returns one line per changed file.
+  await client.requireIdle()
+  let profiles = await client.request("GetProfileList")
+  if profileName notin stringsIn(profiles{"profiles"}):
+    raise setupError("OBS has no profile named \"" & profileName & "\".")
+  if profiles{"currentProfileName"}.getStr() == profileName:
+    raise setupError("Profile \"" & profileName & "\" is active in OBS; setup " &
+      "writes only inactive profile files. Switch OBS to another profile and run setup again.")
+  result = writeProfileRecording(configDir, profileName, renderDevice, recordDir, stamp)
+  if (await client.currentProfile()) == profileName:
+    raise setupError("OBS switched to profile \"" & profileName &
+      "\" while setup wrote its files; switch away and run setup again.")
+
+proc readSelection*(client: ObsClient): Future[ObsSelection] {.async.} =
+  ## Read the active profile, scene collection, and program scene.
+  result.profile = await client.currentProfile()
+  result.collection = await client.currentCollection()
+  result.programScene = (await client.request("GetSceneList")){
+    "currentProgramSceneName"}.getStr()
+
+proc requireSharedAudioFormat(client: ObsClient) {.async.} =
+  ## Refuse a starting profile whose audio format would make a switch prompt for an OBS restart.
+  for (key, required) in [(SampleRateKey, RequiredSampleRate),
+      (ChannelSetupKey, RequiredChannelSetup)]:
+    let value = (await client.request("GetProfileParameter", %*{
+      "parameterCategory": AudioSection, "parameterName": key})){"parameterValue"}
+    if value == nil or value.kind != JString or value.getStr() != required:
+      raise setupError("The active OBS profile uses " & AudioSection & " " & key &
+        " " & $value & "; setup needs " & required & " so switching profiles " &
+        "does not ask to restart OBS.")
+
+proc requireFileAudioFormat(iniText, profileName: string) =
+  ## Refuse an inactive profile whose saved audio format differs from the required one.
+  for (key, required) in [(SampleRateKey, RequiredSampleRate),
+      (ChannelSetupKey, RequiredChannelSetup)]:
+    let value = iniValue(iniText, AudioSection, key)
+    if value.len > 0 and value != required:
+      raise setupError("Profile \"" & profileName & "\" uses " & AudioSection &
+        " " & key & " " & value & "; setup needs " & required &
+        ". Change it in that profile or remove the profile, then run setup again.")
+
+proc minecraftRenderDevice*(configDir: string): string =
+  ## Read the VAAPI render device from the Minecraft profile's recording encoder.
+  ## Only the device path is reused; no other profile settings are copied.
+  let
+    profileDir = findProfileDir(configDir, projectSpec(MinecraftProject).profile)
+    encoder = iniValue(readFile(profileDir / ProfileSettingsFile), "AdvOut", "RecEncoder")
+    encoderPath = profileDir / RecordEncoderFile
+  if encoder != RecordEncoderId or not fileExists(encoderPath):
+    raise setupError("Profile \"" & projectSpec(MinecraftProject).profile &
+      "\" does not record with " & RecordEncoderId & "; pass --render-device PATH.")
+  let settings = parseJson(readFile(encoderPath))
+  if settings.kind != JObject or settings{"vaapi_device"}.getStr().len == 0:
+    raise setupError(encoderPath & " names no vaapi_device; pass --render-device PATH.")
+  result = settings["vaapi_device"].getStr()
+
+proc requireFirefoxProfileFiles(client: ObsClient, configDir: string) {.async.} =
+  ## Check an existing Firefox profile's files before any switch, refusing malformed ones.
+  let name = projectSpec(FirefoxProject).profile
+  if name in stringsIn((await client.request("GetProfileList")){"profiles"}):
+    let
+      profileDir = findProfileDir(configDir, name)
+      encoderPath = profileDir / RecordEncoderFile
+    requireFileAudioFormat(readFile(profileDir / ProfileSettingsFile), name)
+    if fileExists(encoderPath):
+      discard recordEncoderJson(readFile(encoderPath), "")
+
+proc minecraftMicSettings(client: ObsClient, original: ObsSelection): Future[JsonNode] {.async.} =
+  ## Read the Minecraft commentary microphone choice for a new Firefox commentary input.
+  result = newJObject()
+  let minecraft = projectSpec(MinecraftProject)
+  if original.collection == minecraft.collection:
+    for input in (await client.request("GetInputList")){"inputs"}:
+      if input{"inputName"}.getStr() == minecraft.mic and
+          input{"inputKind"}.getStr() == MicKind:
+        let settings = (await client.request("GetInputSettings",
+          %*{"inputName": minecraft.mic})){"inputSettings"}
+        if settings{MicDeviceKey} != nil and settings[MicDeviceKey].kind == JString:
+          result[MicDeviceKey] = settings[MicDeviceKey]
+
+proc requireOwnFirefoxCollection(setup: OnlineSetup) {.async.} =
+  ## Refuse an active Firefox collection holding anything setup did not create.
+  let spec = setup.spec
+  await setup.client.requireNoGlobalAudio(spec.collection)
+  for input in (await setup.client.request("GetInputList")){"inputs"}:
+    let
+      name = input{"inputName"}.getStr()
+      kind = input{"inputKind"}.getStr()
+    var known = false
+    for want in projectInputs(spec, newJObject()):
+      if name == want.name and kind == want.kind:
+        known = true
+    if not known:
+      raise setupError("Scene collection \"" & spec.collection & "\" has input \"" &
+        name & "\" (" & kind & "); setup changes no inputs it did not create. " &
+        "Remove or rename it in OBS, then run setup again.")
+  for scene in (await setup.client.request("GetSceneList")){"scenes"}:
+    let name = scene{"sceneName"}.getStr()
+    if name notin [spec.scene, DefaultSceneName]:
+      raise setupError("Scene collection \"" & spec.collection & "\" has scene \"" &
+        name & "\"; setup changes no scenes it did not create.")
+    for item in (await setup.client.request("GetSceneItemList",
+        %*{"sceneName": name})){"sceneItems"}:
+      let source = item{"sourceName"}.getStr()
+      if name == DefaultSceneName or source notin [spec.video, spec.audio, spec.mic]:
+        raise setupError("Scene \"" & name & "\" in \"" & spec.collection &
+          "\" shows \"" & source & "\"; setup changes no scene items it did not create.")
+
+proc plainMessage(error: ref Exception): string =
+  ## Return an exception message without the async traceback awaiting appends.
+  ## Async re-raising truncates a message at an embedded traceback header.
+  let header = error.msg.find(AsyncTracebackHeader)
+  result = if header < 0: error.msg else: error.msg[0..<header]
+
+proc restoreSelection(setup: OnlineSetup, original: ObsSelection) {.async.} =
+  ## Return OBS to the original profile, then collection, then program scene.
+  ## The profile goes first so the original collection loads under its own profile.
+  if (await setup.client.currentProfile()) != original.profile:
+    discard await setup.change("SetCurrentProfile", %*{"profileName": original.profile},
+      "Restored profile \"" & original.profile & "\".")
+  if (await setup.client.currentCollection()) != original.collection:
+    discard await setup.change("SetCurrentSceneCollection",
+      %*{"sceneCollectionName": original.collection},
+      "Restored scene collection \"" & original.collection & "\".")
+  if original.programScene.len > 0 and (await setup.client.request("GetSceneList")){
+      "currentProgramSceneName"}.getStr() != original.programScene:
+    discard await setup.change("SetCurrentProgramScene",
+      %*{"sceneName": original.programScene},
+      "Restored program scene \"" & original.programScene & "\".")
+  let restored = await setup.client.readSelection()
+  if restored != original:
+    raise setupError("OBS shows profile \"" & restored.profile & "\", collection \"" &
+      restored.collection & "\", scene \"" & restored.programScene & "\" after restoring.")
+
+proc provisionFirefoxSelection(setup: OnlineSetup, micSettings: JsonNode) {.async.} =
+  ## Select or create the Firefox collection and profile, then provision them.
+  ## The collection switches first so the original collection never loads
+  ## under the Firefox profile.
+  await setup.ensureCollection()
+  await setup.requireOwnFirefoxCollection()
+  await setup.ensureProfile()
+  await setup.ensureVideo()
+  await setup.ensureProjectSources(micSettings)
+
+proc provisionFirefox*(client: ObsClient, configDir: string, renderDevice = "",
+    recordDir = defaultFirefoxRecordDir(), log: SetupLog = logStderr,
+    stamp = now().format(BackupStampFormat)): Future[FirefoxReport] {.async.} =
+  ## Provision the Firefox Demos profile and collection while OBS stays running.
+  ## OBS temporarily shows the Firefox setup, then returns to the original
+  ## profile, collection, and program scene; the now inactive Firefox profile
+  ## then receives its recording files. Every OBS change first rechecks that
+  ## OBS is neither recording nor streaming, and the restore happens only then.
+  ## The video and audio captures start unbound for the runtime to bind.
+  let
+    firefox = projectSpec(FirefoxProject)
+    setup = OnlineSetup(client: client, spec: firefox, removeExtras: false, log: log)
+  await client.requireIdle()
+  let original = await client.readSelection()
+  if original.profile == firefox.profile or original.collection == firefox.collection:
+    raise setupError("OBS is showing the " & firefox.label & " setup; switch OBS " &
+      "to another profile and scene collection, then run setup again.")
+  await client.requireSharedAudioFormat()
+  await client.requireInputKinds()
+  result.renderDevice = if renderDevice.len > 0: renderDevice
+    else: minecraftRenderDevice(configDir)
+  requireRenderDevice(result.renderDevice)
+  if not recordDir.isAbsolute:
+    raise setupError("Recording directory " & recordDir & " is not an absolute path.")
+  await client.requireFirefoxProfileFiles(configDir)
+  let micSettings = await client.minecraftMicSettings(original)
+  result.original = original
+  let provisioning = setup.provisionFirefoxSelection(micSettings)
+  yield provisioning
+  let restoring = setup.restoreSelection(original)
+  yield restoring
+  if restoring.failed:
+    let earlier = if provisioning.failed: plainMessage(provisioning.error) & " " else: ""
+    raise setupError(earlier & "OBS was not returned to profile \"" & original.profile &
+      "\" and scene collection \"" & original.collection & "\": " &
+      plainMessage(restoring.error) & " Switch back in OBS when no output is active.")
+  if provisioning.failed:
+    raise provisioning.error
+  result.changes = setup.changes
+  result.files = await client.configureInactiveProfile(configDir, firefox.profile,
+    result.renderDevice, recordDir, stamp)
+  for line in result.files:
+    log(line)
 
 proc obsRunning(): bool =
   ## Check /proc for a running OBS process.
@@ -628,33 +907,56 @@ proc runPrepareOnline() =
   finally:
     client.close()
 
-proc runConfigureOffline(args: seq[string]) =
-  ## Parse offline options, require OBS stopped, and write the profile files.
-  var
-    renderDevice = ""
-    configDir = defaultObsConfigDir()
-    recordDir = defaultRecordDir()
-    index = 0
+proc parseFileOptions(args: seq[string], recordDir: string):
+    tuple[renderDevice, configDir, recordDir: string] =
+  ## Parse the render device, OBS configuration, and recording directory options.
+  result = ("", defaultObsConfigDir(), recordDir)
+  var index = 0
   while index < args.len:
     if index + 1 >= args.len:
       raise setupError("Option " & args[index] & " needs a value.\n" & Usage)
     case args[index]
-    of "--render-device": renderDevice = args[index + 1]
-    of "--config-dir": configDir = args[index + 1]
-    of "--record-dir": recordDir = args[index + 1]
+    of "--render-device": result.renderDevice = args[index + 1]
+    of "--config-dir": result.configDir = args[index + 1]
+    of "--record-dir": result.recordDir = args[index + 1]
     else: raise setupError("Unknown option " & args[index] & ".\n" & Usage)
     index += 2
-  if renderDevice.len == 0:
+
+proc runConfigureOffline(args: seq[string]) =
+  ## Parse offline options, require OBS stopped, and write the profile files.
+  let options = parseFileOptions(args, defaultRecordDir())
+  if options.renderDevice.len == 0:
     raise setupError("configure-offline requires --render-device PATH.\n" & Usage)
   if obsRunning():
     raise setupError("OBS is running; quit OBS before configure-offline so it " &
       "cannot overwrite the profile.")
-  let changes = configureOffline(configDir, renderDevice, recordDir)
+  let changes = configureOffline(options.configDir, options.renderDevice,
+    options.recordDir)
   if changes.len == 0:
     logStderr("Profile recording settings are already current.")
   for line in changes:
     logStderr(line)
   stdout.writeLine($ %*{"changes": changes})
+
+proc runProvisionFirefox(args: seq[string]) =
+  ## Connect to the running OBS, provision the Firefox setup, and print a JSON report.
+  let
+    options = parseFileOptions(args, defaultFirefoxRecordDir())
+    settings = loadObsSettings()
+    client = waitFor connectObs(settings.url, settings.password)
+  try:
+    let report = waitFor client.provisionFirefox(options.configDir,
+      options.renderDevice, options.recordDir)
+    stdout.writeLine($ %*{
+      "changes": report.changes,
+      "files": report.files,
+      "restored": %*{"profile": report.original.profile,
+        "collection": report.original.collection,
+        "programScene": report.original.programScene},
+      "renderDevice": report.renderDevice
+    })
+  finally:
+    client.close()
 
 proc main() =
   ## Dispatch the setup subcommands.
@@ -671,6 +973,8 @@ proc main() =
       runPrepareOnline()
     of "configure-offline":
       runConfigureOffline(args[1..^1])
+    of "provision-firefox":
+      runProvisionFirefox(args[1..^1])
     else:
       stderr.writeLine(Usage)
       quit(UsageExitCode)

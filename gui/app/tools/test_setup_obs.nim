@@ -1,6 +1,7 @@
 import
   std/[asyncdispatch, json, os, posix, strutils, tables, tempfiles],
   ws,
+  knobby/obs_projects,
   obs_client, ./fake_obs, ./setup_obs
 
 const
@@ -22,6 +23,11 @@ const
   UntitledIni = "[General]\nName=Untitled\n\n[Output]\nMode=Simple\n"
   ProjectIni = "[General]\nName=Minecraft AI Demos\n\n[Video]\nBaseCX=1920\n" &
     "BaseCY=1080\nFPSType=2\n\n[AdvOut]\nEncoder=obs_x264\nRecFilePath=/old\n"
+  MinecraftIni = "[General]\nName=Minecraft AI Demos\n\n[AdvOut]\n" &
+    "RecEncoder=ffmpeg_vaapi_tex\n\n[Audio]\nSampleRate=48000\nChannelSetup=Stereo\n"
+  MinecraftEncoder = "{\"vaapi_device\": \"/dev/null\", \"qp\": 20}\n"
+  MinecraftMic = "alsa_input.usb-mic"
+  IntroScene = "Intro"
 
 type
   FakeInput = object
@@ -46,12 +52,27 @@ type
     obs: FakeObs
     profiles: seq[string]
     profile: string
+    # OBS applies CreateProfile later on its UI thread; this counts the
+    # requests still answered from the previous profile.
+    pendingProfile: string
+    pendingRequests: int
     collections: OrderedTable[string, FakeCollection]
     collection: string
-    video: JsonNode
+    videos: Table[string, JsonNode]
+    audioFormats: Table[string, tuple[rate, channels: string]]
+    # When set, profiles live on disk; OBS saves the active profile's
+    # in-memory basic.ini when switching away from it.
+    configDir: string
+    activeIni: string
+    resetProgramOnLoad: bool
     recording, streaming: bool
     streamAfter: string
     nextItemId: int
+
+proc newVideo(): JsonNode =
+  ## Return the 1440p30 video settings of a profile OBS has not configured.
+  %*{"fpsNumerator": 30, "fpsDenominator": 1, "baseWidth": 2560,
+    "baseHeight": 1440, "outputWidth": 1280, "outputHeight": 720}
 
 proc emptySpecial(): JsonNode =
   ## Return GetSpecialInputs data with every global device disabled.
@@ -104,9 +125,29 @@ proc snapshot(collection: FakeCollection): string =
   $(%*{"scenes": collection.scenes, "program": collection.program,
     "items": items, "inputs": inputs, "special": collection.special})
 
+proc profileIniPath(fake: SetupFake, profile: string): string =
+  ## Return the basic.ini path OBS uses for a profile name.
+  fake.configDir / "basic/profiles" / profile.replace(' ', '_') / "basic.ini"
+
+proc activateProfile(fake: SetupFake, profile: string) =
+  ## Switch profiles like OBS: save the old one from memory, then load the new one.
+  if fake.configDir.len > 0:
+    writeFile(fake.profileIniPath(fake.profile), fake.activeIni)
+    let path = fake.profileIniPath(profile)
+    if not fileExists(path):
+      createDir(path.parentDir)
+      writeFile(path, "[General]\nName=" & profile & "\n")
+    fake.activeIni = readFile(path)
+  fake.profile = profile
+
 proc handle(fake: SetupFake, requestType: string, data: JsonNode): tuple[
     data: JsonNode, code: int] =
   ## Apply one request to the fake OBS state; code 0 means success.
+  if fake.pendingProfile.len > 0:
+    dec fake.pendingRequests
+    if fake.pendingRequests < 0:
+      fake.activateProfile(fake.pendingProfile)
+      fake.pendingProfile = ""
   let
     collection = fake.current
     inputName = data{"inputName"}.getStr()
@@ -125,12 +166,17 @@ proc handle(fake: SetupFake, requestType: string, data: JsonNode): tuple[
   of "GetProfileList":
     result.data = %*{"currentProfileName": fake.profile, "profiles": fake.profiles}
   of "CreateProfile":
-    fake.profiles.add(data{"profileName"}.getStr())
-    fake.profile = data{"profileName"}.getStr()
-    fake.video = %*{"fpsNumerator": 30, "fpsDenominator": 1, "baseWidth": 2560,
-      "baseHeight": 1440, "outputWidth": 1280, "outputHeight": 720}
+    let name = data{"profileName"}.getStr()
+    fake.profiles.add(name)
+    fake.pendingProfile = name
+    fake.pendingRequests = 1
+    fake.videos[name] = newVideo()
   of "SetCurrentProfile":
-    fake.profile = data{"profileName"}.getStr()
+    fake.activateProfile(data{"profileName"}.getStr())
+  of "GetProfileParameter":
+    let format = fake.audioFormats.getOrDefault(fake.profile, ("48000", "Stereo"))
+    result.data = %*{"parameterValue":
+      if data{"parameterName"}.getStr() == "SampleRate": format.rate else: format.channels}
   of "GetSceneCollectionList":
     var names: seq[string]
     for name in fake.collections.keys:
@@ -142,10 +188,12 @@ proc handle(fake: SetupFake, requestType: string, data: JsonNode): tuple[
     fake.collections[fake.collection] = newCollection()
   of "SetCurrentSceneCollection":
     fake.collection = data{"sceneCollectionName"}.getStr()
+    if fake.resetProgramOnLoad:
+      fake.current.program = fake.current.scenes[0]
   of "GetVideoSettings":
-    result.data = fake.video.copy()
+    result.data = fake.videos.getOrDefault(fake.profile, newVideo()).copy()
   of "SetVideoSettings":
-    fake.video = data.copy()
+    fake.videos[fake.profile] = data.copy()
   of "GetSpecialInputs":
     result.data = collection.special
   of "GetInputKindList":
@@ -237,8 +285,7 @@ proc newSetupFake(): SetupFake =
   ## Start a fake OBS holding only the user's Untitled profile and collection.
   let fake = SetupFake(obs: newFakeObs(), profiles: @[UntitledName],
     profile: UntitledName, collection: UntitledName,
-    video: %*{"fpsNumerator": 30, "fpsDenominator": 1, "baseWidth": 2560,
-      "baseHeight": 1440, "outputWidth": 1280, "outputHeight": 720})
+    videos: {UntitledName: newVideo()}.toTable)
   let untitled = newCollection()
   fake.addInput(untitled, DefaultScene, "Desktop Audio", "pulse_output_capture")
   fake.addInput(untitled, DefaultScene, "Mic/Aux", "pulse_input_capture")
@@ -290,7 +337,7 @@ proc testFreshProvisioning() =
   doAssert fake.profile == ObsProfileName
   doAssert fake.collection == ObsCollectionName
   doAssert fake.collections[UntitledName].snapshot() == untitledBefore
-  doAssert fake.video == %*{"fpsNumerator": 60, "fpsDenominator": 1,
+  doAssert fake.videos[ObsProfileName] == %*{"fpsNumerator": 60, "fpsDenominator": 1,
     "baseWidth": 1920, "baseHeight": 1080, "outputWidth": 1920, "outputHeight": 1080}
   let project = fake.current
   doAssert project.scenes == @[ObsSceneName]
@@ -359,7 +406,7 @@ proc testRefusesGlobalAudio() =
   let fake = newSetupFake()
   fake.profiles.add(ObsProfileName)
   fake.profile = ObsProfileName
-  fake.video = %*{"fpsNumerator": 60, "fpsDenominator": 1, "baseWidth": 1920,
+  fake.videos[ObsProfileName] = %*{"fpsNumerator": 60, "fpsDenominator": 1, "baseWidth": 1920,
     "baseHeight": 1080, "outputWidth": 1920, "outputHeight": 1080}
   let project = newCollection()
   fake.addInput(project, DefaultScene, "Desktop Audio", "pulse_output_capture")
@@ -537,6 +584,318 @@ proc testConfigureOffline() =
     "/dev/null"
   removeDir(configDir)
 
+proc inputNamed(collection: FakeCollection, name: string): FakeInput =
+  ## Return one input by name, failing the test when it is absent.
+  let index = collection.inputIndex(name)
+  doAssert index >= 0, "missing input " & name
+  collection.inputs[index]
+
+proc readTree(directory: string): Table[string, string] =
+  ## Read every file below a directory, keyed by relative path.
+  for path in walkDirRec(directory):
+    result[path.relativePath(directory)] = readFile(path)
+
+proc newMinecraftFake(): SetupFake =
+  ## Start a fake OBS showing a provisioned Minecraft setup backed by a temporary config directory.
+  let
+    fake = newSetupFake()
+    minecraft = projectSpec(MinecraftProject)
+    collection = newCollection()
+  fake.configDir = createTempDir("setup_obs_firefox", "")
+  writeProfile(fake.configDir, "Untitled", UntitledIni)
+  writeProfile(fake.configDir, "Minecraft_AI_Demos", MinecraftIni)
+  writeFile(fake.configDir / "basic/profiles/Minecraft_AI_Demos/recordEncoder.json",
+    MinecraftEncoder)
+  fake.profiles.add(minecraft.profile)
+  fake.profile = minecraft.profile
+  fake.activeIni = MinecraftIni
+  fake.videos[minecraft.profile] = %*{"fpsNumerator": 60, "fpsDenominator": 1,
+    "baseWidth": 1920, "baseHeight": 1080, "outputWidth": 1920, "outputHeight": 1080}
+  collection.scenes = @[minecraft.scene, IntroScene]
+  collection.items = {minecraft.scene: newSeq[FakeItem](),
+    IntroScene: newSeq[FakeItem]()}.toTable
+  collection.program = IntroScene
+  fake.addInput(collection, minecraft.scene, minecraft.video, "xcomposite_input",
+    %*{"capture_window": MinecraftWindow})
+  fake.addInput(collection, minecraft.scene, minecraft.audio,
+    "pipewire_audio_application_capture", %*{"TargetName": MinecraftApp})
+  fake.addInput(collection, minecraft.scene, minecraft.mic, "pulse_input_capture",
+    %*{"device_id": MinecraftMic})
+  fake.collections[minecraft.collection] = collection
+  fake.collection = minecraft.collection
+  fake
+
+proc runFirefox(fake: SetupFake, renderDevice = "", stamp = "f1"): FirefoxReport =
+  ## Connect a client and provision the Firefox setup against the fake's config directory.
+  let client = waitFor connectObs(fake.obs.url, "")
+  try:
+    result = waitFor client.provisionFirefox(fake.configDir, renderDevice,
+      fake.configDir / "Videos/Firefox-Demos", proc (message: string) {.gcsafe.} = discard,
+      stamp)
+  finally:
+    client.close()
+
+proc runFirefoxFailure(fake: SetupFake, renderDevice = ""): string =
+  ## Provision the Firefox setup expecting a refusal and return its message.
+  try:
+    discard fake.runFirefox(renderDevice)
+    doAssert false, "Firefox setup should have refused"
+  except SetupError as error:
+    result = error.msg
+
+proc stopFake(fake: SetupFake) =
+  ## Stop the fake OBS and remove its temporary config directory.
+  fake.obs.stop()
+  if fake.configDir.len > 0:
+    removeDir(fake.configDir)
+
+proc testFirefoxProvisioning() =
+  ## Provision Firefox while OBS runs, restore the Minecraft setup, then write the inactive profile.
+  let
+    fake = newMinecraftFake()
+    firefox = projectSpec(FirefoxProject)
+    minecraft = projectSpec(MinecraftProject)
+    minecraftBefore = fake.collections[minecraft.collection].snapshot()
+    untitledBefore = fake.collections[UntitledName].snapshot()
+    profilesDir = fake.configDir / "basic/profiles"
+    minecraftFiles = readTree(profilesDir / "Minecraft_AI_Demos")
+    untitledFiles = readTree(profilesDir / "Untitled")
+    report = fake.runFirefox()
+  doAssert report.renderDevice == "/dev/null", "device comes from the Minecraft encoder"
+  doAssert report.original == ObsSelection(profile: minecraft.profile,
+    collection: minecraft.collection, programScene: IntroScene)
+  doAssert fake.profile == minecraft.profile
+  doAssert fake.collection == minecraft.collection
+  doAssert fake.current.program == IntroScene
+  doAssert fake.collections[minecraft.collection].snapshot() == minecraftBefore
+  doAssert fake.collections[UntitledName].snapshot() == untitledBefore
+  doAssert fake.videos[minecraft.profile]["baseWidth"].getInt() == 1920
+  doAssert fake.profiles == @[UntitledName, minecraft.profile, firefox.profile]
+  doAssert fake.videos[firefox.profile] == %*{"fpsNumerator": 60, "fpsDenominator": 1,
+    "baseWidth": 1920, "baseHeight": 1080, "outputWidth": 1920, "outputHeight": 1080}
+  doAssert fake.obs.count("GetInputPropertiesListPropertyItems") == 0,
+    "window and application enumeration stay with the runtime"
+  let mutations = fake.mutations()
+  doAssert mutations[0] == "CreateSceneCollection" and mutations[1] == "CreateProfile",
+    "the collection switches before the profile: " & $mutations
+  doAssert mutations[^2..^1] == @["SetCurrentProfile", "SetCurrentSceneCollection"],
+    "the profile is restored before the collection: " & $mutations
+  doAssert "RemoveInput" notin mutations
+
+  let project = fake.collections[firefox.collection]
+  doAssert project.scenes == @[firefox.scene]
+  doAssert project.program == firefox.scene
+  doAssert project.special == emptySpecial()
+  let
+    video = project.inputNamed(firefox.video)
+    audio = project.inputNamed(firefox.audio)
+    mic = project.inputNamed(firefox.mic)
+  doAssert project.inputs.len == 3
+  doAssert video.kind == "xcomposite_input" and video.settings == newJObject(),
+    "the browser window starts unbound"
+  doAssert audio.kind == "pipewire_audio_application_capture"
+  doAssert audio.settings == %*{"CaptureMode": 0, "MatchPriorty": 1, "ExceptApp": false},
+    "the browser audio starts unbound"
+  doAssert mic.kind == "pulse_input_capture" and mic.muted
+  doAssert mic.settings == %*{"device_id": MinecraftMic}
+  doAssert not audio.muted
+  doAssert audio.tracks == %*{"1": true, "2": true, "3": false, "4": false,
+    "5": false, "6": false}
+  doAssert mic.tracks == %*{"1": true, "2": false, "3": true, "4": false,
+    "5": false, "6": false}
+  doAssert audio.monitor == "OBS_MONITORING_TYPE_NONE"
+  doAssert mic.monitor == "OBS_MONITORING_TYPE_NONE"
+  var sources: seq[string]
+  for item in project.items[firefox.scene]:
+    sources.add(item.source)
+    doAssert item.enabled
+    if item.source == firefox.video:
+      doAssert item.transform["boundsType"].getStr() == "OBS_BOUNDS_SCALE_INNER"
+      doAssert item.transform["boundsWidth"].getFloat() == 1920.0
+      doAssert item.transform["boundsHeight"].getFloat() == 1080.0
+  doAssert sources == @[firefox.video, firefox.audio, firefox.mic]
+
+  let
+    firefoxDir = profilesDir / "Firefox_Demos"
+    iniPath = firefoxDir / "basic.ini"
+    encoderPath = firefoxDir / "recordEncoder.json"
+    recordDir = fake.configDir / "Videos/Firefox-Demos"
+    ini = readFile(iniPath)
+  doAssert report.files.len == 3, $report.files
+  doAssert dirExists(recordDir)
+  doAssert iniValue(ini, "General", "Name") == firefox.profile
+  doAssert iniValue(ini, "AdvOut", "RecFilePath") == recordDir
+  doAssert iniValue(ini, "AdvOut", "RecEncoder") == "ffmpeg_vaapi_tex"
+  doAssert iniValue(ini, "AdvOut", "RecFormat2") == "mkv"
+  doAssert iniValue(ini, "AdvOut", "RecTracks") == "7"
+  doAssert iniValue(ini, "Video", "AutoRemux") == "true"
+  doAssert iniValue(ini, "Audio", "SampleRate") == "48000"
+  doAssert parseJson(readFile(encoderPath)) == %*{"vaapi_device": "/dev/null",
+    "rate_control": "CQP", "qp": 20, "profile": 100, "keyint_sec": 2}
+  for path in [iniPath, encoderPath, iniPath & ".knobby-backup-f1"]:
+    doAssert mode(path) == 0o600
+  doAssert readTree(profilesDir / "Minecraft_AI_Demos") == minecraftFiles
+  doAssert readTree(profilesDir / "Untitled") == untitledFiles
+
+  # The runtime binds the captures and the human picks a microphone; a rerun keeps both.
+  project.inputs[project.inputIndex(firefox.video)].settings["capture_window"] = %"bound"
+  project.inputs[project.inputIndex(firefox.audio)].settings["TargetName"] = %"knobby-firefox"
+  project.inputs[project.inputIndex(firefox.mic)].settings["device_id"] = %"chosen"
+  project.inputs[project.inputIndex(firefox.mic)].muted = false
+  let
+    firefoxBefore = project.snapshot()
+    firefoxFiles = readTree(firefoxDir)
+    mutationsBefore = fake.mutations().len
+    again = fake.runFirefox(stamp = "f2")
+  doAssert again.files.len == 0
+  doAssert fake.mutations()[mutationsBefore..^1] == @["SetCurrentSceneCollection",
+    "SetCurrentProfile", "SetCurrentProfile", "SetCurrentSceneCollection"]
+  doAssert project.snapshot() == firefoxBefore
+  doAssert readTree(firefoxDir) == firefoxFiles
+  doAssert fake.collections[minecraft.collection].snapshot() == minecraftBefore
+  doAssert readTree(profilesDir / "Minecraft_AI_Demos") == minecraftFiles
+
+  # An explicit device changes only the encoder file, keeping a private backup.
+  let changed = fake.runFirefox("/dev/zero", "f3")
+  doAssert changed.files.len == 1 and "recordEncoder.json" in changed.files[0]
+  doAssert parseJson(readFile(encoderPath))["vaapi_device"].getStr() == "/dev/zero"
+  doAssert parseJson(readFile(encoderPath & ".knobby-backup-f3"))["vaapi_device"].getStr() ==
+    "/dev/null"
+  doAssert mode(encoderPath & ".knobby-backup-f3") == 0o600
+  fake.stopFake()
+
+proc testFirefoxRestoresProgramScene() =
+  ## Restore the original program scene when reloading the collection shows another one.
+  let fake = newMinecraftFake()
+  fake.resetProgramOnLoad = true
+  discard fake.runFirefox()
+  doAssert fake.current.program == IntroScene
+  doAssert fake.mutations()[^1] == "SetCurrentProgramScene"
+  fake.stopFake()
+
+proc testFirefoxRefusesActiveOutput() =
+  ## Change nothing at all while recording or streaming.
+  for streaming in [false, true]:
+    let fake = newMinecraftFake()
+    if streaming:
+      fake.streaming = true
+    else:
+      fake.recording = true
+    doAssert (if streaming: "streaming" else: "recording") in fake.runFirefoxFailure()
+    doAssert fake.mutations().len == 0
+    doAssert not dirExists(fake.configDir / "basic/profiles/Firefox_Demos")
+    fake.stopFake()
+
+proc testFirefoxKeepsHumanOutput() =
+  ## Stop at an output started mid-setup and leave OBS selected rather than switch while it runs.
+  let
+    fake = newMinecraftFake()
+    firefox = projectSpec(FirefoxProject)
+  fake.streamAfter = "CreateInput"
+  let message = fake.runFirefoxFailure()
+  doAssert "streaming" in message and "was not returned" in message, message
+  doAssert fake.mutations()[^1] == "CreateInput"
+  doAssert fake.streaming
+  doAssert fake.profile == firefox.profile and fake.collection == firefox.collection
+  doAssert not fileExists(fake.configDir / "basic/profiles/Firefox_Demos/recordEncoder.json")
+  fake.stopFake()
+
+proc testFirefoxRefusesForeignContent() =
+  ## Refuse a Firefox collection holding anything setup did not create, then restore the original.
+  let
+    firefox = projectSpec(FirefoxProject)
+    minecraft = projectSpec(MinecraftProject)
+  for variant in ["input", "scene", "defaultItem", "globalAudio"]:
+    let
+      fake = newMinecraftFake()
+      existing = newCollection()
+    fake.collections[firefox.collection] = existing
+    case variant
+    of "input":
+      fake.addInput(existing, DefaultScene, "Webcam", "v4l2_input")
+    of "scene":
+      existing.scenes.add("Browser")
+      existing.items["Browser"] = @[]
+    of "defaultItem":
+      fake.addInput(existing, DefaultScene, firefox.video, "xcomposite_input")
+    else:
+      existing.special["desktop1"] = %"Desktop Audio"
+    let
+      before = existing.snapshot()
+      message = fake.runFirefoxFailure()
+    doAssert "setup changes no" in message or "global audio" in message, message
+    doAssert existing.snapshot() == before, variant
+    doAssert fake.mutations() == @["SetCurrentSceneCollection", "SetCurrentSceneCollection"],
+      variant & ": " & $fake.mutations()
+    doAssert firefox.profile notin fake.profiles
+    doAssert fake.profile == minecraft.profile and fake.collection == minecraft.collection
+    doAssert fake.current.program == IntroScene
+    fake.stopFake()
+
+proc testFirefoxRefusesWhileFirefoxActive() =
+  ## Refuse to start from the Firefox setup and never write the active profile's files.
+  let
+    fake = newMinecraftFake()
+    firefox = projectSpec(FirefoxProject)
+  discard fake.runFirefox()
+  let
+    firefoxDir = fake.configDir / "basic/profiles/Firefox_Demos"
+    filesBefore = readTree(firefoxDir)
+    mutationsBefore = fake.mutations().len
+  fake.activateProfile(firefox.profile)
+  doAssert "switch OBS" in fake.runFirefoxFailure()
+  let client = waitFor connectObs(fake.obs.url, "")
+  try:
+    doAssertRaises(SetupError):
+      discard waitFor client.configureInactiveProfile(fake.configDir, firefox.profile,
+        "/dev/zero", fake.configDir / "Videos/Firefox-Demos", "f9")
+  finally:
+    client.close()
+  doAssert fake.mutations().len == mutationsBefore
+  doAssert readTree(firefoxDir) == filesBefore
+  fake.stopFake()
+
+proc testFirefoxRefusesMalformedOrMismatched() =
+  ## Refuse malformed profile files, an unknown render device, and audio formats that prompt a restart.
+  let firefox = projectSpec(FirefoxProject)
+  for variant in ["firefoxEncoder", "minecraftEncoder", "noDevice", "minecraftRate",
+      "firefoxRate", "relativeRecord"]:
+    let fake = newMinecraftFake()
+    var renderDevice = ""
+    case variant
+    of "firefoxEncoder", "firefoxRate":
+      fake.profiles.add(firefox.profile)
+      writeProfile(fake.configDir, "Firefox_Demos", "[General]\nName=Firefox Demos\n" &
+        (if variant == "firefoxRate": "\n[Audio]\nSampleRate=44100\n" else: ""))
+      if variant == "firefoxEncoder":
+        writeFile(fake.configDir / "basic/profiles/Firefox_Demos/recordEncoder.json", "[1]")
+    of "minecraftEncoder":
+      writeFile(fake.configDir / "basic/profiles/Minecraft_AI_Demos/recordEncoder.json",
+        "not json")
+    of "noDevice":
+      writeFile(fake.configDir / "basic/profiles/Minecraft_AI_Demos/recordEncoder.json",
+        "{\"qp\": 20}")
+    of "minecraftRate":
+      fake.audioFormats[fake.profile] = ("44100", "Stereo")
+    else:
+      renderDevice = "/dev/null"
+    let filesBefore = readTree(fake.configDir)
+    if variant == "minecraftEncoder":
+      doAssertRaises(JsonParsingError):
+        discard fake.runFirefox(renderDevice)
+    elif variant == "relativeRecord":
+      let client = waitFor connectObs(fake.obs.url, "")
+      try:
+        doAssertRaises(SetupError):
+          discard waitFor client.provisionFirefox(fake.configDir, renderDevice, "Videos")
+      finally:
+        client.close()
+    else:
+      discard fake.runFirefoxFailure(renderDevice)
+    doAssert fake.mutations().len == 0, variant
+    doAssert readTree(fake.configDir) == filesBefore, variant
+    fake.stopFake()
+
 proc main() =
   ## Run setup tests against fake OBS servers and temporary configs only.
   testIniEditing()
@@ -549,6 +908,13 @@ proc main() =
   testRefusesGlobalAudio()
   testCleansExistingCollection()
   testRefusesWrongInputKind()
+  testFirefoxProvisioning()
+  testFirefoxRestoresProgramScene()
+  testFirefoxRefusesActiveOutput()
+  testFirefoxKeepsHumanOutput()
+  testFirefoxRefusesForeignContent()
+  testFirefoxRefusesWhileFirefoxActive()
+  testFirefoxRefusesMalformedOrMismatched()
 
 when isMainModule:
   main()
