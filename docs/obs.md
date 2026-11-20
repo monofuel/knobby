@@ -41,7 +41,7 @@ links during recording. An already-running browser is unaffected.
 
 ## Stream Deck
 
-Open **OBS controls** from Home or press **Menu (1)**, then **OBS (3)**.
+Open **OBS controls (2)** from Home or press **Menu (1)**, then **OBS (2)**.
 Entering the page never launches OBS or starts recording. Menu temporarily
 reveals navigation only on the top row; the MIDI controller stays independent.
 

@@ -15,8 +15,8 @@ const
   LinkArts = ["workflow/menu-obs", "workflow/menu-discord", "workflow/menu-work"]
   RootLinkKeys = [2, 3, 4]
   FirstFreeRootKey = 5
-  NavigationLinkKeys = [3, 4, 5]
-  HomeKey = 2
+  NavigationLinkKeys = RootLinkKeys
+  HomeKey = 5
   OpenObsTitle = "Open OBS"
   OpenObsArt = "workflow/open-obs"
   OpenObsKey = 2
@@ -35,12 +35,12 @@ const
   DiscordControlKinds = ["microphones", "discord", "discordDeafen", "openDiscord",
     "discordAcceptVoice", "discordAcceptVideo"]
   DiscordFirstControlKey = 2
-  DiscordLinks = [(8, WorkMenuId), (9, ObsMenuId)]
-  DiscordExtraKeys = [10, 11, 12, 13, 14, 15]
+  DiscordLinks = [(14, WorkMenuId), (15, ObsMenuId)]
+  DiscordExtraKeys = [8, 9, 10, 11, 12, 13]
   WorkFirstActionKey = 2
   WorkActionCapacity = 11
-  WorkLinks = [(13, DiscordMenuId), (14, ObsMenuId)]
-  WorkExtraKeys = [15]
+  WorkLinks = [(14, DiscordMenuId), (15, ObsMenuId)]
+  WorkExtraKeys = [13]
   OpenDiscordDefaultTitle = "Discord"
   OpenDiscordTitle = "Open Discord"
 
@@ -76,6 +76,10 @@ proc menuFace(artwork: Table[string, string]): JsonNode =
   ## Build the closed Menu key every normal Deck page shows on key 1.
   face(1, MenuTitle, deckMenuAction(), MenuArt, artwork)
 
+proc homeFace(artwork: Table[string, string]): JsonNode =
+  ## Mark the already-open Home page without another navigation layer or an action.
+  face(1, HomeTitle, %*{"kind": "none"}, MenuHomeArt, artwork)
+
 proc linkFace(key: int, menu: string, artwork: Table[string, string]): JsonNode =
   ## Build a labeled Deck-only link to the OBS, Discord, or Softmax menu.
   let index = LinkTargets.find(menu)
@@ -104,7 +108,7 @@ proc rootLinkFaces(artwork: Table[string, string]): seq[JsonNode] =
   for index, key in RootLinkKeys: result.add(linkFace(key, LinkTargets[index], artwork))
 
 proc navigationFaces(rootId: string, artwork: Table[string, string]): seq[JsonNode] =
-  ## Build the open drawer keys: Menu, Home, OBS Controls, Discord Controls, and Softmax.
+  ## Build Menu, the same three workflow positions as Home, and Home at the right edge.
   result.add(face(1, MenuTitle, deckMenuAction(), MenuOpenArt, artwork))
   result.add(face(HomeKey, HomeTitle, deckLink(rootId), MenuHomeArt, artwork))
   for index, key in NavigationLinkKeys: result.add(linkFace(key, LinkTargets[index], artwork))
@@ -183,6 +187,17 @@ proc isCompleted(menu: JsonNode): bool =
   let first = menu.deckEntry(1)
   not first.isNil and first["action"] == deckMenuAction()
 
+proc isHomePage(menu: JsonNode): bool =
+  ## Recognize the non-action Home indicator, preserving its edited face on later runs.
+  let first = menu.deckEntry(1)
+  if first.isNil or first["action"] != %*{"kind": "none"}: return false
+  for target in LinkTargets:
+    var found = false
+    for entry in menu["deck"]:
+      if entry["action"] == deckLink(target): found = true
+    if not found: return false
+  result = true
+
 proc fillMissing(menu: JsonNode, faces: seq[JsonNode]) =
   ## Add any generated key a completed menu lacks at its standard key, leaving edited keys alone.
   for wanted in faces:
@@ -198,7 +213,7 @@ proc fillMissing(menu: JsonNode, faces: seq[JsonNode]) =
       menu.setEntry(wanted)
 
 proc organizeRoot(menu: JsonNode, rootId: string, artwork: Table[string, string]) =
-  ## Give the root page Menu and its three links, moving custom keys 1 to 4 onto free keys.
+  ## Give Home its indicator and three links, moving custom keys 1 to 4 onto free keys.
   var
     kept, displaced: seq[JsonNode]
     freeKeys: seq[int]
@@ -209,8 +224,34 @@ proc organizeRoot(menu: JsonNode, rootId: string, artwork: Table[string, string]
   for key in FirstFreeRootKey..DeckKeyCount:
     let entry = menu.deckEntry(key)
     if entry.isNil or entry.isPlaceholder() or isNavigation(entry["action"], rootId): freeKeys.add(key)
-  finishDeck(menu, @[menuFace(artwork)] & rootLinkFaces(artwork) & kept &
+  finishDeck(menu, @[homeFace(artwork)] & rootLinkFaces(artwork) & kept &
     placeEntries(displaced, freeKeys, rootId))
+
+proc positionLinks(menu: JsonNode, links: openArray[(int, string)]) =
+  ## Move whole contextual links together, refusing occupied destinations before replacing anything.
+  var
+    moved: seq[JsonNode]
+    actions: seq[JsonNode]
+  for (key, target) in links:
+    let action = deckLink(target)
+    actions.add(action)
+    var matching: JsonNode
+    for entry in menu["deck"]:
+      if entry["action"] == action:
+        if not matching.isNil:
+          raise newException(ValueError, "Duplicate contextual link to " & target & ".")
+        matching = entry
+    if not matching.isNil: moved.add(matching.copyEntry(key))
+  for wanted in moved:
+    let current = menu.deckEntry(wanted["key"].getInt())
+    if not current.isNil and not current.isPlaceholder() and current["action"] notin actions:
+      raise newException(ValueError, "Deck key " & $wanted["key"].getInt() & " in " &
+        menu["id"].getStr() & " holds a custom control; refusing to replace it.")
+  var kept: seq[JsonNode]
+  for entry in menu["deck"]:
+    if entry["action"] notin actions: kept.add(entry)
+  menu["deck"] = %kept
+  for entry in moved: menu.setEntry(entry)
 
 proc organizeObs(obs, setups: JsonNode, rootId: string, artwork: Table[string, string]) =
   ## Flatten OBS Setups into OBS: generated open, setup, and resize keys, whole Record, Pause,
@@ -296,6 +337,17 @@ proc installNavigationMenu(config: JsonNode, rootId: string, artwork: Table[stri
   if menu.isNil:
     menu = %*{"id": DeckNavigationMenuId, "title": DeckNavigationTitle, "mixer": [], "deck": []}
     config["menus"].add(menu)
+  let oldTargets = [rootId, ObsMenuId, DiscordMenuId, WorkMenuId]
+  var previousLayout = true
+  for index, target in oldTargets:
+    let current = menu.deckEntry(index + 2)
+    if current.isNil or current["action"] != deckLink(target): previousLayout = false
+  if previousLayout:
+    var moved: seq[JsonNode]
+    for index, target in oldTargets:
+      let key = if index == 0: HomeKey else: NavigationLinkKeys[index - 1]
+      moved.add(menu.deckEntry(index + 2).copyEntry(key))
+    for entry in moved: menu.setEntry(entry)
   for wanted in navigationFaces(rootId, artwork):
     let current = menu.deckEntry(wanted["key"].getInt())
     if current.isNil or current.isPlaceholder():
@@ -333,13 +385,13 @@ proc retargetSetupLinks(config: JsonNode) =
 
 proc migrateWorkflowMenus*(source: JsonNode, artwork: Table[string, string]): JsonNode =
   ## Return an owned configuration with the Menu drawer layout and a flattened OBS page.
-  ## Every normal Deck page shows Menu on key 1; the deck-navigation drawer holds Home, OBS
-  ## Controls, Discord Controls, and Softmax. The root shows its three links on keys 2 to 4.
+  ## Home has a non-action indicator and links on keys 2 to 4; other Deck pages use Menu.
+  ## The drawer uses those same workflow positions with Home at key 5. Context links occupy 14–15.
   ## OBS Setups is merged into OBS and removed, with remaining links retargeted to OBS.
   ## Whole Record, Pause, Commentary, Discord, and Softmax entries are moved, never rebuilt, and
   ## every mixer binding and unrelated menu is kept. A missing menu or control, an ambiguous
   ## duplicate, overflowing custom keys, or a foreign key 1 raises before anything is returned.
-  ## A menu that already shows Menu on key 1 keeps its edited keys and only gains missing links.
+  ## Once Home is aligned, later runs preserve edited layouts and only restore missing links.
   result = parseJson($source)
   let
     rootId = result["root"].getStr()
@@ -348,15 +400,23 @@ proc migrateWorkflowMenus*(source: JsonNode, artwork: Table[string, string]): Js
     discord = requireMenu(result, DiscordMenuId)
     work = requireMenu(result, WorkMenuId)
     setups = findMenu(result, ObsSetupsMenuId)
+    aligned = root.isHomePage()
   if rootId in [ObsSetupsMenuId, DeckNavigationMenuId]:
     raise newException(ValueError, "The root menu cannot be " & rootId & ".")
-  if root.isCompleted(): root.fillMissing(rootLinkFaces(artwork))
+  if root.isCompleted():
+    root.fillMissing(rootLinkFaces(artwork))
+    root.setEntry(homeFace(artwork))
+  elif root.isHomePage(): root.fillMissing(rootLinkFaces(artwork))
   else: organizeRoot(root, rootId, artwork)
   if setups.isNil and obs.isCompleted(): obs.fillMissing(obsFaces(artwork))
   else: organizeObs(obs, setups, rootId, artwork)
-  if discord.isCompleted(): discord.fillMissing(linkFaces(DiscordLinks, artwork))
+  if discord.isCompleted():
+    if not aligned: discord.positionLinks(DiscordLinks)
+    discord.fillMissing(linkFaces(DiscordLinks, artwork))
   else: organizeDiscord(discord, rootId, artwork)
-  if work.isCompleted(): work.fillMissing(linkFaces(WorkLinks, artwork))
+  if work.isCompleted():
+    if not aligned: work.positionLinks(WorkLinks)
+    work.fillMissing(linkFaces(WorkLinks, artwork))
   else: organizeWork(work, rootId, artwork)
   for menu in result["menus"]:
     if menu["id"].getStr() notin [rootId, ObsMenuId, DiscordMenuId, WorkMenuId,

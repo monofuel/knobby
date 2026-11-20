@@ -151,6 +151,20 @@ suite "Button editor model":
     model.setTitle("Menu copy")
     check model.draft.entryAt(model.draft.rootMenu(), DeckDevice, 1)["title"].getStr() == "Menu"
 
+  test "a Home indicator still lets new menus inherit another page's Menu key":
+    var config = withSubmenu()
+    let menuKey = %*{"key": 1, "title": "Menu",
+      "action": {"kind": "deckMenu", "menu": "nav"},
+      "visual": {"image": "assets/menu.png", "showTitle": false}}
+    config["menus"][0]["deck"].elems[0] = %*{"key": 1, "title": "Home", "action": {"kind": "none"}}
+    config["menus"][1]["deck"] = %*[menuKey]
+    config["menus"].add(%*{"id": "nav", "title": "Menu", "mixer": [], "deck": [menuKey.copy()]})
+    var model = liveModel(config)
+    let id = model.createMenu("New workflow")
+    check model.draft.entryAt(id, DeckDevice, 1) == menuKey
+    check model.draft.entryAt(id, MixerDevice, 1).actionKind() == BackAction
+    check model.validation == ""
+
   test "local validation points at the offending slot":
     var model = liveModel()
     model.selectDevice(DeckDevice)

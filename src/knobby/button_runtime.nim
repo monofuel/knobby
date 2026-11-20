@@ -312,19 +312,25 @@ proc toggleDrawer(current: var RuntimeState) =
     current.setDrawer(menu)
 
 proc drawerDestination(current: RuntimeState, key: int): ConfiguredAction =
-  ## Return the open drawer's menu link on a top-row key, or NoAction when it has none.
-  if current.drawer.len > 0 and key in 2..DrawerKeyCount:
-    result = menuButtons(current.active.buttons, current.drawer).deck[key - 1].action
-    if result.kind != MenuAction:
+  ## Return a Deck-only destination from an open drawer or the already-expanded Home page.
+  let menu = if current.drawer.len > 0: current.drawer
+    elif current.menus[DeckDevice] == current.active.buttons.root: current.active.buttons.root
+    else: ""
+  if menu.len > 0 and key in 2..DrawerKeyCount:
+    result = menuButtons(current.active.buttons, menu).deck[key - 1].action
+    if result.kind != MenuAction or result.target != TargetDeck:
       result = ConfiguredAction(kind: NoAction)
 
 proc selectDrawer(current: var RuntimeState, key: int) =
-  ## Navigate to an open drawer's destination and close the drawer; a refusal changes nothing.
+  ## Select a navigation destination and close the drawer; a refusal changes nothing.
   let action = current.drawerDestination(key)
   if action.kind != MenuAction:
-    raise newException(DeckNavigationError, "Deck key " & $key & " is not an open drawer destination.")
-  current.forgetHistory({DeckDevice})
-  current.setMenu(DeckDevice, action.menu)
+    raise newException(DeckNavigationError, "Deck key " & $key & " is not a navigation destination.")
+  if current.drawer.len > 0:
+    current.forgetHistory({DeckDevice})
+    current.setMenu(DeckDevice, action.menu)
+  else:
+    current.navigateTo(action)
   current.setDrawer("")
 
 proc lowerKeyCurrent(current: RuntimeState, index: int): bool =

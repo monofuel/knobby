@@ -1,6 +1,6 @@
 # Softmax submenu
 
-Open **Softmax** from Home, or press **Menu (1)** then **Softmax (5)**.
+Open **Softmax (4)** from Home, or press **Menu (1)** then **Softmax (4)**.
 Menu temporarily replaces the top row; press it again to cancel. Its navigation
 leaves the MIDI mixer unchanged. See [Menu navigation](navigation.md).
 
@@ -18,8 +18,8 @@ leaves the MIDI mixer unchanged. See [Menu navigation](navigation.md).
 | 10 | NEXT | Staging `/next/` experimental games list |
 | 11 | REALM | Private-world dashboard, port 7777 |
 | 12 | START | Start the existing persistent private WoW server |
-| 13 | DISCORD MENU | Open Discord controls |
-| 14 | OBS MENU | Open OBS controls |
+| 14 | DISCORD MENU | Switch to Discord controls |
+| 15 | OBS MENU | Open OBS controls |
 
 The Discord app action and controls-menu link remain distinct. Discord's
 controls page also keeps a direct Softmax link, so switching tasks stays quick.
@@ -72,8 +72,8 @@ After installing both menus, add the reciprocal task shortcuts with:
 nix develop --command nim r tools/setup_task_links.nim --apply
 ```
 
-The current workflow layout retains direct reciprocal links on Softmax key 13
-and Discord key 8. Run `tools/setup_workflow_layout.nim --apply` last; see
+The current workflow layout retains direct reciprocal links on key 14 of both
+pages, with OBS at key 15. Run `tools/setup_workflow_layout.nim --apply` last; see
 [Menu navigation](navigation.md).
 
 Artwork is generated alongside the OBS and Discord icons by

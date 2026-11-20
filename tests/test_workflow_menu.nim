@@ -111,14 +111,43 @@ proc oldEntry(id: string, key: int): JsonNode =
   ## Return one entry from a fresh live-like source.
   entry(liveLikeConfig(), id, key)
 
+proc relocate(config: JsonNode, id: string, moves: openArray[(int, int)]) =
+  ## Construct an earlier known layout without losing entries during overlapping moves.
+  var moved, kept: seq[JsonNode]
+  for (source, target) in moves: moved.add(entry(config, id, source).keyed(target))
+  for current in menu(config, id)["deck"]:
+    var moving = false
+    for (source, target) in moves:
+      if current["key"].getInt() in [source, target]: moving = true
+    if not moving: kept.add(current)
+  menu(config, id)["deck"] = %(kept & moved)
+
 suite "Workflow menu layout":
+  test "upgrades the installed offset drawer and moves whole crosslinks to the bottom-right pair":
+    let expected = migrateWorkflowMenus(liveLikeConfig(), artwork())
+    let previous = expected.copy()
+    entry(previous, "root", 1)["action"] = parseJson(MenuAction)
+    entry(previous, "root", 1)["title"] = %"Menu"
+    entry(previous, "root", 1)["visual"]["image"] = %artwork()[MenuArt]
+    relocate(previous, DeckNavigationMenuId, [(2, 3), (3, 4), (4, 5), (5, 2)])
+    relocate(previous, "discord", [(14, 8), (15, 9)])
+    relocate(previous, "work", [(14, 13), (15, 14)])
+    let original = $previous
+    check migrateWorkflowMenus(previous, artwork()) == expected
+    check $previous == original
+    let occupied = previous.copy()
+    menu(occupied, "discord")["deck"].add(button(14, "Custom", %*{"kind": "command", "command": "custom"}))
+    let before = $occupied
+    expect ValueError: discard migrateWorkflowMenus(occupied, artwork())
+    check $occupied == before
+
   test "migrates the live layout to the agreed keys and leaves the source untouched":
     let
       source = liveLikeConfig()
       before = $source
       result = migrateWorkflowMenus(source, artwork())
     check $source == before
-    check layout(result, "root")[0..3] == @[(1, "Menu", $parseJson(MenuAction)),
+    check layout(result, "root")[0..3] == @[(1, "Home", $(%*{"kind": "none"})),
       (2, "OBS Controls", $link("obs")), (3, "Discord Controls", $link("discord")),
       (4, "Softmax", $link("work"))]
     for key in 5..15: check entry(result, "root", key) == entry(source, "root", key)
@@ -136,11 +165,11 @@ suite "Workflow menu layout":
     check workTitles == @["Menu", "Prism", "WoW Vanilla", "WoW Nim", "Open Discord", "Slack",
       "Autoresearch", "Fast-XP Prod", "Fast-XP Staging", "Next Games", "WoW Dashboard",
       "Start WoW Server", "Discord Controls", "OBS Controls"]
-    check entry(result, "discord", 8)["action"] == link("work")
-    check entry(result, "discord", 9)["action"] == link("obs")
-    check entry(result, "work", 13)["action"] == link("discord")
-    check entry(result, "work", 14)["action"] == link("obs")
-    check entry(result, "work", 15).isNil
+    check entry(result, "discord", 14)["action"] == link("work")
+    check entry(result, "discord", 15)["action"] == link("obs")
+    check entry(result, "work", 14)["action"] == link("discord")
+    check entry(result, "work", 15)["action"] == link("obs")
+    check entry(result, "work", 13).isNil
     check menu(result, "obs-setups").isNil
     check "obs-setups" notin $result
 
@@ -150,13 +179,16 @@ suite "Workflow menu layout":
       drawer = menu(result, DeckNavigationMenuId)
     check drawer["mixer"].len == 0
     check layout(result, DeckNavigationMenuId) == @[(1, "Menu", $parseJson(MenuAction)),
-      (2, "Home", $link("root")), (3, "OBS Controls", $link("obs")),
-      (4, "Discord Controls", $link("discord")), (5, "Softmax", $link("work"))]
+      (2, "OBS Controls", $link("obs")), (3, "Discord Controls", $link("discord")),
+      (4, "Softmax", $link("work")), (5, "Home", $link("root"))]
     check entry(result, DeckNavigationMenuId, 1)["visual"]["image"].getStr() ==
       "assets/new-workflow-menu-open.png"
-    for id in ["root", "obs", "discord", "work"]:
+    for id in ["obs", "discord", "work"]:
       check entry(result, id, 1)["action"] == parseJson(MenuAction)
       check entry(result, id, 1)["visual"]["image"].getStr() == "assets/new-workflow-menu.png"
+    check entry(result, "root", 1)["action"] == %*{"kind": "none"}
+    for key in 2..4:
+      check entry(result, "root", key)["action"] == entry(result, DeckNavigationMenuId, key)["action"]
 
   test "moves whole state, Discord, and launcher entries unchanged":
     let result = migrateWorkflowMenus(liveLikeConfig(), artwork())
@@ -214,7 +246,7 @@ suite "Workflow menu layout":
     let result = migrateWorkflowMenus(source, artwork())
     check sameEntry(result, "obs", 9, entry(source, "obs", 11))
     check sameEntry(result, "obs", 10, entry(source, "obs-setups", 13))
-    check sameEntry(result, "discord", 10, entry(source, "discord", 12))
+    check sameEntry(result, "discord", 8, entry(source, "discord", 12))
     check menu(result, "obs")["mixer"] == %*[
       {"key": 4, "title": "Setups", "action": {"kind": "menu", "menu": "obs", "target": "deck"}}]
     let crowded = parseJson($source)
@@ -266,7 +298,7 @@ suite "Workflow menu layout":
     entry(first, "obs", 7)["visual"]["image"] = %"assets/raid.png"
     entry(first, "root", 1)["visual"]["image"] = %"assets/my-menu.png"
     entry(first, DeckNavigationMenuId, 2)["title"] = %"Main"
-    entry(first, "work", 14)["key"] = %15
+    entry(first, "work", 15)["key"] = %13
     let before = $first
     check migrateWorkflowMenus(first, artwork()) == first
     check $first == before

@@ -1,15 +1,17 @@
 # Menu toggle and workflow pages
 
-Key **1 is MENU** on every Stream Deck page. It opens a temporary navigation
-row; press it again to cancel and restore the current page's controls.
+Home already shows the navigation destinations: **2 OBS, 3 Discord, 4 Softmax**.
+Its top-left Home indicator does nothing. Other pages have **MENU at key 1**;
+press it to reveal those same destinations in those same positions, or again
+to cancel and restore the current page's controls.
 
 | Key | Navigation open |
 | --- | --- |
 | 1 | MENU, highlighted as open; press to cancel |
-| 2 | Home |
-| 3 | OBS controls |
-| 4 | Discord controls |
-| 5 | Softmax |
+| 2 | OBS controls |
+| 3 | Discord controls |
+| 4 | Softmax |
+| 5 | Home |
 
 Choosing a destination opens that page and closes navigation. Only the top
 row changes while navigation is open: keys 6–15 keep their current actions and
@@ -44,11 +46,13 @@ Managed scene capture checks and the recording/streaming guards still apply.
 ## Other workflows
 
 Discord uses keys 2 System mic, 3 Discord mic, 4 Deafen, 5 Open Discord,
-6 Answer voice, 7 Answer video, 8 Softmax menu, and 9 OBS controls.
+6 Answer voice, 7 Answer video, 14 Softmax menu, and 15 OBS controls.
 
 Softmax uses keys 2 Prism, 3 WoW Vanilla, 4 WoW Nim, 5 Open Discord, 6 Slack,
 7 Autoresearch, 8 Fast-XP Prod, 9 Fast-XP Staging, 10 Next Games,
-11 WoW Dashboard, 12 Start WoW Server, 13 Discord menu, and 14 OBS controls.
+11 WoW Dashboard, 12 Start WoW Server, 14 Discord menu, and 15 OBS controls.
+Both pages use the bottom-right pair consistently: 14 switches work/voice
+context, and 15 opens OBS controls.
 Their existing actions, launch commands, media states, and private-world
 identity are preserved. See [Softmax](work.md) and [Discord](discord.md).
 

@@ -444,6 +444,39 @@ suite "Deck menu drawer runtime":
     check reply["code"].getStr() == "refused"
 
 suite "Deck navigation requests":
+  test "expanded Home has no toggle and only its Deck-only menu links can be selected":
+    var config = drawerConfig()
+    config["menus"][1]["deck"] = %*[
+      {"key": 1, "title": "Home", "action": {"kind": "none"}},
+      deckLink(2, "obs"), deckLink(3, "discord"), deckLink(4, "work")]
+    let paths = start(config)
+    defer: finish(paths)
+    discard syncDeck()
+    let generation = status()["deckGeneration"]
+    press(1)
+    press(1)
+    check status()["deckDrawer"].getStr() == ""
+    check status()["deckGeneration"] == generation
+    check not navigate("toggle")["ok"].getBool()
+    check not navigate("select", 5)["ok"].getBool()
+    check navigate("select", 2)["ok"].getBool()
+    check status()["deckMenu"].getStr() == "obs"
+    check status()["mixerMenu"].getStr() == "root"
+    check not navigate("select", 3)["ok"].getBool()
+    check takeButtonActions().len == 0
+
+  test "Home navigation IPC cannot select a linked Mixer action":
+    var config = drawerConfig()
+    config["menus"][1]["deck"].elems[1]["action"] =
+      %*{"kind": "menu", "menu": "obs", "target": "both"}
+    let paths = start(config)
+    defer: finish(paths)
+    discard syncDeck()
+    check not navigate("select", 2)["ok"].getBool()
+    check status()["deckMenu"].getStr() == "root"
+    check status()["mixerMenu"].getStr() == "root"
+    check takeButtonActions().len == 0
+
   test "toggle, select, and cancel reuse the physical drawer without app actions":
     let paths = start(drawerConfig())
     defer: finish(paths)
