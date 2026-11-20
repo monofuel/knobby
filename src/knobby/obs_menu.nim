@@ -40,7 +40,8 @@ proc installObsSetupsMenu*(source: JsonNode, artwork: Table[string, string]): Js
   for (key, title, operation, art) in [(5, "Minecraft AI Demos", "selectMinecraft", "project-minecraft"),
       (6, "Firefox Demos", "selectFirefox", "project-firefox")]:
     menu["deck"].add(face(key, title, operation, art, artwork,
-      [("ready", art & "-active"), ("unavailable", art & "-unavailable")]))
+      [("active", art & "-active"), ("blocked", art & "-unavailable"),
+        ("unavailable", art & "-unavailable")]))
   menu["deck"].add(face(7, "Firefox demo window / 1080p", "firefox1080", "firefox-launch", artwork,
     [("unavailable", "firefox-launch"), ("running", "firefox-1080-needed"), ("ready", "firefox-1080")]))
   let link = %*{"kind": "menu", "menu": ObsSetupsMenuId, "target": "deck"}

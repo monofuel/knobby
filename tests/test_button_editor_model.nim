@@ -377,6 +377,7 @@ suite "Button editor model":
     for operation in ObsOperations:
       model.setObsOperation(operation)
       check model.selected().obsOperation() == operation and model.validation == ""
+    model.setObsOperation("minecraft1080")
     check model.draft.describeAction(model.selected()) == "OBS: Minecraft 1080p"
     expect ValueError: model.setObsOperation("startStream")
     model.setObsOperation("micToggle")
@@ -385,6 +386,27 @@ suite "Button editor model":
     expect ValueError: model.setObsOperation("open")
     model.setActionKind(ObsAction)
     check model.selected().obsOperation() == "recordToggle"
+
+  test "demo setup state images remain editable and previews do not switch OBS":
+    var model = liveModel()
+    model.selectDevice(DeckDevice)
+    model.selectKey(6)
+    model.setActionKind(ObsAction)
+    for operation in ["selectMinecraft", "selectFirefox"]:
+      model.setObsOperation(operation)
+      check model.selected().entryStates() == @["active", "blocked", "unavailable"]
+      model.setImage("assets/selected.gif", "active")
+      model.setImage("assets/blocked.png", "blocked")
+      let original = $model.draft
+      model.selectVisualState("active")
+      check stateLabel(model.visualState) == "Selected"
+      model.selectVisualState("blocked")
+      check stateLabel(model.visualState) == "Switching blocked"
+      check $model.draft == original
+      check model.validation == ""
+    model.setObsOperation("firefox1080")
+    check model.selected().entryStates() == @["running", "ready", "unavailable"]
+    check model.visualState == NormalState
 
   test "state images edit visual.states and selecting a state never edits the draft":
     var model = liveModel()

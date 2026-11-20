@@ -126,7 +126,7 @@ OBS uses the existing [button configuration](buttons.md), with this action:
 Operations are `recordToggle`, `pauseToggle`, `micToggle`, `open`,
 `minecraft1080`, `selectMinecraft`, `selectFirefox`, and `firefox1080`.
 Optional `visual.states` maps `recording`, `paused`,
-`muted`, `unavailable`, `running`, and `ready` to managed image paths. The default visual remains
+`muted`, `unavailable`, `running`, `ready`, `active`, and `blocked` to managed image paths. The default visual remains
 `visual.image`. PNG, JPEG, and animated GIF preparation and limits apply to
 every variant. A status change selects preloaded media without resetting menu
 navigation, held keys, or animation timing.

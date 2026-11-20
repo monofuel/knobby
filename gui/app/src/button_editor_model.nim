@@ -45,7 +45,8 @@ const
   NormalState* = ""
   StateLabels* = [("", "Default"), ("recording", "Recording"), ("paused", "Paused"),
     ("muted", "Muted"), ("unavailable", "Unavailable"),
-    ("running", "Running"), ("ready", "Ready"), ("mixed", "Mixed"), ("deafened", "Deafened")]
+    ("running", "Running"), ("ready", "Ready"), ("active", "Selected"),
+    ("blocked", "Switching blocked"), ("mixed", "Mixed"), ("deafened", "Deafened")]
 
 proc keyCount*(device: ButtonDevice): int =
   ## Return the number of editable physical keys on a device.
@@ -120,7 +121,8 @@ proc obsStates*(operation: string): seq[string] =
   of "recordToggle", "pauseToggle": @["recording", "paused", "unavailable"]
   of "micToggle": @["muted", "unavailable"]
   of "open": @["running", "unavailable"]
-  of "minecraft1080": @["running", "ready", "unavailable"]
+  of "minecraft1080", "firefox1080": @["running", "ready", "unavailable"]
+  of "selectMinecraft", "selectFirefox": @["active", "blocked", "unavailable"]
   else: @[]
 
 proc controlStates*(kind: string): seq[string] =
