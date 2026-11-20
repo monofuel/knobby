@@ -32,6 +32,9 @@ const
   CompactRowTops = [CompactBandTop, CompactBandTop + 11]
   CompactSingleTop = 52
   CompactFont = {
+    '0': @["###", "#.#", "#.#", "#.#", "###"],
+    '1': @[".#.", "##.", ".#.", ".#.", "###"],
+    '8': @["###", "#.#", "###", "#.#", "###"],
     'A': @[".#.", "#.#", "###", "#.#", "#.#"],
     'C': @[".##", "#..", "#..", "#..", ".##"],
     'D': @["##.", "#.#", "#.#", "#.#", "##."],
@@ -806,6 +809,33 @@ proc generateObsSetupIcons() =
       ("firefox-1080-needed", "1080", AmberTone), ("firefox-1080", "1080", GreenTone)]:
     render(Icon(label: label, tone: tone, sprite: outlinedColors(demoSprite(true)), colors: fox)).writeFile(
       OutputDirectory / (name & ".png"))
+  let
+    wowColors = palette("#281c16", "#d7b65c", "#fff1b6", "#775629", [('g', "#447ac1")])
+    wowSprite = @[
+      "................", "...##########...", "..#gggggggggg#..", ".#ggrrrrrrrrgg#.",
+      ".#grhrrrrrrhrg#.", ".#grhrrrrrrhrg#.", ".#grhrrrrrrhrg#.", ".#grhrrhhrrhrg#.",
+      ".#grhrhrrhrhrg#.", ".#grhhrrrrhhrg#.", ".#grhrrrrrrhrg#.", ".#ggrrrrrrrrgg#.",
+      "..#gggggggggg#..", "...##########...", "................", "................"]
+  for (suffix, tone) in [("", AmberTone), ("-active", GreenTone), ("-unavailable", GreyTone)]:
+    let image = newImage(Size, Size)
+    image.fillStone(tone)
+    image.drawSymbol(wowSprite, wowColors)
+    image.drawCompactLabel(["WOW"], tone.labelColor())
+    if suffix == "-active":
+      for (x, y) in [(0, 2), (1, 3), (2, 4), (3, 3), (4, 2), (5, 1), (6, 0)]:
+        for dy in 0..1:
+          for dx in 0..1: image[48 + x * 2 + dx, 30 + y * 2 + dy] = rgb("#d6ffce")
+    image.writeFile(OutputDirectory / ("project-wow" & suffix & ".png"))
+  for (name, label, sprite, colors) in [
+      ("minecraft", "MINE", outlinedColors(demoSprite(false)), grass),
+      ("firefox", "FIREFOX", outlinedColors(demoSprite(true)), fox),
+      ("wow", "WOW", wowSprite, wowColors)]:
+    for (suffix, tone) in [("", GreenTone), ("-needed", AmberTone), ("-unavailable", GreyTone)]:
+      let image = newImage(Size, Size)
+      image.fillStone(tone)
+      image.drawSymbol(sprite, colors)
+      image.drawCompactLabel([label, "1080"], tone.labelColor())
+      image.writeFile(OutputDirectory / ("setup-" & name & "-1080" & suffix & ".png"))
   var windows: Sprite
   for y in 0..<16:
     var row = repeat('.', 16)

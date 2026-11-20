@@ -30,7 +30,9 @@
 - `src/knobby/daemon_workers.nim` - independent button, fader, Stream Deck, audio, IPC, and cache workers.
 - `src/knobby/obs_worker.nim` - supervised headless OBS helper with bounded queues and no command replay.
 - `src/knobby/obs_state.nim` - authoritative OBS observations and pure state-art selection.
-- `src/knobby/obs_projects.nim`, `obs_menu.nim` - paired Minecraft/Firefox OBS setups and nested Deck menu installation.
+- `src/knobby/obs_projects.nim`, `obs_menu.nim` - shared recording profile, Minecraft/Firefox/WoW collections and nested Deck menu installation.
+- `gui/app/src/wow_capture.nim` - exact Classic/Wine or Nim window selection, process-verified audio, and explicit 1080p sizing.
+- `gui/app/tools/setup_obs_shared.nim` - additive, inactive shared-profile and WoW collection provisioning.
 - `src/knobby/firefox_demo_config.nim`, `gui/app/src/firefox_demo.nim` - dedicated configurable Firefox demo window and isolated application audio.
 - `src/knobby/discord_calls.nim` - bounded incoming-call AT-SPI observation and explicit voice/video answer queue.
 - `src/knobby/work_menu.nim` - pure Softmax submenu install from `docs/work-menu-targets.json` (`tools/setup_work_buttons.nim`).

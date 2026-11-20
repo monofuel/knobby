@@ -44,7 +44,8 @@ proc main() =
   for unit in ["knobby.service", "knobby-gui.service", "knobby-overlay.service"]:
     copyFile(package / "share/knobby" / unit, unitDir / unit)
   copyFile(package / "share/knobby/knobby-gui.desktop", desktopDir / "knobby.desktop")
-  for name in ["knobby", "knobby-gui", "knobby-overlay", "knobby-assets", "knobby-obs", "knobby-obs-setup"]:
+  for name in ["knobby", "knobby-gui", "knobby-overlay", "knobby-assets", "knobby-obs", "knobby-obs-setup",
+      "knobby-obs-shared-setup"]:
     let launcher = binDir / name
     if symlinkExists(launcher):
       removeFile(launcher)

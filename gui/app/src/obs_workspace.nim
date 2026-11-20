@@ -659,7 +659,7 @@ proc resync(bridge: ObsBridge) {.async.} =
       of FirefoxProject, WowProject:
         audioPending = await bridge.bindWindowCapture(snapshot, snapshot.project,
           snapshot.recording or snapshot.streaming)
-        captureReady = true
+        captureReady = snapshot.project != WowProject or not audioPending
   except ObsConnectionError:
     # The connection supervisor reports disconnects.
     disconnected = true
@@ -747,7 +747,9 @@ proc toggleRecording(bridge: ObsBridge) {.async.} =
           "Minecraft is not running, so recording was not started.")
       await bridge.bindGameAudio(snapshot.audioKind)
     of FirefoxProject, WowProject:
-      discard await bridge.bindWindowCapture(snapshot, project, snapshot.streaming)
+      let pending = await bridge.bindWindowCapture(snapshot, project, snapshot.streaming)
+      if project == WowProject and pending:
+        raise newException(ObsCommandError, "WoW has not opened its game audio stream yet; recording was not started.")
     discard await client.request("StartRecord")
 
 proc togglePause(bridge: ObsBridge) {.async.} =
@@ -772,13 +774,6 @@ proc toggleMic(bridge: ObsBridge) {.async.} =
     "inputName": mic,
     "inputMuted": not mute.requireBool("inputMuted", "GetInputMute")
   })
-
-proc outputsIdle(bridge: ObsBridge): Future[bool] {.async.} =
-  ## Read fresh typed recording and streaming state; malformed responses raise.
-  let
-    record = await bridge.client.readRecordState()
-    streaming = await bridge.client.readStreamActive()
-  result = not (record.active or record.paused or streaming or bridge.status.transitioning)
 
 proc requireOutputsIdle(bridge: ObsBridge, action: string) {.async.} =
   ## Refuse an action unless a fresh read shows no recording, stream, reconnect, or transition.
@@ -810,8 +805,7 @@ proc requireResizeIdle(bridge: ObsBridge, subject: string) {.async.} =
 
 proc switchProject(bridge: ObsBridge, spec: ObsProjectSpec) {.async.} =
   ## Move to an existing profile, collection, and scene, checking outputs before each change.
-  ## A profile already accepted for the setup is kept; otherwise the shared demo
-  ## profile is chosen when installed, falling back to the setup's legacy profile.
+  ## Prefer the shared demo profile when installed, falling back to the legacy profile.
   let
     client = bridge.client
     profiles = await client.request("GetProfileList")
@@ -819,7 +813,7 @@ proc switchProject(bridge: ObsBridge, spec: ObsProjectSpec) {.async.} =
     profile = profiles.requireStr("currentProfileName", "GetProfileList")
     collection = collections.requireStr("currentSceneCollectionName", "GetSceneCollectionList")
     installed = profiles.stringsIn("profiles", "GetProfileList")
-    target = if spec.acceptsProfile(profile): profile else: spec.preferredProfile(installed)
+    target = spec.preferredProfile(installed)
   if target notin installed:
     raise newException(ObsCommandError, "OBS profile \"" & target &
       "\" does not exist; run the OBS setup tool.")
@@ -848,7 +842,9 @@ proc selectProject(bridge: ObsBridge, project: ObsProject) {.async.} =
     client = bridge.requireConnected()
     spec = projectSpec(project)
     names = await client.readProfileAndCollection()
-  var selected = projectId(names.profile, names.collection) == spec.id
+    profiles = await client.request("GetProfileList")
+    target = spec.preferredProfile(profiles.stringsIn("profiles", "GetProfileList"))
+  var selected = names.profile == target and names.collection == spec.collection
   if selected:
     let scene = await client.request("GetCurrentProgramScene")
     selected = scene.requireStr("currentProgramSceneName", "GetCurrentProgramScene") == spec.scene
@@ -864,19 +860,14 @@ proc selectProject(bridge: ObsBridge, project: ObsProject) {.async.} =
     if failure != nil:
       raise newException(ObsCommandError, conciseError(failure.msg) & " " &
         observedPair(actual.profile, actual.collection))
-    if projectId(actual.profile, actual.collection) != spec.id:
+    if actual.profile != target or actual.collection != spec.collection:
       raise newException(ObsCommandError, spec.label & " was not selected. " &
         observedPair(actual.profile, actual.collection))
 
 proc openObs(bridge: ObsBridge) {.async.} =
-  ## Launch or focus OBS, keeping a recognized setup or selecting Minecraft only while idle.
+  ## Focus OBS without changing its setup, or launch its original Minecraft default when closed.
   if bridge.client.isOpen:
     bridge.hooks.focusObs()
-    let
-      names = await bridge.client.readProfileAndCollection()
-      current = knownProject(names.profile, names.collection)
-    if await bridge.outputsIdle():
-      await bridge.selectProject(if current.known: current.project else: MinecraftProject)
   elif bridge.hooks.obsRunning():
     bridge.hooks.focusObs()
   else:

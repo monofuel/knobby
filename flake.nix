@@ -11,7 +11,7 @@
       pkgs = nixpkgs.legacyPackages.${system};
       obsAudioPlugin = pkgs.obs-studio-plugins.obs-pipewire-audio-capture;
       runtimeTools = with pkgs; [ alsa-utils pulseaudio pipewire wmctrl curl systemd procps ffmpeg-headless ];
-      graphics = with pkgs; [ xorg.libX11 xorg.libXcursor xorg.libXrandr xorg.libXi
+      graphics = with pkgs; [ xorg.libX11 xorg.libXres xorg.libXcursor xorg.libXrandr xorg.libXi
         xorg.libXinerama xorg.libXext libGL dbus mesa ];
       pins = builtins.filter (line: line != "")
         (pkgs.lib.splitString "\n" (builtins.readFile ./gui/app/nimby.lock));
@@ -47,6 +47,7 @@
           nim c -o:gui/app/dist/knobby_overlay gui/app/src/knobby_overlay.nim
           nim c -o:gui/app/dist/knobby_obs gui/app/tools/knobby_obs.nim
           nim c -o:gui/app/dist/knobby-obs-setup gui/app/tools/setup_obs.nim
+          nim c -o:gui/app/dist/knobby-obs-shared-setup gui/app/tools/setup_obs_shared.nim
           runHook postBuild
         '';
         doCheck = true;
@@ -63,8 +64,10 @@
           nim r gui/app/tools/test_obs_bridge.nim
           nim r gui/app/tools/test_minecraft_window.nim
           nim r gui/app/tools/test_firefox_demo.nim
+          nim r gui/app/tools/test_wow_capture.nim
           nim r gui/app/tools/test_minecraft_audio.nim
           nim r gui/app/tools/test_setup_obs.nim
+          nim r gui/app/tools/test_obs_shared.nim
           sh gui/app/tools/editor_smoke.sh
           sh gui/app/tools/overlay_smoke.sh
           runHook postCheck
@@ -78,6 +81,7 @@
           cp gui/app/dist/knobby_overlay "$out/libexec/knobby-overlay"
           cp gui/app/dist/knobby_obs "$out/libexec/knobby-obs"
           cp gui/app/dist/knobby-obs-setup "$out/libexec/knobby-obs-setup"
+          cp gui/app/dist/knobby-obs-shared-setup "$out/libexec/knobby-obs-shared-setup"
           cp -r assets/obs "$out/share/knobby/obs-icons"
           cp -r assets/discord "$out/share/knobby/discord-icons"
           cp -r assets/work "$out/share/knobby/work-icons"
@@ -94,8 +98,11 @@
             --prefix PATH : "${pkgs.lib.makeBinPath [pkgs.ffmpeg-headless]}"
           makeWrapper "$out/libexec/knobby-obs" "$out/bin/knobby-obs" \
             --prefix PATH : "${pkgs.lib.makeBinPath runtimeTools}" \
-            --prefix LD_LIBRARY_PATH : "${pkgs.lib.makeLibraryPath [pkgs.xorg.libX11]}"
+            --prefix LD_LIBRARY_PATH : "${pkgs.lib.makeLibraryPath [pkgs.xorg.libX11 pkgs.xorg.libXres]}"
           makeWrapper "$out/libexec/knobby-obs-setup" "$out/bin/knobby-obs-setup" \
+            --prefix PATH : "${pkgs.lib.makeBinPath runtimeTools}" \
+            --prefix LD_LIBRARY_PATH : "${pkgs.lib.makeLibraryPath [pkgs.xorg.libX11]}"
+          makeWrapper "$out/libexec/knobby-obs-shared-setup" "$out/bin/knobby-obs-shared-setup" \
             --prefix PATH : "${pkgs.lib.makeBinPath runtimeTools}" \
             --prefix LD_LIBRARY_PATH : "${pkgs.lib.makeLibraryPath [pkgs.xorg.libX11]}"
           cp docs/knobby.service docs/knobby-gui.service docs/knobby-overlay.service \
@@ -125,6 +132,7 @@
           curl
           systemd
           xorg.libX11
+          xorg.libXres
           xorg.libXcursor
           xorg.libXrandr
           xorg.libXi
@@ -141,7 +149,7 @@
         ];
 
         LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath (with pkgs; [
-          xorg.libX11 xorg.libXcursor xorg.libXrandr xorg.libXi
+          xorg.libX11 xorg.libXres xorg.libXcursor xorg.libXrandr xorg.libXi
           xorg.libXinerama xorg.libXtst xorg.libXext libGL dbus
         ]);
 

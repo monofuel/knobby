@@ -1,15 +1,19 @@
 # Demo recordings with OBS
 
-OBS has two matched recording setups: **Minecraft AI Demos** and **Firefox
-Demos**. Each pairs a profile (recording settings) with a scene collection
-(capture sources). The Deck's OBS **SETUP** submenu switches both together,
-so changing tasks does not leave Minecraft settings paired with Firefox
-sources. Switching is refused while recording, including paused recording,
-or streaming. Entering a menu never starts an app or recording.
+OBS uses one **Demo Recording** profile for common video, encoder, recording,
+audio-track, and stream settings, and three scene collections: **Minecraft AI
+Demos**, **Firefox Demos**, and **WoW Demos**. The Deck's OBS **SETUP** submenu
+selects the shared profile and the chosen collection together. Switching is
+refused while recording, including paused recording, or streaming. Entering a
+menu never starts an app or recording.
 
-Minecraft recordings go to `~/Videos/Minecraft-AI/`; Firefox recordings go to
-`~/Videos/Firefox-Demos/`. Both use 1920×1080 at 60 fps, with browser/game and
-commentary on separate audio tracks as well as a combined track.
+The shared profile records to `~/Videos/Demos/`, at 1920×1080 and 60 fps, with
+game/browser and Commentary on separate tracks as well as a combined track.
+It starts as a copy of the working Minecraft profile, including its encoder
+and stream settings. The original profiles remain available as rollback:
+Minecraft still records to `~/Videos/Minecraft-AI/` and the original Firefox
+profile to `~/Videos/Firefox-Demos/`. Knobby recognizes these original pairs
+too, and never deletes or rewrites them during shared-profile setup.
 
 ## Minecraft
 
@@ -54,16 +58,48 @@ current menu. Keys 1-4 are the [shared purple navigation keys](navigation.md).
 
 Inside **SETUP**, keys 1-4 keep the usual Home/OBS/Discord/Softmax navigation.
 Key 5 selects **Minecraft AI Demos**, key 6 selects **Firefox Demos**, and
-key 7 opens/focuses the dedicated Firefox demo window or resizes it to 1080p.
+key 7 selects **WoW Demos**. Directly beneath them, keys 10, 11, and 12 are
+**Minecraft 1080p**, **Firefox demo 1080p**, and **WoW 1080p** respectively.
+The old Firefox window action moves from key 7 to key 11; custom artwork and
+titles survive that migration. Resizing changes the selected application's
+client area to exactly 1920×1080 physical pixels, normalizing maximized or
+fullscreen state only on that explicit press. It preserves focus, position,
+screen resolution, and the running game/session. Resizing is refused during
+recording or streaming; it never happens automatically on installation.
 The green checked setup face identifies the selected pair; an amber face is
 another available setup. Unavailable changes appear grey. OBS key 2 returns
 to the recording controls. The recording, pause, and Commentary buttons work
 with the selected recognized setup.
 
-An explicitly selected custom scene in either demo collection can also be
+An explicitly selected custom scene can also be
 recorded. Record uses that scene as configured in OBS and does not select a
 demo scene or rebind its inputs. The managed Minecraft and Firefox scenes
 retain their exact window and application-audio checks.
+
+## WoW demos
+
+The **WoW Demos** collection has one **WoW** scene: **WoW Video**, **WoW Audio**,
+and **Commentary**. While idle, Knobby follows the single running Classic/Wine
+or native Nim client. Two matching clients are ambiguous and are never guessed
+between. Window and audio settings stay frozen during active outputs.
+
+Classic is identified by its observed `wow.exe` class and **World of Warcraft**
+title. The Nim player's source sets **Vanilla WoW Player**; its actual process
+must be the native `player` executable. Since Windy does not set `_NET_WM_PID`,
+the helper uses the X server's XRes client PID when needed. This adds `libXRes`
+to the headless OBS helper's X11 runtime, without changing either game's code.
+Audio is verified against the selected game's process tree; generic Wine or
+OpenAL audio names never select unrelated applications. A silent game can be
+pending without capturing any other application's sound; the managed WoW
+record action becomes ready when the game's audio stream exists, so a first
+recording cannot silently lose its later soundtrack. Custom scenes retain
+ordinary OBS recording behavior. Commentary uses the
+existing microphone settings, starts muted, and stays on tracks 1 and 3;
+game audio uses tracks 1 and 2.
+
+The WoW 1080p button resizes whichever of those two clients is actually open.
+It never starts, stops, reconnects, or relaunches a client or realm. Neither
+normal desktop capture nor personal Firefox windows are fallback targets.
 
 Recording, pause, and mic artwork follows actual OBS events and periodic
 queries. Grey unavailable artwork means the connection or required workspace
@@ -129,7 +165,8 @@ OBS uses the existing [button configuration](buttons.md), with this action:
 ```
 
 Operations are `recordToggle`, `pauseToggle`, `micToggle`, `open`,
-`minecraft1080`, `selectMinecraft`, `selectFirefox`, and `firefox1080`.
+`minecraft1080`, `selectMinecraft`, `selectFirefox`, `selectWow`,
+`firefox1080`, and `wow1080`.
 Optional `visual.states` maps `recording`, `paused`,
 `muted`, `unavailable`, `running`, `ready`, `active`, and `blocked` to managed image paths. The default visual remains
 `visual.image`. PNG, JPEG, and animated GIF preparation and limits apply to
@@ -163,6 +200,27 @@ nix develop --command nim r tools/setup_obs_setups.nim --apply
 It uses the first free OBS key from 10 to 15 and preserves existing controls,
 other menus, MIDI bindings, and artwork edits. If those slots are occupied it
 refuses to replace them.
+
+Prepare the shared profile and new WoW collection while OBS is idle:
+
+```sh
+knobby-obs-shared-setup --apply
+```
+
+This creates only new inactive native files, without switching the current
+profile, collection, scene, or capture. Original profiles and collections stay
+in place, and reruns preserve changes to the new setup. Profile files are
+staged privately before publication; an interrupted collection install can be
+resumed. An existing unrelated profile or collection is never replaced.
+
+OBS 32 caches both lists while running. After first-time file provisioning,
+close and reopen OBS once before activating the new Deck menu. Confirm that
+`knobby-obs request GetProfileList` includes **Demo Recording** and
+`knobby-obs request GetSceneCollectionList` includes **WoW Demos**. File
+existence and a checked package alone do not establish that these targets are
+available in the running OBS. Its [profile cache](https://github.com/obsproject/obs-studio/blob/32.1.2/frontend/widgets/OBSBasic_Profiles.cpp#L263)
+and [collection cache](https://github.com/obsproject/obs-studio/blob/32.1.2/frontend/widgets/OBSBasic_SceneCollections.cpp#L345)
+are refreshed explicitly by OBS; Knobby does not restart the desktop app.
 
 ## Runtime and installation
 

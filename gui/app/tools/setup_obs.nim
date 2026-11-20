@@ -599,7 +599,7 @@ proc findProfileDir*(configDir, profileName: string): string =
       matches.join(", "))
   result = matches[0]
 
-proc writeNewPrivate(path, content: string) =
+proc writeNewPrivate*(path, content: string) =
   ## Create a new 0600 file, failing if it exists, and flush it to disk.
   let fd = posix.open(path.cstring, O_WRONLY or O_CREAT or O_EXCL or O_CLOEXEC,
     PrivateFileMode.Mode)
@@ -670,7 +670,7 @@ proc writeProfileRecording(configDir, profileName, renderDevice, recordDir,
   if profileName == projectSpec(FirefoxProject).profile:
     values.add(@[("Video", "BaseCX", $CanvasWidth), ("Video", "BaseCY", $CanvasHeight),
       ("Video", "OutputCX", $CanvasWidth), ("Video", "OutputCY", $CanvasHeight),
-      ("Video", "FPSType", "1"), ("Video", "FPSNum", $FramesPerSecond), ("Video", "FPSDen", "1")])
+      ("Video", "FPSType", "2"), ("Video", "FPSNum", $FramesPerSecond), ("Video", "FPSDen", "1")])
   let
     iniText = setIniValues(readFile(iniPath), values)
     encoderText = recordEncoderJson(

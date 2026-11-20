@@ -235,9 +235,9 @@ proc obsStatusDescription*(operation: string, status: JsonNode): string =
       elif firefox and status.flag("audioPending"):
         result = "Ready to record; Firefox audio joins when the page plays sound"
       elif wow and not status.flag("wowRunning"): result = "Open WoW before recording"
-      elif wow and not captureReady(status): result = "Waiting for WoW capture"
       elif wow and status.flag("audioPending"):
-        result = "Ready to record; WoW audio is not bound until the game plays sound"
+        result = "Waiting for WoW game audio"
+      elif wow and not captureReady(status): result = "Waiting for WoW capture"
       elif wow: result = "Ready to record"
       elif not firefox and not status.flag("minecraftRunning"):
         result = "Open Minecraft before recording"

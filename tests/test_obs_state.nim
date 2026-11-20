@@ -230,7 +230,7 @@ suite "OBS state":
     check obsStatusDescription("recordToggle", wow) == "Ready to record"
     wow["audioPending"] = %true
     check obsStatusDescription("recordToggle", wow) ==
-      "Ready to record; WoW audio is not bound until the game plays sound"
+      "Waiting for WoW game audio"
     wow["wowRunning"] = %false
     check obsStatusDescription("recordToggle", wow) == "Open WoW before recording"
     for operation in ["selectWow", "wow1080"]:

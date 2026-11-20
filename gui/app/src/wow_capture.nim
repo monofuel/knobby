@@ -48,7 +48,7 @@ proc wowCandidates*(windows: openArray[ClientWindow], executables: Table[int, st
   for window in windows:
     if isClassicWindow(window):
       result.verified.add(WowWindow(window: window, kind: ClassicClient))
-    elif isNativeTitle(window):
+    elif isNativeTitle(window) and window.instance.len == 0 and window.class.len == 0:
       if window.processId <= 0:
         if window.class.len == 0: result.unverified.add(window)
       elif executables.getOrDefault(window.processId) == NativeExecutable:

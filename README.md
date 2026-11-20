@@ -71,8 +71,9 @@ covers the editor, animated images, linked Back navigation, and the shared JSON
 workflow for text editors and AI tools.
 
 The [OBS submenu](docs/obs.md) provides recording, pause, and commentary mute
-with live state artwork. Its SETUP menu switches between Minecraft and Firefox
-demo profiles and scene collections, with 1080p window controls for both.
+with live state artwork. Its SETUP menu uses one shared recording profile with
+Minecraft, Firefox, and WoW scene collections, plus explicit 1080p client-window
+controls for all three. WoW follows the single running Classic/Wine or Nim client.
 The [Discord submenu](docs/discord.md) separates system mic mute, Discord mute,
 and deafen. The [Softmax submenu](docs/work.md) launches Prism, both WoW clients,
 Discord, Slack, the research dashboards, and the private WoW server. All three

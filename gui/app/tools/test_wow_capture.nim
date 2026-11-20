@@ -225,6 +225,9 @@ proc checkIdentity() =
     executables).kind == ClassicClient
   doAssert selectWowWindow([browser, native], executables).window.id == 2
   doAssert selectWowWindow([native], executables).kind == NativeClient
+  var retitledBrowser = browserNative
+  retitledBrowser.processId = NativePid
+  expectWowError("not open", proc () = discard selectWowWindow([retitledBrowser], executables))
   var bot = native
   bot.processId = BotPid
   expectWowError("not open", proc () = discard selectWowWindow([bot, browser,

@@ -284,7 +284,7 @@ proc testWorkspaceMismatch() =
   doAssert not harness.bridge.status.workspaceReady
 
 proc testOpenPreservesActiveOutput() =
-  ## Focus without switching while recording; activate the project only when idle.
+  ## Focus the actual OBS window without changing its scene, profile, or collection.
   let harness = newHarness()
   defer: harness.close()
   harness.fake.profile = "Untitled"
@@ -304,9 +304,9 @@ proc testOpenPreservesActiveOutput() =
   harness.fake.streaming = false
   doAssert harness.command(3, "open")["ok"].getBool()
   doAssert harness.focuses == 3
-  doAssert harness.fake.profile == ObsProfileName
-  doAssert harness.fake.collection == ObsCollectionName
-  doAssert harness.fake.programScene == ObsSceneName
+  doAssert harness.fake.profile == "Untitled"
+  doAssert harness.fake.collection == "Untitled"
+  doAssert harness.fake.programScene == "Scene"
   doAssert harness.launches == 0
 
 proc testOffline() =
@@ -891,7 +891,7 @@ proc testFirefoxSceneAndOpen() =
   doAssert harness.command(4, "recordToggle")["ok"].getBool()
   doAssert harness.command(3, "open")["ok"].getBool()
   doAssert harness.focuses == 1
-  doAssert harness.fake.profile == FirefoxProfile and harness.fake.programScene == "Firefox"
+  doAssert harness.fake.profile == FirefoxProfile and harness.fake.programScene == "Intro"
   doAssert harness.fake.count("SetCurrentProfile") == 1
   doAssert harness.fake.count("StartRecord") == 1
 
@@ -936,7 +936,9 @@ proc testSharedProfileSelection() =
   pumpFor(100)
   let legacy = harness.mutations()
   doAssert harness.command(1, "selectMinecraft")["ok"].getBool()
-  doAssert harness.mutations() == legacy, "the selected legacy pair is a no-op"
+  doAssert harness.mutations() > legacy
+  doAssert harness.fake.profile == SharedProfile,
+    "explicit setup selection adopts the shared profile even on the same legacy collection"
   doAssert harness.command(2, "selectFirefox")["ok"].getBool()
   doAssert harness.fake.profile == SharedProfile and harness.fake.collection == FirefoxProfile
   doAssert harness.fake.programScene == "Firefox"
@@ -979,8 +981,11 @@ proc testWowCapture() =
   harness.fake.settings["WoW Audio"] = %*{"TargetName": "wine-preloader"}
   doAssert harness.ready()
   doAssert harness.command(1, "selectWow")["ok"].getBool()
-  doAssert harness.wowReady()
-  doAssert harness.bridge.status.audioPending
+  doAssert harness.waitStatus(proc (status: ObsStatus): bool = status.activeProject == "wow" and
+    status.audioPending and not status.captureReady)
+  let silent = harness.command(50, "recordToggle")
+  doAssert not silent["ok"].getBool() and "audio stream" in silent["error"].getStr()
+  doAssert harness.fake.count("StartRecord") == 0
   doAssert harness.fake.settings["WoW Audio"]["TargetName"].getStr() == "",
     "silent WoW captures no application audio"
   harness.wowAudio = WowAudioName
@@ -1019,7 +1024,7 @@ proc testWowCapture() =
   harness.wowVideo = WowGameWindow
   harness.wowAudio = ""
   doAssert harness.waitStatus(proc (status: ObsStatus): bool =
-    status.recording and status.captureReady and status.audioPending)
+    status.recording and not status.captureReady and status.audioPending)
   pumpFor(CleanResyncWaitMs)
   doAssert harness.fake.count("SetInputSettings") == settled, "recording never rebinds"
   doAssert harness.fake.settings["WoW Video"]["capture_window"].getStr() == WowGameWindow

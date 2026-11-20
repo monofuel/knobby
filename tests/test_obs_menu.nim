@@ -42,10 +42,33 @@ suite "OBS setups submenu":
       %*{"kind": "menu", "menu": ObsSetupsMenuId, "target": "deck"}
     check buttonAt(installed, ObsSetupsMenuId, "deck", 1)["action"] ==
       %*{"kind": "menu", "menu": "main", "target": "deck"}
-    for (key, operation) in [(5, "selectMinecraft"), (6, "selectFirefox"), (7, "firefox1080")]:
+    for (key, operation) in [(5, "selectMinecraft"), (6, "selectFirefox"), (7, "selectWow"),
+        (10, "minecraft1080"), (11, "firefox1080"), (12, "wow1080")]:
       check buttonAt(installed, ObsSetupsMenuId, "deck", key)["action"] ==
         %*{"kind": "obs", "operation": operation}
     check installObsSetupsMenu(installed, artwork("assets/reimported-")) == installed
+
+  test "upgrade moves the old Firefox action and preserves custom art, navigation and MIDI":
+    let installed = installObsSetupsMenu(fixture(), artwork())
+    let legacy = installed["menus"][4]
+    legacy["mixer"].add(%*{"key": 1, "title": "Back", "action": {"kind": "back"}})
+    legacy["mixer"].add(%*{"key": 8, "title": "Keep", "action": {"kind": "none"}})
+    let oldDeck = newJArray()
+    for index in 0..<6: oldDeck.add(legacy["deck"][index])
+    oldDeck.add(%*{"key": 7, "title": "My Firefox 1080p", "action": {"kind": "obs", "operation": "firefox1080"},
+      "visual": {"image": "assets/custom-firefox.gif"}})
+    legacy["deck"] = oldDeck
+    legacy["deck"][4]["visual"]["image"] = %"assets/my-minecraft.gif"
+    let
+      before = $installed
+      upgraded = installObsSetupsMenu(installed, artwork())
+    check $installed == before
+    check upgraded["menus"][4]["mixer"] == legacy["mixer"]
+    for index in 0..<6: check upgraded["menus"][4]["deck"][index] == legacy["deck"][index]
+    check buttonAt(upgraded, ObsSetupsMenuId, "deck", 7)["action"]["operation"].getStr() == "selectWow"
+    check buttonAt(upgraded, ObsSetupsMenuId, "deck", 11)["visual"]["image"].getStr() == "assets/custom-firefox.gif"
+    check buttonAt(upgraded, ObsSetupsMenuId, "deck", 11)["title"].getStr() == "My Firefox 1080p"
+    check installObsSetupsMenu(upgraded, artwork()) == upgraded
 
   test "custom slots and custom artwork survive repeat setup":
     let source = fixture()

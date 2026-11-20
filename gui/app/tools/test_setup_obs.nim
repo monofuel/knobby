@@ -725,7 +725,7 @@ proc testFirefoxProvisioning() =
   doAssert dirExists(recordDir)
   doAssert iniValue(ini, "General", "Name") == firefox.profile
   for (key, value) in [("BaseCX", "1920"), ("BaseCY", "1080"), ("OutputCX", "1920"),
-      ("OutputCY", "1080"), ("FPSType", "1"), ("FPSNum", "60"), ("FPSDen", "1")]:
+      ("OutputCY", "1080"), ("FPSType", "2"), ("FPSNum", "60"), ("FPSDen", "1")]:
     doAssert iniValue(ini, "Video", key) == value
   doAssert iniValue(ini, "AdvOut", "RecFilePath") == recordDir
   doAssert iniValue(ini, "AdvOut", "RecEncoder") == "ffmpeg_vaapi_tex"
