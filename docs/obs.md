@@ -1,4 +1,17 @@
-# Minecraft recordings with OBS
+# Demo recordings with OBS
+
+OBS has two matched recording setups: **Minecraft AI Demos** and **Firefox
+Demos**. Each pairs a profile (recording settings) with a scene collection
+(capture sources). The Deck's OBS **SETUP** submenu switches both together,
+so changing tasks does not leave Minecraft settings paired with Firefox
+sources. Switching is refused while recording, including paused recording,
+or streaming. Entering a menu never starts an app or recording.
+
+Minecraft recordings go to `~/Videos/Minecraft-AI/`; Firefox recordings go to
+`~/Videos/Firefox-Demos/`. Both use 1920×1080 at 60 fps, with browser/game and
+commentary on separate audio tracks as well as a combined track.
+
+## Minecraft
 
 The `Minecraft AI Demos` profile and scene collection are separate from the
 existing `Untitled` setup. The single `Minecraft` scene captures the Minecraft
@@ -30,20 +43,60 @@ current menu. Keys 1-4 are the [shared purple navigation keys](navigation.md).
 
 | Key | Action |
 | --- | --- |
-| 1 | Back to the parent menu |
+| 1 | Home |
 | 2-4 | Open the OBS, Discord, or Softmax menu on the Deck |
 | 5 | Start/stop recording |
 | 6 | Pause/resume recording |
 | 7 | Mute/unmute OBS Commentary |
-| 8 | Open/focus OBS and select the Minecraft project when idle |
+| 8 | Open/focus OBS, preserving the selected demo setup |
 | 9 | Launch Prism if Minecraft is closed; otherwise resize Minecraft to 1920×1080 |
+| 10 | Open SETUP: Minecraft/Firefox profiles and scene collections |
+
+Inside **SETUP**, keys 1-4 keep the usual Home/OBS/Discord/Softmax navigation.
+Key 5 selects **Minecraft AI Demos**, key 6 selects **Firefox Demos**, and
+key 7 opens/focuses the dedicated Firefox demo window or resizes it to 1080p.
+The green checked setup face identifies the selected pair; an amber face is
+another available setup. Unavailable changes appear grey. OBS key 2 returns
+to the recording controls. The recording, pause, and Commentary buttons work
+with the selected recognized setup.
 
 Recording, pause, and mic artwork follows actual OBS events and periodic
 queries. Grey unavailable artwork means the connection or required workspace
 is unavailable. Commands are never retried after an uncertain result, and
 reconnecting never starts a recording. Stop/pause remain available for an
 existing recording if Minecraft closes. Open OBS never switches projects
-while recording or streaming.
+while recording or streaming. An already selected setup is retained when
+opening OBS; launching OBS when it is closed defaults to Minecraft.
+
+## Firefox and WASM demos
+
+Firefox demos use a dedicated browser profile and window identity, so normal
+Firefox windows and tabs stay outside the capture. The Firefox window button
+opens that demo instance only when pressed; installation and automated checks
+never launch it. Its default first page is `about:blank`. Open the WASM demo
+in that window, use the 1080p button, then return to OBS controls to record.
+
+The dedicated instance's browser audio goes to tracks 1 and 2; Commentary goes
+to tracks 1 and 3 and starts muted. All tabs in the dedicated instance share
+its audio capture. Keep unrelated audio out of that instance. Knobby does not
+fall back to desktop audio or a generic Firefox audio target.
+
+Defaults can be overridden in `~/.config/knobby/firefox-demo.json`:
+
+```json
+{
+  "executable": "firefox",
+  "profileDirectory": "/home/monofuel/.local/share/knobby/firefox-demos",
+  "windowClass": "knobby-firefox-demos",
+  "audioLabel": "knobby-firefox",
+  "startUrl": "about:blank"
+}
+```
+
+Use an absolute profile directory dedicated to demos. Changing the identity
+or label requires reopening that demo instance; existing personal Firefox
+sessions need no restart. Missing or ambiguous demo windows leave capture
+unavailable rather than selecting a normal browser window.
 
 The **OBS** key keeps its application icon: a grey frame when closed and a
 green frame when OBS is running. App presence is observed independently of
@@ -70,8 +123,9 @@ OBS uses the existing [button configuration](buttons.md), with this action:
 {"kind":"obs","operation":"recordToggle"}
 ```
 
-Operations are `recordToggle`, `pauseToggle`, `micToggle`, `open`, and
-`minecraft1080`. Optional `visual.states` maps `recording`, `paused`,
+Operations are `recordToggle`, `pauseToggle`, `micToggle`, `open`,
+`minecraft1080`, `selectMinecraft`, `selectFirefox`, and `firefox1080`.
+Optional `visual.states` maps `recording`, `paused`,
 `muted`, `unavailable`, `running`, and `ready` to managed image paths. The default visual remains
 `visual.image`. PNG, JPEG, and animated GIF preparation and limits apply to
 every variant. A status change selects preloaded media without resetting menu
@@ -93,6 +147,17 @@ nix develop --command nim r tools/setup_obs_buttons.nim --apply
 This imports artwork and adds the menu against the current revision, preserving
 the other bindings. It refuses to overwrite an existing `obs` menu; edit that
 menu through the normal editor instead.
+
+After the normal OBS and shared navigation menus exist, add the nested setup
+selector through the same configuration API:
+
+```sh
+nix develop --command nim r tools/setup_obs_setups.nim --apply
+```
+
+It uses the first free OBS key from 10 to 15 and preserves existing controls,
+other menus, MIDI bindings, and artwork edits. If those slots are occupied it
+refuses to replace them.
 
 ## Runtime and installation
 

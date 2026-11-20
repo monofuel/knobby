@@ -35,15 +35,21 @@ const
     'A': @[".#.", "#.#", "###", "#.#", "#.#"],
     'C': @[".##", "#..", "#..", "#..", ".##"],
     'D': @["##.", "#.#", "#.#", "#.#", "##."],
+    'E': @["###", "#..", "##.", "#..", "###"],
+    'F': @["###", "#..", "##.", "#..", "#.."],
     'I': @["#", "#", "#", "#", "#"],
     'L': @["#..", "#..", "#..", "#..", "###"],
     'M': @["#...#", "##.##", "#.#.#", "#...#", "#...#"],
     'N': @["#..#", "##.#", "#.##", "#..#", "#..#"],
     'O': @["###", "#.#", "#.#", "#.#", "###"],
+    'P': @["##.", "#.#", "##.", "#..", "#.."],
     'R': @["##.", "#.#", "##.", "#.#", "#.#"],
     'S': @[".##", "#..", ".#.", "..#", "##."],
+    'T': @["###", ".#.", ".#.", ".#.", ".#."],
+    'U': @["#.#", "#.#", "#.#", "#.#", "###"],
     'V': @["#.#", "#.#", "#.#", "#.#", ".#."],
-    'W': @["#...#", "#...#", "#.#.#", "#.#.#", ".#.#."]}.toTable
+    'W': @["#...#", "#...#", "#.#.#", "#.#.#", ".#.#."],
+    'X': @["#.#", "#.#", ".#.", "#.#", "#.#"]}.toTable
   Seed = 0x2f6e2b1'u32
   ChatSprite = @[
     "................", "..############..", ".#hhhhhhhhhhhh#.", ".#hrrrrrrrrrrr#.",
@@ -755,9 +761,68 @@ proc generateNavigationIcons() =
   render(Icon(label: "HOME", tone: PurpleTone, sprite: HomeSprite,
     colors: palette("#1a1b1d", "#d9dbe0", "#ffffff", "#9a9ca0"))).writeFile(Directory / "home.png")
 
+proc demoSprite(firefox: bool): Sprite =
+  ## Draw a recognizable grass block or orange fox circling a blue browser globe.
+  for y in 0..<16:
+    var row = repeat('.', 16)
+    for x in 0..<16:
+      if firefox:
+        let
+          dx = x.float - 7.5
+          dy = y.float - 7.5
+          distance = sqrt(dx * dx + dy * dy)
+        if distance < 6: row[x] = if (x + y) mod 5 == 0: 'h' else: 'g'
+        if distance >= 4.5 and distance < 7 and (y >= 8 or x <= 4):
+          row[x] = if y > 11: 'd' else: 'r'
+        if (y in 2..4 and x in 3..5) or (y in 3..5 and x in 9..11): row[x] = 'r'
+        if y in 5..7 and x in 5..11: row[x] = if y == 5: 'h' else: 'r'
+      elif x in 2..13 and y in 2..13:
+        if y <= 5 or (y == 6 and x mod 3 != 0):
+          row[x] = if (x + y) mod 4 == 0: 'h' else: 'g'
+        else:
+          row[x] = if (x * 3 + y) mod 5 == 0: 'd' else: 'r'
+    result.add(row)
+
+proc generateObsSetupIcons() =
+  ## Generate setup selectors and dedicated Firefox window actions using whole-pixel art.
+  let
+    grass = palette("#1c190e", "#805334", "#91d759", "#563b26", [('g', "#579b39")])
+    fox = palette("#211527", "#fa8425", "#ffd077", "#ce4a30", [('g', "#6553c6")])
+  for (name, labels, isFirefox, colors) in [
+      ("project-minecraft", @["MINE", "CRAFT"], false, grass),
+      ("project-firefox", @["FIREFOX"], true, fox)]:
+    for (suffix, tone, selected) in [("", AmberTone, false), ("-active", GreenTone, true),
+        ("-unavailable", GreyTone, false)]:
+      let image = newImage(Size, Size)
+      image.fillStone(tone)
+      image.drawSymbol(outlinedColors(demoSprite(isFirefox)), colors)
+      image.drawCompactLabel(labels, tone.labelColor())
+      if selected:
+        for (x, y) in [(0, 2), (1, 3), (2, 4), (3, 3), (4, 2), (5, 1), (6, 0)]:
+          for dy in 0..1:
+            for dx in 0..1: image[48 + x * 2 + dx, 30 + y * 2 + dy] = rgb("#d6ffce")
+      image.writeFile(OutputDirectory / (name & suffix & ".png"))
+  for (name, label, tone) in [("firefox-launch", "OPEN", GreenTone),
+      ("firefox-1080-needed", "1080", AmberTone), ("firefox-1080", "1080", GreenTone)]:
+    render(Icon(label: label, tone: tone, sprite: outlinedColors(demoSprite(true)), colors: fox)).writeFile(
+      OutputDirectory / (name & ".png"))
+  var windows: Sprite
+  for y in 0..<16:
+    var row = repeat('.', 16)
+    for x in 0..<16:
+      if x in 1..11 and y in 1..10: row[x] = if y == 1 or y == 3 or x == 1 or x == 11: '#' else: 'd'
+      if x in 4..14 and y in 5..14: row[x] = if y == 5 or y == 7 or y == 14 or x == 4 or x == 14: '#' else: 'r'
+    windows.add(row)
+  render(Icon(label: "SETUP", tone: PurpleTone, sprite: windows,
+    colors: palette("#c8bdff", "#7564b5", "#eee8ff", "#443364"))).writeFile(
+      OutputDirectory / "menu-setups.png")
+
 proc main() =
   ## Regenerate the committed key faces without network access or system fonts.
   createDir(OutputDirectory)
+  if commandLineParams() == @["--setups-only"]:
+    generateObsSetupIcons()
+    return
   for icon in icons():
     for line in icon.sprite:
       doAssert line.len == icon.sprite[0].len, icon.name & " sprite rows differ in width."
@@ -765,6 +830,7 @@ proc main() =
   generateDiscordIcons()
   generateWorkIcons()
   generateNavigationIcons()
+  generateObsSetupIcons()
 
 when isMainModule:
   main()

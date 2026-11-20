@@ -26,9 +26,10 @@ or paused, grey closed or unavailable. Action faces are unchanged.
 | Menu | Keys |
 | --- | --- |
 | Main | 5-15 unassigned |
-| OBS | 5 REC, 6 PAUSE, 7 Commentary mic, 8 Open OBS, 9 Minecraft 1080 |
+| OBS | 5 REC, 6 PAUSE, 7 Commentary mic, 8 Open OBS, 9 Minecraft 1080, 10 SETUP (paired Minecraft/Firefox profiles and scene collections) |
 | Discord | 5 System mic, 6 Discord mic, 7 Deafen, 8 Open Discord, 9 Answer voice, 10 Answer video |
 | Softmax | 5 PRISM, 6 WOW VANILLA, 7 WOW NIM, 8 DISCORD (foreground the app), 9 SLACK, 10 LAB (autoresearch, port 8103), 11 PROD, 12 STAGE, 13 NEXT (staging game list), 14 REALM (WoW dashboard, port 7777), 15 START (Start WoW Server) |
+| OBS Setups | 5 Minecraft AI Demos, 6 Firefox Demos, 7 Firefox demo window / 1080p |
 
 Softmax key 15 runs exactly
 `cd /home/monofuel/src/wow-coworld && nix develop /home/monofuel/src/wow-coworld/wow-shadow-army --command bash /home/monofuel/src/wow-coworld/tools/private_realm.sh start`.

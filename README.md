@@ -70,8 +70,9 @@ mute state and the mousepad's intended lighting preset. [Button configuration](d
 covers the editor, animated images, linked Back navigation, and the shared JSON
 workflow for text editors and AI tools.
 
-The [OBS submenu](docs/obs.md) provides Minecraft recording, pause, commentary
-mute, and a button to resize Minecraft to 1080p, with live state artwork.
+The [OBS submenu](docs/obs.md) provides recording, pause, and commentary mute
+with live state artwork. Its SETUP menu switches between Minecraft and Firefox
+demo profiles and scene collections, with 1080p window controls for both.
 The [Discord submenu](docs/discord.md) separates system mic mute, Discord mute,
 and deafen. The [Softmax submenu](docs/work.md) launches Prism, both WoW clients,
 Discord, Slack, the research dashboards, and the private WoW server. All three

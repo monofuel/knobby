@@ -15,8 +15,9 @@ proc firefoxDemoConfigPath*(): string =
 
 proc defaultFirefoxDemoConfig*(): FirefoxDemoConfig =
   ## Use a dedicated browser profile, class, and audio label without changing normal Firefox sessions.
+  let dataDirectory = getEnv("XDG_DATA_HOME")
   FirefoxDemoConfig(executable: "firefox",
-    profileDirectory: getEnv("XDG_DATA_HOME", getHomeDir() / ".local/share") / "knobby/firefox-demos",
+    profileDirectory: (if dataDirectory.len > 0: dataDirectory else: getHomeDir() / ".local/share") / "knobby/firefox-demos",
     windowClass: FirefoxDemoClass, audioLabel: FirefoxDemoAudioLabel, startUrl: "about:blank")
 
 proc parseFirefoxDemoConfig*(node: JsonNode): FirefoxDemoConfig =
