@@ -15,7 +15,7 @@ leaves the MIDI mixer unchanged. See [Menu navigation](navigation.md).
 | 7 | LAB | Local autoresearch dashboard, port 8103 |
 | 8 | PROD | Fast-XP production performance dashboard |
 | 9 | STAGE | Fast-XP staging performance dashboard |
-| 10 | NEXT | Staging `/next/` experimental games list |
+| 10 | NEXT | Polyworld games at `https://polyworld.gg/` |
 | 11 | REALM | Private-world dashboard, port 7777 |
 | 12 | START | Start the existing persistent private WoW server |
 | 14 | DISCORD MENU | Switch to Discord controls |

@@ -7,6 +7,7 @@ const
   AssetsDirectory = currentSourcePath().parentDir().parentDir() / "assets"
   WowDirectory = "/home/monofuel/src/wow-coworld/wow-shadow-army"
   StagingUrl = "https://fast-xp-k8s-staging.tail0f4a29.ts.net/"
+  NextGamesUrl = "https://polyworld.gg/"
 
 proc targets(): JsonNode =
   ## Load the checked-in Work targets used by the setup tool.
@@ -92,7 +93,7 @@ suite "Work submenu installation":
     check command(updated, 7) == "xdg-open http://127.0.0.1:8103/"
     check command(updated, 8) == "xdg-open https://fast-xp-k8s-prod.tail0f4a29.ts.net/"
     check command(updated, 9) == "xdg-open " & StagingUrl
-    check command(updated, 10) == "xdg-open " & StagingUrl & "next/"
+    check command(updated, 10) == "xdg-open " & NextGamesUrl
     check "/next/play/" notin command(updated, 10)
     check command(updated, 12) == "xdg-open http://127.0.0.1:7777/"
     check command(updated, 12) != command(updated, 7)
@@ -217,7 +218,7 @@ suite "Work submenu installation":
     routeDeckButton(9, false)
     let actions = takeButtonActions()
     check actions.len == 1
-    check actions[0]["action"]["command"].getStr().endsWith("/next/")
+    check actions[0]["action"]["command"].getStr() == "xdg-open " & NextGamesUrl
     routeDeckButton(0, true)
     routeDeckButton(0, false)
     check buttonRuntimeStatus()["deckMenu"].getStr() == "root"
