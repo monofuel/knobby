@@ -93,8 +93,9 @@ the latest unsaved readings.
   stream levels, independently of fader positions. The microphone control
   lists real input sources and mute state. System microphone and Discord
   controls display daemon-observed state; the viewer does not query RPC itself.
-- **Stream Deck:** the daemon's numbered page and live input state. The GUI
-  never opens hidraw or changes the display.
+- **Stream Deck:** the daemon's numbered page and live input state, including
+  the temporary Menu row over keys 1–5. The page underneath and keys 6–15
+  remain visible. The GUI never opens hidraw or changes the display.
 - **Mousepad:** physical presence and the intended OpenRazer preset. Actual
   RGB values are not queried. Lighting failures are independent of MIDI.
 

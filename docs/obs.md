@@ -2,8 +2,8 @@
 
 OBS uses one **Demo Recording** profile for common video, encoder, recording,
 audio-track, and stream settings, and three scene collections: **Minecraft AI
-Demos**, **Firefox Demos**, and **WoW Demos**. The Deck's OBS **SETUP** submenu
-selects the shared profile and the chosen collection together. Switching is
+Demos**, **Firefox Demos**, and **WoW Demos**. The OBS page's **Setup** buttons
+select the shared profile and the chosen collection together. Switching is
 refused while recording, including paused recording, or streaming. Entering a
 menu never starts an app or recording.
 
@@ -41,35 +41,36 @@ links during recording. An already-running browser is unaffected.
 
 ## Stream Deck
 
-Deck key 2 opens the OBS submenu from the main, Discord, and Softmax menus.
-Entering the menu does not launch OBS or start recording. The Arduino keeps its
-current menu. Keys 1-4 are the [shared purple navigation keys](navigation.md).
+Open **OBS controls** from Home or press **Menu (1)**, then **OBS (3)**.
+Entering the page never launches OBS or starts recording. Menu temporarily
+reveals navigation only on the top row; the MIDI controller stays independent.
 
 | Key | Action |
 | --- | --- |
-| 1 | Home |
-| 2-4 | Open the OBS, Discord, or Softmax menu on the Deck |
-| 5 | Start/stop recording |
-| 6 | Pause/resume recording |
-| 7 | Mute/unmute OBS Commentary |
-| 8 | Open/focus OBS, preserving the selected demo setup |
-| 9 | Launch Prism if Minecraft is closed; otherwise resize Minecraft to 1920×1080 |
-| 10 | Open SETUP: Minecraft/Firefox profiles and scene collections |
+| 1 | Toggle Menu; press again to restore this page's controls |
+| 2 | Open/focus OBS |
+| 3 | Record/Stop the currently selected OBS scene |
+| 4 | Pause/resume recording |
+| 5 | Mute/unmute OBS Commentary |
+| 6 | Minecraft Setup: select its collection and the shared profile |
+| 7 | WoW Setup: select its collection and the shared profile |
+| 8 | Firefox Setup: select its collection and the shared profile |
+| 11 | Minecraft 1080p; opens Prism when Minecraft is closed |
+| 12 | WoW 1080p: resize the current Classic or Nim client |
+| 13 | Firefox 1080p: open/focus the dedicated demo or resize it |
 
-Inside **SETUP**, keys 1-4 keep the usual Home/OBS/Discord/Softmax navigation.
-Key 5 selects **Minecraft AI Demos**, key 6 selects **Firefox Demos**, and
-key 7 selects **WoW Demos**. Directly beneath them, keys 10, 11, and 12 are
-**Minecraft 1080p**, **Firefox demo 1080p**, and **WoW 1080p** respectively.
-The old Firefox window action moves from key 7 to key 11; custom artwork and
-titles survive that migration. Resizing changes the selected application's
-client area to exactly 1920×1080 physical pixels, normalizing maximized or
-fullscreen state only on that explicit press. It preserves focus, position,
-screen resolution, and the running game/session. Resizing is refused during
-recording or streaming; it never happens automatically on installation.
-The green checked setup face identifies the selected pair; an amber face is
-another available setup. Unavailable changes appear grey. OBS key 2 returns
-to the recording controls. The recording, pause, and Commentary buttons work
-with the selected recognized setup.
+All setup controls are on the OBS page, without another submenu. Each 1080p
+control sits directly below its application's Setup button. The Setup faces
+say **SETUP**, the app launcher says **OPEN OBS**, and navigation faces say
+**MENU**. Green checked setup art identifies the selected collection/profile;
+amber marks another available setup, and grey unavailable operations.
+
+Resizing changes the selected application's client area to exactly
+1920×1080 physical pixels, normalizing maximized or fullscreen state only on
+that explicit press. It preserves focus, position, screen resolution, and the
+running session. Resizing is refused during recording or streaming and never
+happens during installation. Menu opening/cancelling never invokes a covered
+Record, app launcher, or resize control.
 
 An explicitly selected custom scene can also be
 recorded. Record uses that scene as configured in OBS and does not select a
@@ -139,14 +140,14 @@ or label requires reopening that demo instance; existing personal Firefox
 sessions need no restart. Missing or ambiguous demo windows leave capture
 unavailable rather than selecting a normal browser window.
 
-The **OBS** key keeps its application icon: a grey frame when closed and a
+The **Open OBS** key keeps its application icon: a grey frame when closed and a
 green frame when OBS is running. App presence is observed independently of
 the WebSocket connection, so an open OBS with unavailable controls can be
 explained in the GUI. The Record key keeps its **REC** artwork when capture is
 unavailable, with a grey frame; its details explain the missing prerequisite.
 Opening OBS alone does not make Minecraft capture ready.
 
-The Minecraft key shows **PRISM** while the game is absent. Pressing it opens
+The Minecraft 1080p action can open **Prism** while the game is absent. Pressing it opens
 `~/bin/prism` without choosing an instance or modpack. Once a Minecraft game
 window appears it shows amber **1080**, or green **1080** when its content is
 already exactly 1920×1080. These observations continue while OBS is closed.
@@ -197,9 +198,9 @@ selector through the same configuration API:
 nix develop --command nim r tools/setup_obs_setups.nim --apply
 ```
 
-It uses the first free OBS key from 10 to 15 and preserves existing controls,
-other menus, MIDI bindings, and artwork edits. If those slots are occupied it
-refuses to replace them.
+This historical installer can prepare the setup actions for the first time.
+Run `tools/setup_workflow_layout.nim --apply` last to place them directly on
+the OBS page; an existing flattened page is left alone.
 
 Prepare the shared profile and new WoW collection while OBS is idle:
 
@@ -295,7 +296,7 @@ References: [OBS WebSocket protocol](https://github.com/obsproject/obs-websocket
 and [Firefox's GTK window class](https://github.com/mozilla-firefox/firefox/blob/main/widget/gtk/nsAppShell.cpp).
 
 The installer restarts the daemon after all package checks pass. It leaves
-the existing Knobby GUI and its drafts running. After this IPC version 4
+the existing Knobby GUI and its drafts running. To load the Menu drawer IPC
 update, choose **Quit viewer** from the tray, then run
 `~/.local/bin/knobby-gui` to load the new editor.
 

@@ -134,6 +134,23 @@ suite "Button editor model":
     check model.draft.findMenu("spiele").isNil
     check model.validation == ""
 
+  test "new workflow menus inherit the Menu face without changing Mixer Back":
+    var config = withSubmenu()
+    let menuKey = %*{"key": 1, "title": "Menu",
+      "action": {"kind": "deckMenu", "menu": "nav"},
+      "visual": {"image": "assets/menu.png", "showTitle": false}}
+    config["menus"][0]["deck"].elems[0] = menuKey
+    config["menus"].add(%*{"id": "nav", "title": "Menu", "mixer": [], "deck": [menuKey.copy()]})
+    var model = liveModel(config)
+    let id = model.createMenu("Another workflow")
+    check model.draft.entryAt(id, DeckDevice, 1) == menuKey
+    check model.draft.entryAt(id, MixerDevice, 1).actionKind() == BackAction
+    check model.validation == ""
+    model.selectDevice(DeckDevice)
+    check not model.selectedLocked()
+    model.setTitle("Menu copy")
+    check model.draft.entryAt(model.draft.rootMenu(), DeckDevice, 1)["title"].getStr() == "Menu"
+
   test "local validation points at the offending slot":
     var model = liveModel()
     model.selectDevice(DeckDevice)

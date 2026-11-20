@@ -176,6 +176,59 @@ suite "Deck menu drawer schema":
     validateButtonConfig(config)
 
 suite "Deck menu drawer runtime":
+  test "repeated workflow selection cannot exhaust shared navigation history":
+    let paths = start(drawerConfig())
+    defer: finish(paths)
+    discard syncDeck()
+    routeMixerButton(3, true)
+    routeMixerButton(3, false)
+    for index in 0..<MaxNavigationHistory * 3:
+      press(1)
+      press([3, 4, 5][index mod 3])
+    check status()["mixerMenu"].getStr() == "obs"
+    check status()["historyDepth"].getInt() == 1
+    check titles().len == 0
+
+  test "an interrupted base-page upload invalidates the previous lower keys":
+    let paths = start(drawerConfig())
+    defer: finish(paths)
+    discard syncDeck()
+    routeMixerButton(2, true)
+    routeMixerButton(2, false)
+    let uploading = readDeckPage(deckSeen)
+    deckSeen = uploading["generation"].getBiggestInt()
+    check uploading["menu"].getStr() == "obs"
+    discard navigate("toggle")
+    discard navigate("select", 2)
+    down(7)
+    up(7)
+    check titles().len == 0
+    discard syncDeck()
+    press(7)
+    check titles() == @["root-low-7"]
+
+  test "a second Menu press cancels even before its artwork finishes uploading":
+    let paths = start(drawerConfig())
+    defer: finish(paths)
+    discard syncDeck()
+    down(1)
+    up(1)
+    check status()["deckDrawer"].getStr() == NavigationId
+    down(1)
+    up(1)
+    check status()["deckDrawer"].getStr() == ""
+    check titles().len == 0
+
+  test "a linked Mixer page change closes the old drawer":
+    let paths = start(drawerConfig())
+    defer: finish(paths)
+    discard syncDeck()
+    press(1)
+    routeMixerButton(2, true)
+    routeMixerButton(2, false)
+    check status()["deckMenu"].getStr() == "obs"
+    check status()["deckDrawer"].getStr() == ""
+
   test "Menu opens a top-row drawer and cancel restores the exact underlying page":
     let paths = start(drawerConfig())
     defer: finish(paths)
@@ -226,7 +279,7 @@ suite "Deck menu drawer runtime":
       press(key)
       check status()["deckMenu"].getStr() == expected
       check status()["deckDrawer"].getStr() == ""
-    check status()["historyDepth"].getInt() > 1
+    check status()["historyDepth"].getInt() == 1
     press(1)
     press(3)
     check status()["deckMenu"].getStr() == "obs"
@@ -253,7 +306,8 @@ suite "Deck menu drawer runtime":
     check status()["deckDrawer"].getStr() == NavigationId
     press(9)
     check status()["deckMenu"].getStr() == "discord"
-    check status()["deckDrawer"].getStr() == NavigationId
+    check status()["deckDrawer"].getStr() == ""
+    press(1)
     press(1)
     check status()["deckDrawer"].getStr() == ""
     press(5)
@@ -282,7 +336,7 @@ suite "Deck menu drawer runtime":
     down(9)
     up(9)
     check status()["deckMenu"].getStr() == "discord"
-    check status()["deckDrawer"].getStr() == NavigationId
+    check status()["deckDrawer"].getStr() == ""
     down(7)
     up(7)
     check titles().len == 0

@@ -37,13 +37,14 @@
 - `src/knobby/discord_calls.nim` - bounded incoming-call AT-SPI observation and explicit voice/video answer queue.
 - `src/knobby/work_menu.nim` - pure Softmax submenu install from `docs/work-menu-targets.json` (`tools/setup_work_buttons.nim`).
 - `src/knobby/task_menu_links.nim` - reciprocal Deck shortcuts between Softmax and Discord (`tools/setup_task_links.nim`).
-- `src/knobby/navigation_menu.nim` - pure shared Deck prefix (Home, OBS, Discord, Softmax) migration (`tools/setup_navigation.nim`, run last; see `docs/navigation.md`).
+- `src/knobby/workflow_menu.nim` - compact workflow layouts with Menu at key 1, flattened OBS controls, and editable drawer destinations (`tools/setup_workflow_layout.nim`; see docs/navigation.md).
+- `src/knobby/navigation_menu.nim` - historical four-key-prefix migration retained for legacy configuration tests; current setup does not reserve a permanent global header.
 - `src/knobby/discord_worker.nim`, `controls_state.nim` - isolated Discord RPC supervision and shared observed microphone/control state.
 - `src/knobby/overlay_state.nim`, `overlay_activation.nim` - transient MIDI help requests and explicit overlay service activation.
 - `src/knobby/gui_activation.nim` - activate one GUI instance through its user service.
 - `src/knobby/audio_status.nim` - pure pactl JSON parsing for the viewer.
 - `src/knobby/button_config.nim` - shared button schema, validation, and atomic storage.
-- `src/knobby/button_runtime.nim` - authoritative menus, linked Back, and configuration transactions.
+- `src/knobby/button_runtime.nim` - authoritative menus, temporary Deck Menu row, independent MIDI navigation, and configuration transactions.
 - `src/knobby/button_media.nim` - bounded FFmpeg preparation and managed artwork imports.
 - `src/knobby/stream_deck_player.nim` - active-page animation and responsive HID writes.
 - `gui/app/` - Windy/Silky viewer and button editor; `gui/` is its isolated Nimby workspace.

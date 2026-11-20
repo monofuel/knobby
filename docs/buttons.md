@@ -21,17 +21,23 @@ and reapply your changes; the displaced draft remains recoverable.
 The editor remembers unfinished work under the user state directory. Viewing or
 editing a menu is separate from switching the physical devices into that menu.
 
-## Menus and Home
+## Menus and temporary navigation
 
 Mixer buttons use MIDI note numbers 1–12 in their physical arrangement. Stream
 Deck keys use numbers 1–15, left to right, top to bottom. The installed Deck
-menus use **HOME** at the top-left, including the main menu where it does
-nothing. A Deck-only menu link to the configured root returns directly home
-and clears the Deck's history, leaving the mixer unchanged.
+menus use **MENU** at the top-left. Press it once to reveal Home, OBS,
+Discord, and Softmax on the remaining top row; press again to restore that
+page's controls. Selecting a destination closes the row automatically. Lower
+keys keep their actions and artwork while the row is open.
 
 Every submenu reserves button 1 for navigation. The mixer uses Back at its
-bottom-right; the Deck accepts either Back or a Deck-only Home link. The
-top-level menu's button 1 can be configured normally.
+bottom-right; the installed Deck uses `deckMenu` at key 1. Its `menu` field
+references the editable `deck-navigation` menu, whose first five keys supply
+the overlay artwork and destinations. This uses the same configuration and
+managed image pipeline as other buttons. Home inside that row is a Deck-only
+link to the configured root and clears only the Deck's history. Legacy Back
+and Home configurations remain supported. Drawer destinations jump directly
+to a workflow without stacking Back history; MIDI history is retained.
 
 Back restores the previous menu on the device where you press it. If that
 transition switched both devices, Back restores both together. For example:

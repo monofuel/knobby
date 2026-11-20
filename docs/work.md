@@ -1,26 +1,28 @@
 # Softmax submenu
 
-Stream Deck key 4 opens **Softmax** on the Deck only from the main, OBS, and
-Discord menus; the MIDI mixer stays where it is. Keys 1-4 are the
-[shared purple navigation keys](navigation.md): HOME, OBS, CHAT, and SOFT.
+Open **Softmax** from Home, or press **Menu (1)** then **Softmax (5)**.
+Menu temporarily replaces the top row; press it again to cancel. Its navigation
+leaves the MIDI mixer unchanged. See [Menu navigation](navigation.md).
 
 | Key | Label | Opens |
 | --- | --- | --- |
-| 5 | PRISM | Open/focus Prism using Knobby's existing launcher (`knobby-obs prism`) |
-| 6 | WOW VANILLA | The genuine 1.12.1 client for the human seat (`make play-classic`) |
-| 7 | WOW NIM | The native Nim WoW client with the human controller (`make play`) |
-| 8 | DISCORD | Discord, focusing an open window first |
-| 9 | SLACK | The installed Slack desktop app |
-| 10 | LAB | The local coworld-autoresearch dashboard at port 8103 |
-| 11 | PROD | The Fast-XP production performance dashboard |
-| 12 | STAGE | The Fast-XP staging performance dashboard |
-| 13 | NEXT | The staging `/next/` list of experimental Polyworld games |
-| 14 | REALM | The separate WoW private-world dashboard at `http://127.0.0.1:7777/` |
-| 15 | START | Start WoW Server: start the existing persistent private world |
+| 1 | MENU | Toggle temporary navigation |
+| 2 | PRISM | Open/focus Prism using the existing launcher |
+| 3 | WOW VANILLA | The genuine 1.12.1 client (`make play-classic`) |
+| 4 | WOW NIM | The native human Nim client (`make play`) |
+| 5 | DISCORD | Open/focus the Discord app |
+| 6 | SLACK | Open the installed Slack app |
+| 7 | LAB | Local autoresearch dashboard, port 8103 |
+| 8 | PROD | Fast-XP production performance dashboard |
+| 9 | STAGE | Fast-XP staging performance dashboard |
+| 10 | NEXT | Staging `/next/` experimental games list |
+| 11 | REALM | Private-world dashboard, port 7777 |
+| 12 | START | Start the existing persistent private WoW server |
+| 13 | DISCORD MENU | Open Discord controls |
+| 14 | OBS MENU | Open OBS controls |
 
-The **DISCORD** key brings the app to the foreground; **CHAT** (key 3) opens its
-controls menu, whose key 4 opens Softmax. HOME (key 1) always returns directly
-to the main menu.
+The Discord app action and controls-menu link remain distinct. Discord's
+controls page also keeps a direct Softmax link, so switching tasks stays quick.
 
 Both WoW keys run the documented human play targets in
 `~/src/wow-coworld/wow-shadow-army` and need its local realm running. The Nim
@@ -42,8 +44,7 @@ cd /home/monofuel/src/wow-coworld && nix develop /home/monofuel/src/wow-coworld/
 It reuses the existing world and database and reports when the server is
 already running; it never resets or reseeds the world. It does not open a
 browser or start bots, and it replaces the project's older start paths, which
-must not be used. Making the native Nim client playable for the human seat is
-a separate fix still pending with the WoW owner. Knobby setup does not start
+must not be used. Knobby setup does not start
 servers or launch applications while installing or reorganizing the menu.
 
 ## Recreating this setup
@@ -51,7 +52,7 @@ servers or launch applications while installing or reorganizing the menu.
 The machine-specific launch commands and URLs live in
 [work-menu-targets.json](work-menu-targets.json). After installing Knobby, add
 the menu through the shared configuration API. The targets file lists Start
-WoW Server at its original key 11; the navigation setup moves it to key 15:
+WoW Server at its original key 11; the current workflow layout places it at key 12:
 
 ```sh
 nix develop --command nim r tools/setup_work_buttons.nim --apply
@@ -71,10 +72,9 @@ After installing both menus, add the reciprocal task shortcuts with:
 nix develop --command nim r tools/setup_task_links.nim --apply
 ```
 
-When the shared navigation keys are present (Softmax key 3 and Discord key 4)
-this only refreshes their images. Otherwise it uses Softmax key 13 and Discord
-key 8 and refuses occupied foreign bindings there. Run
-`tools/setup_navigation.nim --apply` last; see [shared navigation](navigation.md).
+The current workflow layout retains direct reciprocal links on Softmax key 13
+and Discord key 8. Run `tools/setup_workflow_layout.nim --apply` last; see
+[Menu navigation](navigation.md).
 
 Artwork is generated alongside the OBS and Discord icons by
 `gui/app/tools/generate_obs_icons.nim`. The root Softmax face and Back use the

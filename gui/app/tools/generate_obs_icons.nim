@@ -36,10 +36,12 @@ const
     '1': @[".#.", "##.", ".#.", ".#.", "###"],
     '8': @["###", "#.#", "###", "#.#", "###"],
     'A': @[".#.", "#.#", "###", "#.#", "#.#"],
+    'B': @["##.", "#.#", "##.", "#.#", "##."],
     'C': @[".##", "#..", "#..", "#..", ".##"],
     'D': @["##.", "#.#", "#.#", "#.#", "##."],
     'E': @["###", "#..", "##.", "#..", "###"],
     'F': @["###", "#..", "##.", "#..", "#.."],
+    'H': @["#.#", "#.#", "###", "#.#", "#.#"],
     'I': @["#", "#", "#", "#", "#"],
     'L': @["#..", "#..", "#..", "#..", "###"],
     'M': @["#...#", "##.##", "#.#.#", "#...#", "#...#"],
@@ -847,9 +849,65 @@ proc generateObsSetupIcons() =
     colors: palette("#c8bdff", "#7564b5", "#eee8ff", "#443364"))).writeFile(
       OutputDirectory / "menu-setups.png")
 
+proc generateWorkflowIcons() =
+  ## Distinguish temporary navigation, application launch, and recording-setup actions with explicit labels.
+  const Directory = OutputDirectory.parentDir() / "workflow"
+  let
+    neutral = palette("#1a1b1d", "#d9dbe0", "#ffffff", "#9a9ca0")
+    camera = palette("#152113", "#73b84d", "#c4ee9e", "#345b2d", [('l', "#c5e99b")])
+    chat = palette("#1c2049", "#7289da", "#c0c9ff", "#404b87")
+    launcher = palette("#1b2815", "#75b74b", "#dbf8b1", "#365b2a", [('l', "#b9f170")])
+  createDir(Directory)
+  for (name, label, sprite, colors) in [
+      ("menu-home", @["HOME"], HomeSprite, neutral),
+      ("menu-obs", @["OBS", "MENU"], CameraSprite, camera),
+      ("menu-discord", @["DISCORD", "MENU"], ChatSprite, chat)]:
+    let image = newImage(Size, Size)
+    image.fillStone(PurpleTone)
+    image.drawSymbol(sprite, colors)
+    image.drawCompactLabel(label, PurpleTone.labelColor())
+    image.writeFile(Directory / (name & ".png"))
+  let work = newImage(Size, Size)
+  work.fillStone(PurpleTone)
+  work.drawSoftmaxGraph()
+  work.drawCompactLabel(["SOFTMAX", "MENU"], PurpleTone.labelColor())
+  work.writeFile(Directory / "menu-work.png")
+  for opened in [false, true]:
+    let image = newImage(Size, Size)
+    image.fillStone(PurpleTone)
+    let ink = rgb(if opened: "#fff0ff" else: "#d8ccff")
+    for y in 0..<26:
+      for x in 0..<32:
+        let marked = if opened:
+          abs(x - y - 3) <= 2 or abs((31 - x) - y - 3) <= 2
+        else: y in 2..5 or y in 11..14 or y in 20..23
+        if marked: image[20 + x, 12 + y] = ink
+    if opened: image.drawCompactLabel(["MENU", "OPEN"], ink)
+    else: image.drawCompactLabel(["MENU"], ink)
+    image.writeFile(Directory / (if opened: "menu-open.png" else: "menu.png"))
+  for (suffix, tone) in [("", GreenTone), ("-running", GreenTone), ("-unavailable", GreyTone)]:
+    let image = newImage(Size, Size)
+    image.fillStone(tone)
+    image.drawSymbol(OpenSprite, launcher)
+    image.drawCompactLabel(["OPEN", "OBS"], tone.labelColor())
+    image.writeFile(Directory / ("open-obs" & suffix & ".png"))
+  for (name, label) in [("minecraft", "MINE"), ("wow", "WOW"), ("firefox", "FIREFOX")]:
+    for (suffix, tone) in [("", AmberTone), ("-active", GreenTone), ("-unavailable", GreyTone)]:
+      let
+        image = newImage(Size, Size)
+        icon = readImage(OutputDirectory / ("project-" & name & suffix & ".png"))
+      image.fillStone(tone)
+      for y in Border..<LabelBandTop:
+        for x in Border..<Size - Border: image[x, y] = icon[x, y]
+      image.drawCompactLabel([label, "SETUP"], tone.labelColor())
+      image.writeFile(Directory / ("setup-" & name & suffix & ".png"))
+
 proc main() =
   ## Regenerate the committed key faces without network access or system fonts.
   createDir(OutputDirectory)
+  if commandLineParams() == @["--workflow-only"]:
+    generateWorkflowIcons()
+    return
   if commandLineParams() == @["--setups-only"]:
     generateObsSetupIcons()
     return
@@ -861,6 +919,7 @@ proc main() =
   generateWorkIcons()
   generateNavigationIcons()
   generateObsSetupIcons()
+  generateWorkflowIcons()
 
 when isMainModule:
   main()

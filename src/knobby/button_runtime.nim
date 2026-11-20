@@ -199,6 +199,7 @@ proc setMenu(current: var RuntimeState, device: ButtonDevice, id: string) =
     current.menus[device] = id
     quarantineHeld(current.input[device])
     if device == DeckDevice:
+      current.drawer = ""
       bumpDeckPage(current)
 
 proc targetDevices(target: ButtonTarget): set[ButtonDevice] =
@@ -265,14 +266,18 @@ proc goBack(current: var RuntimeState, device: ButtonDevice) =
   for target in restored:
     current.setMenu(target, restore[target])
 
-proc goHome(current: var RuntimeState, devices = {MixerDevice, DeckDevice}) =
-  ## Return the chosen devices to root and forget their history, preserving other devices.
+proc forgetHistory(current: var RuntimeState, devices: set[ButtonDevice]) =
+  ## Remove only the chosen devices from navigation history, retaining independent transitions.
   var kept: seq[Transition]
   for transition in current.history:
     var remaining = transition
     remaining.devices = remaining.devices - devices
     if remaining.devices.card > 0: kept.add(remaining)
   current.history = kept
+
+proc goHome(current: var RuntimeState, devices = {MixerDevice, DeckDevice}) =
+  ## Return the chosen devices to root and forget their history, preserving other devices.
+  current.forgetHistory(devices)
   for device in devices:
     current.setMenu(device, current.active.buttons.root)
 
@@ -318,7 +323,8 @@ proc selectDrawer(current: var RuntimeState, key: int) =
   let action = current.drawerDestination(key)
   if action.kind != MenuAction:
     raise newException(DeckNavigationError, "Deck key " & $key & " is not an open drawer destination.")
-  current.navigateTo(action)
+  current.forgetHistory({DeckDevice})
+  current.setMenu(DeckDevice, action.menu)
   current.setDrawer("")
 
 proc lowerKeyCurrent(current: RuntimeState, index: int): bool =
@@ -340,7 +346,10 @@ proc route(device: ButtonDevice, key: int, pressed: bool) =
       state.input[device].quarantined[index] = false
     elif not state.input[device].held[index] and not state.input[device].quarantined[index]:
       state.input[device].held[index] = true
-      if device == DeckDevice and not state.deckReady and not state.lowerKeyCurrent(index):
+      let menuToggle = device == DeckDevice and key == 1 and
+        (state.drawer.len > 0 or state.pageDrawerMenu().len > 0)
+      if device == DeckDevice and not state.deckReady and not state.lowerKeyCurrent(index) and
+          not menuToggle:
         state.input[device].quarantined[index] = true
         pressMixerOverlay(false)
       elif device == DeckDevice and state.drawer.len > 0 and key <= DrawerKeyCount:
@@ -430,6 +439,8 @@ proc readDeckPage*(previousGeneration: int64): JsonNode =
     state.deckReadGeneration = state.deckGeneration
     generation = state.deckGeneration
     menu = ownedCopy(state.menus[DeckDevice])
+    if menu != state.confirmedBase:
+      state.confirmedBase = ""
     drawer = ownedCopy(state.drawer)
     page = ownedCopy(state.active.pages[menu])
     if drawer.len > 0:

@@ -492,7 +492,7 @@ proc setShowTitle*(model: var EditorModel, show: bool) =
   model.touch()
 
 proc createMenu*(model: var EditorModel, title: string): string =
-  ## Add an empty submenu with a stable ASCII ID derived from its title.
+  ## Add a submenu with a stable ASCII ID, inheriting the root's Deck Menu key when configured.
   let name = title.strip()
   if name.len == 0:
     raise newException(ValueError, "Menu title cannot be empty.")
@@ -501,7 +501,12 @@ proc createMenu*(model: var EditorModel, title: string): string =
   if model.draft.menus().len >= MaxMenus:
     raise newException(ValueError, "At most " & $MaxMenus & " menus are supported.")
   result = model.draft.menuIdFromTitle(name)
-  model.draft["menus"].add(%*{"id": result, "title": name, "mixer": [], "deck": []})
+  let
+    first = model.draft.entryAt(model.draft.rootMenu(), DeckDevice, BackKey)
+    menu = %*{"id": result, "title": name, "mixer": [], "deck": []}
+  if first.actionKind() == DeckMenuAction:
+    menu["deck"].add(first.copy())
+  model.draft["menus"].add(menu)
   model.menu = result
   model.key = BackKey
   model.touch()

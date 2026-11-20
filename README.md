@@ -71,13 +71,14 @@ covers the editor, animated images, linked Back navigation, and the shared JSON
 workflow for text editors and AI tools.
 
 The [OBS submenu](docs/obs.md) provides recording, pause, and commentary mute
-with live state artwork. Its SETUP menu uses one shared recording profile with
-Minecraft, Firefox, and WoW scene collections, plus explicit 1080p client-window
-controls for all three. WoW follows the single running Classic/Wine or Nim client.
+with live state artwork. Its single controls page has a shared recording profile
+with Minecraft, Firefox, and WoW setup buttons and explicit 1080p window controls.
+WoW follows the single running Classic/Wine or Nim client.
 The [Discord submenu](docs/discord.md) separates system mic mute, Discord mute,
 and deafen. The [Softmax submenu](docs/work.md) launches Prism, both WoW clients,
 Discord, Slack, the research dashboards, and the private WoW server. All three
-share [purple navigation keys](docs/navigation.md) 1-4. The MIDI mixer's top-right button
+use [Menu at key 1](docs/navigation.md) to reveal navigation temporarily; the rest
+of the top row belongs to each page's controls. The MIDI mixer's top-right button
 brings up a temporary legend without taking focus away from your application.
 
 The viewer uses Windy and Silky and can stay in the system tray. See
