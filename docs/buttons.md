@@ -21,12 +21,17 @@ and reapply your changes; the displaced draft remains recoverable.
 The editor remembers unfinished work under the user state directory. Viewing or
 editing a menu is separate from switching the physical devices into that menu.
 
-## Menus and Back
+## Menus and Home
 
 Mixer buttons use MIDI note numbers 1–12 in their physical arrangement. Stream
-Deck keys use numbers 1–15, left to right, top to bottom. Every submenu reserves
-button 1 for Back: **bottom-right on the mixer**, **top-left on the Stream Deck**.
-The top-level menu's button 1 is available for an ordinary action or submenu.
+Deck keys use numbers 1–15, left to right, top to bottom. The installed Deck
+menus use **HOME** at the top-left, including the main menu where it does
+nothing. A Deck-only menu link to the configured root returns directly home
+and clears the Deck's history, leaving the mixer unchanged.
+
+Every submenu reserves button 1 for navigation. The mixer uses Back at its
+bottom-right; the Deck accepts either Back or a Deck-only Home link. The
+top-level menu's button 1 can be configured normally.
 
 Back restores the previous menu on the device where you press it. If that
 transition switched both devices, Back restores both together. For example:

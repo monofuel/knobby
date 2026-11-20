@@ -204,6 +204,21 @@ backups before atomic replacement. The setup is repeatable; it does not reset
 an existing microphone mute choice. Global audio devices in the new collection
 must be disabled; the tool refuses them rather than record desktop audio.
 
+To add Firefox while OBS stays open and idle:
+
+```sh
+knobby-obs-setup provision-firefox
+```
+
+This creates the Firefox profile, collection, and sources, then restores the
+original profile, collection, and program scene. It writes only the inactive
+Firefox profile's recording settings, with private atomic backups. The VAAPI
+render device comes from the Minecraft recording profile; it can also be
+specified with `--render-device PATH`. The demo browser stays closed until
+you press its button. Existing Minecraft capture and encoding choices are
+preserved. The tool refuses to provision while an output is active, or to
+replace an unrelated existing Firefox collection.
+
 Window binding uses X11 identity directly. OBS 32.1.2 crashed when its WebSocket
 window-property-list request encountered a null item, so the production bridge
 and setup do not use that enumeration request.
@@ -211,7 +226,8 @@ and setup do not use that enumeration request.
 References: [OBS WebSocket protocol](https://github.com/obsproject/obs-websocket/blob/master/docs/generated/protocol.md),
 [Xcomposite implementation](https://github.com/obsproject/obs-studio/blob/32.1.2/plugins/linux-capture/xcomposite-input.c),
 [application-audio matching](https://github.com/dimtpap/obs-pipewire-audio-capture/blob/1.2.1/src/pipewire-audio-capture-app.c),
-and [Prism instance environment](https://github.com/PrismLauncher/PrismLauncher/blob/11.1.1/launcher/minecraft/MinecraftInstance.cpp).
+[Prism instance environment](https://github.com/PrismLauncher/PrismLauncher/blob/11.1.1/launcher/minecraft/MinecraftInstance.cpp),
+and [Firefox's GTK window class](https://github.com/mozilla-firefox/firefox/blob/main/widget/gtk/nsAppShell.cpp).
 
 The installer restarts the daemon after all package checks pass. It leaves
 the existing Knobby GUI and its drafts running. After this IPC version 4
