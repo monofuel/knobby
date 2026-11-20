@@ -281,15 +281,16 @@ proc acceptLoop(fake: FakeObs) {.async.} =
       await sleepAsync(AcceptPauseMs)
 
 proc newFakeObs*(password = ""): FakeObs =
-  ## Start a fake OBS 5 server on a free loopback port with a ready Minecraft workspace
-  ## and a stored, complete Firefox Demos profile and scene collection.
+  ## Start a fake OBS 5 server on a free loopback port with a ready Minecraft workspace,
+  ## a stored, complete Firefox Demos profile and scene collection, and a stored WoW
+  ## collection. The shared demo profile is absent until a test installs it.
   result = FakeObs(
     password: password,
     server: newAsyncHttpServer(),
     profile: "Minecraft AI Demos",
     collection: "Minecraft AI Demos",
     profiles: @["Minecraft AI Demos", "Firefox Demos", "Untitled"],
-    collections: @["Minecraft AI Demos", "Firefox Demos", "Untitled"],
+    collections: @["Minecraft AI Demos", "Firefox Demos", "WoW Demos", "Untitled"],
     programScene: "Minecraft",
     scenes: @["Minecraft"],
     inputs: @[("Minecraft Video", "xcomposite_input"),
@@ -302,6 +303,11 @@ proc newFakeObs*(password = ""): FakeObs =
       ("Firefox Audio", "pipewire_audio_application_capture"),
       ("Commentary", "pulse_input_capture")],
     programScene: "Firefox")
+  result.stored["WoW Demos"] = FakeCollection(scenes: @["WoW"],
+    inputs: @[("WoW Video", "xcomposite_input"),
+      ("WoW Audio", "pipewire_audio_application_capture"),
+      ("Commentary", "pulse_input_capture")],
+    programScene: "WoW")
   result.stored["Untitled"] = FakeCollection(scenes: @["Scene"], programScene: "Scene")
   result.server.listen(Port(0), "127.0.0.1")
   result.port = result.server.getPort().int

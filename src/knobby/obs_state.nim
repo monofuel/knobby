@@ -4,16 +4,18 @@ import
 
 const
   ObsOperations* = ["recordToggle", "pauseToggle", "micToggle", "open",
-    ObsProjectOperations[0], ObsProjectOperations[1], ObsProjectOperations[2], "minecraft1080"]
-  # Operations that observe or launch desktop apps and work without an OBS connection.
-  ObsLocalOperations* = ["open", "minecraft1080", "firefox1080"]
+    ObsProjectOperations[0], ObsProjectOperations[1], ObsProjectOperations[2],
+    "minecraft1080", "firefox1080", "wow1080"]
+  # Operations that observe or launch desktop apps; the helper itself refuses
+  # resizing unless a fresh OBS read shows every output idle.
+  ObsLocalOperations* = ["open", "minecraft1080", "firefox1080", "wow1080"]
   ObsVisualStates* = ["recording", "paused", "muted", "unavailable", "running", "ready",
     "active", "blocked"]
   VisualStates* = ["recording", "paused", "muted", "unavailable", "running", "ready",
     "active", "blocked", "mixed", "deafened"]
   ObsStatusFields* = ["connected", "workspaceReady", "minecraftReady", "captureReady",
     "recording", "paused", "streaming", "micMuted", "transitioning", "error", "obsRunning",
-    "minecraftRunning", "minecraftSized", "firefoxRunning", "firefoxSized", "audioPending",
+    "minecraftRunning", "minecraftSized", "firefoxRunning", "firefoxSized", "wowRunning", "wowSized", "audioPending",
     "activeProject", "profile", "collection", "customScene"]
   ObsStatusTextFields = ["error", "activeProject", "profile", "collection"]
   RecordingState = "recording"
@@ -69,7 +71,9 @@ proc obsOperationLabel*(operation: string): string =
   of "minecraft1080": "Minecraft 1080p"
   of "selectMinecraft": "Minecraft setup"
   of "selectFirefox": "Firefox setup"
+  of "selectWow": "WoW setup"
   of "firefox1080": "Firefox 1080p"
+  of "wow1080": "WoW 1080p"
   else: operation
 
 proc obsOperationDescription*(operation: string): string =
@@ -79,12 +83,15 @@ proc obsOperationDescription*(operation: string): string =
   of "pauseToggle": "Pause or resume the OBS recording."
   of "micToggle": "Mute or unmute the OBS Commentary microphone."
   of "open": "Open or focus OBS."
-  of "minecraft1080": "Launch Prism when Minecraft is closed, or resize Minecraft to 1920 by 1080 pixels."
-  of "selectMinecraft", "selectFirefox":
+  of "minecraft1080": "Launch Prism when Minecraft is closed, or resize Minecraft to 1920 by 1080 pixels " &
+    "while OBS is connected and idle."
+  of "selectMinecraft", "selectFirefox", "selectWow":
     "Switch OBS to the " & projectSpec(projectForOperation(operation)).label &
       " profile, scene collection, and scene while nothing is recording or streaming."
   of "firefox1080": "Open the dedicated Firefox demo window, resize it to 1920 by 1080 pixels, " &
-    "or focus it once sized."
+    "or focus it once sized; resizing needs OBS connected and idle."
+  of "wow1080": "Resize the single running WoW client to 1920 by 1080 pixels while OBS is " &
+    "connected and idle."
   else: "Unknown OBS operation " & operation & "."
 
 proc flag(status: JsonNode, field: string): bool =
@@ -156,13 +163,26 @@ proc obsVisualState*(operation: string, status: JsonNode): string =
     if not status.flag("firefoxRunning"): result = UnavailableState
     elif status.flag("firefoxSized"): result = "ready"
     else: result = "running"
-  of "selectMinecraft", "selectFirefox":
+  of "wow1080":
+    if not status.flag("wowRunning"): result = UnavailableState
+    elif status.flag("wowSized"): result = "ready"
+    else: result = "running"
+  of "selectMinecraft", "selectFirefox", "selectWow":
     if not connected: result = UnavailableState
     elif activeProjectId(status) == projectSpec(projectForOperation(operation)).id:
       result = ActiveState
     elif selectionBlocked(status): result = BlockedState
   else:
     discard
+
+proc resizeDescription(status: JsonNode, subject: string): string =
+  ## Describe an available resize, or why the helper will refuse it.
+  if not status.flag("connected"): result = "Connect OBS before resizing " & subject
+  elif status.flag("recording") or status.flag("paused"):
+    result = "Stop recording before resizing " & subject
+  elif status.flag("streaming"): result = "Stop streaming before resizing " & subject
+  elif status.flag("transitioning"): result = "OBS output is changing; wait to resize " & subject
+  else: result = "Resize " & subject & " to 1920 by 1080"
 
 proc obsStatusDescription*(operation: string, status: JsonNode): string =
   ## Explain the current action or missing prerequisite without conflating app presence with capture readiness.
@@ -174,12 +194,16 @@ proc obsStatusDescription*(operation: string, status: JsonNode): string =
   of "minecraft1080":
     if not status.flag("minecraftRunning"): result = "Minecraft closed; press to open Prism"
     elif status.flag("minecraftSized"): result = "Minecraft is 1920 by 1080"
-    else: result = "Resize Minecraft to 1920 by 1080"
+    else: result = resizeDescription(status, "Minecraft")
   of "firefox1080":
     if not status.flag("firefoxRunning"): result = "Firefox demo closed; press to open it"
     elif status.flag("firefoxSized"): result = "Firefox demo is 1920 by 1080; press to focus"
-    else: result = "Resize the Firefox demo to 1920 by 1080"
-  of "selectMinecraft", "selectFirefox":
+    else: result = resizeDescription(status, "the Firefox demo")
+  of "wow1080":
+    if not status.flag("wowRunning"): result = "WoW client not open"
+    elif status.flag("wowSized"): result = "WoW is 1920 by 1080"
+    else: result = resizeDescription(status, "WoW")
+  of "selectMinecraft", "selectFirefox", "selectWow":
     let label = projectSpec(projectForOperation(operation)).label
     if not status.flag("connected"): result = "OBS control unavailable"
     elif activeProjectId(status) == projectSpec(projectForOperation(operation)).id:
@@ -193,13 +217,14 @@ proc obsStatusDescription*(operation: string, status: JsonNode): string =
     let
       label = activeProjectLabel(status)
       firefox = label == projectSpec(FirefoxProject).label
+      wow = label == projectSpec(WowProject).label
     if not status.flag("connected"): result = "OBS control unavailable"
-    elif label.len == 0: result = "OBS setup not recognized; choose an OBS setup"
     elif operation in ["recordToggle", "pauseToggle"] and status.flag("customScene"):
       if status.flag("paused"): result = "Recording paused"
       elif status.flag("recording"): result = "Recording"
       elif operation == "pauseToggle": result = "Not recording"
       else: result = "Record the selected OBS scene"
+    elif label.len == 0: result = "OBS setup not recognized; choose an OBS setup"
     elif not status.flag("workspaceReady"): result = label & " workspace unavailable"
     elif operation == "recordToggle":
       if status.flag("paused"): result = "Recording paused"
@@ -209,6 +234,11 @@ proc obsStatusDescription*(operation: string, status: JsonNode): string =
       elif firefox and not captureReady(status): result = "Waiting for Firefox demo capture"
       elif firefox and status.flag("audioPending"):
         result = "Ready to record; Firefox audio joins when the page plays sound"
+      elif wow and not status.flag("wowRunning"): result = "Open WoW before recording"
+      elif wow and not captureReady(status): result = "Waiting for WoW capture"
+      elif wow and status.flag("audioPending"):
+        result = "Ready to record; WoW audio is not bound until the game plays sound"
+      elif wow: result = "Ready to record"
       elif not firefox and not status.flag("minecraftRunning"):
         result = "Open Minecraft before recording"
       elif not captureReady(status): result = "Waiting for Minecraft capture"

@@ -101,7 +101,7 @@ suite "OBS state":
     check obsStatusDescription("open", offline) == "OBS open; control connection unavailable"
     offline["minecraftRunning"] = %true
     check obsVisualState("minecraft1080", offline) == "running"
-    check obsStatusDescription("minecraft1080", offline) == "Resize Minecraft to 1920 by 1080"
+    check obsStatusDescription("minecraft1080", offline) == "Connect OBS before resizing Minecraft"
     offline["minecraftSized"] = %true
     check obsVisualState("minecraft1080", offline) == "ready"
     check obsStatusDescription("minecraft1080", offline) == "Minecraft is 1920 by 1080"
@@ -183,13 +183,74 @@ suite "OBS state":
     check obsStatusDescription("firefox1080", offline) == "Firefox demo closed; press to open it"
     offline["firefoxRunning"] = %true
     check obsVisualState("firefox1080", offline) == "running"
-    check obsStatusDescription("firefox1080", offline) == "Resize the Firefox demo to 1920 by 1080"
+    check obsStatusDescription("firefox1080", offline) ==
+      "Connect OBS before resizing the Firefox demo"
+    let idle = status()
+    idle["firefoxRunning"] = %true
+    check obsStatusDescription("firefox1080", idle) == "Resize the Firefox demo to 1920 by 1080"
+    for (field, text) in [("recording", "Stop recording before resizing the Firefox demo"),
+        ("paused", "Stop recording before resizing the Firefox demo"),
+        ("streaming", "Stop streaming before resizing the Firefox demo"),
+        ("transitioning", "OBS output is changing; wait to resize the Firefox demo")]:
+      let busy = idle.copy()
+      busy[field] = %true
+      check obsStatusDescription("firefox1080", busy) == text
     offline["firefoxSized"] = %true
     check obsVisualState("firefox1080", offline) == "ready"
     check obsStatusDescription("firefox1080", offline) ==
       "Firefox demo is 1920 by 1080; press to focus"
     check obsOperationLabel("firefox1080") == "Firefox 1080p"
     check obsOperationLabel("selectFirefox") == "Firefox setup"
+
+  test "WoW faces follow the proven client and refuse unsafe resizing":
+    let wow = status(minecraftReady = false)
+    wow["activeProject"] = %"wow"
+    wow["profile"] = %"Demo Recording"
+    wow["collection"] = %"WoW Demos"
+    check obsVisualState("wow1080", wow) == "unavailable"
+    check obsStatusDescription("wow1080", wow) == "WoW client not open"
+    wow["wowRunning"] = %true
+    check obsVisualState("wow1080", wow) == "running"
+    check obsStatusDescription("wow1080", wow) == "Resize WoW to 1920 by 1080"
+    let recording = wow.copy()
+    recording["recording"] = %true
+    check obsStatusDescription("wow1080", recording) == "Stop recording before resizing WoW"
+    let offline = wow.copy()
+    offline["connected"] = %false
+    check obsStatusDescription("wow1080", offline) == "Connect OBS before resizing WoW"
+    check obsStatusDescription("minecraft1080", offline) == "Minecraft closed; press to open Prism"
+    wow["wowSized"] = %true
+    check obsVisualState("wow1080", wow) == "ready"
+    check obsStatusDescription("wow1080", wow) == "WoW is 1920 by 1080"
+    check obsVisualState("selectWow", wow) == "active"
+    check obsStatusDescription("selectWow", wow) == "WoW Demos selected"
+    check obsVisualState("selectMinecraft", wow) == ""
+    check obsStatusDescription("recordToggle", wow) == "Waiting for WoW capture"
+    wow["captureReady"] = %true
+    check obsStatusDescription("recordToggle", wow) == "Ready to record"
+    wow["audioPending"] = %true
+    check obsStatusDescription("recordToggle", wow) ==
+      "Ready to record; WoW audio is not bound until the game plays sound"
+    wow["wowRunning"] = %false
+    check obsStatusDescription("recordToggle", wow) == "Open WoW before recording"
+    for operation in ["selectWow", "wow1080"]:
+      check isObsOperation(operation)
+    check obsOperationLabel("selectWow") == "WoW setup"
+    check obsOperationLabel("wow1080") == "WoW 1080p"
+    check "wow1080" in ObsLocalOperations
+    check unavailableObsStatus()["wowRunning"] == %false
+
+  test "a human scene outside any recognized setup can still be recorded":
+    let custom = status(workspaceReady = false)
+    custom["activeProject"] = %""
+    custom["customScene"] = %true
+    check obsVisualState("recordToggle", custom) == ""
+    check obsStatusDescription("recordToggle", custom) == "Record the selected OBS scene"
+    check obsStatusDescription("micToggle", custom) ==
+      "OBS setup not recognized; choose an OBS setup"
+    custom["recording"] = %true
+    check obsVisualState("pauseToggle", custom) == "recording"
+    check obsStatusDescription("pauseToggle", custom) == "Recording"
 
   test "selection returns a prepared variant or the base entry":
     let entry = variantEntry()

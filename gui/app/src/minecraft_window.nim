@@ -1,5 +1,5 @@
 import
-  std/[locks, monotimes, os, strformat, strutils, times]
+  std/[dynlib, locks, monotimes, os, strformat, strutils, times]
 
 type
   MinecraftWindowError* = object of CatchableError
@@ -45,6 +45,22 @@ type
     client: XClientMessageEvent
     pad: array[24, clong]
 
+  XResClientIdSpec = object
+    client: culong
+    mask: cuint
+
+  XResClientIdValue = object
+    spec: XResClientIdSpec
+    length: clong
+    value: pointer
+
+  XResQueryClientIdsProc = proc (display: pointer, specCount: clong,
+    specs: ptr XResClientIdSpec, idCount: ptr clong,
+    ids: ptr ptr XResClientIdValue): cint {.cdecl, gcsafe.}
+  XResGetClientPidProc = proc (value: ptr XResClientIdValue): cint {.cdecl, gcsafe.}
+  XResClientIdsDestroyProc = proc (idCount: clong,
+    ids: ptr XResClientIdValue) {.cdecl, gcsafe.}
+
   XSession = object
     display: pointer
     name: string
@@ -59,6 +75,9 @@ const
   MinecraftClassPrefix* = "Minecraft"
   ExcludedClassFragment = "launcher"
   LibX11 = "libX11.so(|.6)"
+  # Loaded only on demand so a missing library never prevents window listing.
+  LibXRes = ["libXRes.so.1", "libXRes.so"]
+  XResPidMask = cuint(2)
   MaxClientWindows = 4096
   MaxTextBytes = 4096
   ResizeAttempts = 3
@@ -83,6 +102,10 @@ var
   pendingXError: int
   pendingXRequest: int
   operationLock: Lock
+  xresTried: bool
+  xresQuery: XResQueryClientIdsProc
+  xresPid: XResGetClientPidProc
+  xresDestroy: XResClientIdsDestroyProc
 
 initLock(operationLock)
 
@@ -221,11 +244,41 @@ proc readTitle(session: XSession, window: XWindow): string =
   if result.len == 0:
     result = session.readProperty(window, XaWmName, AnyPropertyType, longs).data
 
+proc loadXRes(): bool =
+  ## Load the X-Resource client library once, reporting whether it is usable.
+  if not xresTried:
+    xresTried = true
+    for name in LibXRes:
+      let library = loadLib(name)
+      if library != nil:
+        xresQuery = cast[XResQueryClientIdsProc](library.symAddr("XResQueryClientIds"))
+        xresPid = cast[XResGetClientPidProc](library.symAddr("XResGetClientPid"))
+        xresDestroy = cast[XResClientIdsDestroyProc](library.symAddr("XResClientIdsDestroy"))
+        break
+  result = xresQuery != nil and xresPid != nil and xresDestroy != nil
+
+proc serverClientPid(session: XSession, id: XWindow): int =
+  ## Ask the X server which local process owns a window, or 0 when it cannot tell.
+  ## This covers clients such as Windy that never set _NET_WM_PID.
+  if loadXRes():
+    var
+      spec = XResClientIdSpec(client: culong(id), mask: XResPidMask)
+      count: clong
+      values: ptr XResClientIdValue
+    if xresQuery(session.display, 1, addr spec, addr count, addr values) == XSuccess and
+        values != nil:
+      let entries = cast[ptr UncheckedArray[XResClientIdValue]](values)
+      for index in 0 ..< count.int:
+        if result == 0 and entries[index].spec.mask == XResPidMask:
+          result = max(0, xresPid(addr entries[index]).int)
+      xresDestroy(count, values)
+
 proc describeWindow(session: XSession, id: XWindow): ClientWindow =
   ## Snapshot a client's identity, client-area geometry, and blocking states.
   result.id = id.uint64
   let pids = session.readLongs(id, session.atom("_NET_WM_PID"), XAtom(6), 1).values
   if pids.len == 1: result.processId = pids[0].int
+  else: result.processId = session.serverClientPid(id)
   let names = parseWmClass(session.readProperty(id, session.wmClass, AnyPropertyType,
     MaxTextBytes div 4).data)
   result.instance = names.instance

@@ -121,8 +121,8 @@ proc obsStates*(operation: string): seq[string] =
   of "recordToggle", "pauseToggle": @["recording", "paused", "unavailable"]
   of "micToggle": @["muted", "unavailable"]
   of "open": @["running", "unavailable"]
-  of "minecraft1080", "firefox1080": @["running", "ready", "unavailable"]
-  of "selectMinecraft", "selectFirefox": @["active", "blocked", "unavailable"]
+  of "minecraft1080", "firefox1080", "wow1080": @["running", "ready", "unavailable"]
+  of "selectMinecraft", "selectFirefox", "selectWow": @["active", "blocked", "unavailable"]
   else: @[]
 
 proc controlStates*(kind: string): seq[string] =

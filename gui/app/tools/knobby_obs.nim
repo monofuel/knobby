@@ -1,7 +1,7 @@
 import
   std/[asyncdispatch, json, os, posix, strutils],
   knobby/common,
-  obs_client, obs_workspace, obs_targets, minecraft_window, firefox_demo
+  obs_client, obs_workspace, obs_targets, minecraft_window, firefox_demo, wow_capture
 
 const
   Usage = """Usage:
@@ -117,6 +117,11 @@ proc focusObs() {.gcsafe.} =
   ## Raise the existing OBS window.
   discard runAudioCommand("wmctrl", @["-x", "-a", ObsWindowClass])
 
+proc focusFirefoxDemo() {.gcsafe.} =
+  ## Raise the single dedicated Firefox demo window without resizing it.
+  let window = selectFirefoxDemoWindow(listClientWindows(), loadDemoConfig())
+  discard runAudioCommand("wmctrl", @["-i", "-a", windowLabel(window.id)])
+
 proc emitLine(line: JsonNode) {.gcsafe.} =
   ## Write one protocol line to stdout.
   stdout.writeLine($line)
@@ -156,6 +161,11 @@ proc runBridge() =
     resizeFirefox: resizeFirefoxDemo,
     firefoxVideoTarget: firefoxDemoVideoTarget,
     firefoxAudioTarget: firefoxDemoAudioTarget,
+    focusFirefox: focusFirefoxDemo,
+    wowState: wowState,
+    resizeWow: resizeWow,
+    wowVideoTarget: wowVideoTarget,
+    wowAudioTarget: wowAudioTarget,
     emit: emitLine,
     log: logLine
   ))

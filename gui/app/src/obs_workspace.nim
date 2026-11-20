@@ -5,9 +5,9 @@ import
 
 const
   ObsBridgeOperations* = ["recordToggle", "pauseToggle", "micToggle", "open", "minecraft1080",
-    "selectMinecraft", "selectFirefox", "firefox1080"]
-  # Operations that need no OBS connection.
-  LocalOperations = ["open", "minecraft1080", "firefox1080"]
+    "selectMinecraft", "selectFirefox", "selectWow", "firefox1080", "wow1080"]
+  # Operations accepted without an OBS connection; resizing still requires one.
+  LocalOperations = ["open", "minecraft1080", "firefox1080", "wow1080"]
   AppAudioKind = "pipewire_audio_application_capture"
   MaxCommandBacklog* = 16
   ReconnectDelayMs* = 1000
@@ -40,6 +40,8 @@ type
     minecraftSized*: bool
     firefoxRunning*: bool
     firefoxSized*: bool
+    wowRunning*: bool
+    wowSized*: bool
     customScene*: bool
     workspaceReady*: bool
     minecraftReady*: bool
@@ -70,6 +72,11 @@ type
     resizeFirefox*: proc () {.gcsafe.}
     firefoxVideoTarget*: proc (): string {.gcsafe.}
     firefoxAudioTarget*: proc (): tuple[target: string, pending: bool] {.gcsafe.}
+    focusFirefox*: proc () {.gcsafe.}
+    wowState*: proc (): tuple[running, sized: bool] {.gcsafe.}
+    resizeWow*: proc () {.gcsafe.}
+    wowVideoTarget*: proc (): string {.gcsafe.}
+    wowAudioTarget*: proc (): tuple[target: string, pending: bool] {.gcsafe.}
     emit*: proc (line: JsonNode) {.gcsafe.}
     log*: proc (message: string) {.gcsafe.}
 
@@ -99,6 +106,7 @@ type
     lastLog: string
     lastPresenceLog: string
     lastFirefoxPresenceLog: string
+    lastWowPresenceLog: string
     lastPresenceMs: int64
     stopped: bool
 
@@ -116,6 +124,8 @@ proc statusJson*(status: ObsStatus): JsonNode =
     "minecraftSized": status.minecraftSized,
     "firefoxRunning": status.firefoxRunning,
     "firefoxSized": status.firefoxSized,
+    "wowRunning": status.wowRunning,
+    "wowSized": status.wowSized,
     "customScene": status.customScene,
     "workspaceReady": status.workspaceReady,
     "minecraftReady": status.minecraftReady,
@@ -290,9 +300,10 @@ proc workspaceError(snapshot: WorkspaceSnapshot): string =
     result = "OBS input \"" & spec.mic & "\" is missing."
 
 proc customProgramScene(snapshot: WorkspaceSnapshot): bool =
-  ## Distinguish a human-selected scene from the managed demo scene without changing either.
-  snapshot.known and snapshot.programScene.len > 0 and
-    snapshot.programScene != projectSpec(snapshot.project).scene
+  ## Distinguish a human-selected scene from a managed demo scene without changing either.
+  ## Any scene outside a recognized setup is the human's own.
+  snapshot.programScene.len > 0 and (not snapshot.known or
+    snapshot.programScene != projectSpec(snapshot.project).scene)
 
 proc bindMinecraftInput*(client: ObsClient, inputName,
     inputKind: string, exactTarget = ""): Future[bool] {.async.} =
@@ -375,10 +386,9 @@ proc exactAudioSettings(values: JsonNode, target: string): bool =
   values{"TargetName"}.getStr() == target and values{"CaptureMode"}.getInt() == 0 and
     not values{"ExceptApp"}.getBool() and values{"MatchPriorty"}.getInt() == 1
 
-proc clearFirefoxAudio(client: ObsClient) {.async.} =
-  ## Leave idle Firefox audio capture selecting nothing after a failed verification.
+proc clearAppAudio(client: ObsClient, name: string) {.async.} =
+  ## Leave idle application audio capture selecting nothing after a failed verification.
   let
-    name = projectSpec(FirefoxProject).audio
     settings = await client.request("GetInputSettings", %*{"inputName": name})
     values = settings{"inputSettings"}
   if values{"TargetName"}.getStr().len > 0 or values{"CaptureMode"}.getInt() != 0 or
@@ -386,54 +396,99 @@ proc clearFirefoxAudio(client: ObsClient) {.async.} =
     discard await client.request("SetInputSettings", %*{"inputName": name,
       "inputSettings": {"TargetName": "", "CaptureMode": 0, "ExceptApp": false}, "overlay": true})
 
-proc verifyFirefoxCapture(bridge: ObsBridge, snapshot: WorkspaceSnapshot,
+proc clearWindowCapture(client: ObsClient, name: string) {.async.} =
+  ## Leave idle window capture selecting no window after its client could not be proven.
+  let settings = await client.request("GetInputSettings", %*{"inputName": name})
+  if settings{"inputSettings"}{"capture_window"}.getStr().len > 0:
+    discard await client.request("SetInputSettings", %*{"inputName": name,
+      "inputSettings": {"capture_window": ""}, "overlay": true})
+
+proc captureSubject(project: ObsProject): string =
+  ## Name the exclusive window a setup captures, for status and errors.
+  case project
+  of FirefoxProject: "Firefox demo"
+  of WowProject: "WoW client"
+  of MinecraftProject: "Minecraft"
+
+proc windowCaptureTargets(bridge: ObsBridge, project: ObsProject): tuple[video: string,
+    audio: tuple[target: string, pending: bool]] =
+  ## Read the exact window and audio targets for an exclusively captured setup.
+  let subject = captureSubject(project)
+  var
+    videoHook: proc (): string {.gcsafe.}
+    audioHook: proc (): tuple[target: string, pending: bool] {.gcsafe.}
+  case project
+  of FirefoxProject:
+    videoHook = bridge.hooks.firefoxVideoTarget
+    audioHook = bridge.hooks.firefoxAudioTarget
+  of WowProject:
+    videoHook = bridge.hooks.wowVideoTarget
+    audioHook = bridge.hooks.wowAudioTarget
+  of MinecraftProject:
+    discard
+  if videoHook == nil or audioHook == nil:
+    raise newException(ObsCommandError, subject & " capture is not available.")
+  result.video = videoHook()
+  if result.video.len == 0:
+    raise newException(ObsCommandError, "The " & subject & " window is not open.")
+  result.audio = audioHook()
+
+proc verifyWindowCapture(bridge: ObsBridge, snapshot: WorkspaceSnapshot, project: ObsProject,
     frozen: bool): Future[bool] {.async.} =
-  ## Point Firefox capture at the single dedicated demo window and its labeled audio.
+  ## Point a setup's capture at its single exact window and isolated audio.
   ## While an output is active (frozen) settings are only verified, never rebound.
-  ## Raises when capture is not exact; returns whether demo audio is still pending.
+  ## An empty pending audio target leaves audio capturing nothing until proven.
+  ## Raises when capture is not exact; returns whether game or page audio is still pending.
   let
     client = bridge.client
-    spec = projectSpec(FirefoxProject)
+    spec = projectSpec(project)
+    subject = captureSubject(project)
   if snapshot.videoKind != XCompositeKind or snapshot.audioKind != AppAudioKind:
-    raise newException(ObsCommandError, "Firefox Demos inputs must be X11 window capture " &
+    raise newException(ObsCommandError, spec.label & " inputs must be X11 window capture " &
       "and application audio capture.")
-  if bridge.hooks.firefoxVideoTarget == nil or bridge.hooks.firefoxAudioTarget == nil:
-    raise newException(ObsCommandError, "Firefox demo capture is not available.")
-  let video = bridge.hooks.firefoxVideoTarget()
-  if video.len == 0:
-    raise newException(ObsCommandError, "The Firefox demo window is not open.")
   let
-    audio = bridge.hooks.firefoxAudioTarget()
+    targets = bridge.windowCaptureTargets(project)
     videoSettings = await client.request("GetInputSettings", %*{"inputName": spec.video})
     audioSettings = await client.request("GetInputSettings", %*{"inputName": spec.audio})
     videoBound = sameXCompositeWindow(
-      videoSettings{"inputSettings"}{"capture_window"}.getStr(), video)
-    audioBound = exactAudioSettings(audioSettings{"inputSettings"}, audio.target)
+      videoSettings{"inputSettings"}{"capture_window"}.getStr(), targets.video)
+    awaitingAudio = targets.audio.target.len == 0
+    audioBound = exactAudioSettings(audioSettings{"inputSettings"}, targets.audio.target) or
+      (frozen and awaitingAudio)
   if frozen and not (videoBound and audioBound):
-    raise newException(ObsCommandError, "Firefox demo capture changed while OBS output is " &
+    raise newException(ObsCommandError, subject & " capture changed while OBS output is " &
       "active; capture was left unchanged.")
   if not videoBound:
     discard await client.request("SetInputSettings", %*{"inputName": spec.video,
-      "inputSettings": {"capture_window": video}, "overlay": true})
-  if not audioBound:
+      "inputSettings": {"capture_window": targets.video}, "overlay": true})
+  if awaitingAudio and not frozen:
+    await client.clearAppAudio(spec.audio)
+  elif not audioBound:
     discard await client.request("SetInputSettings", %*{"inputName": spec.audio,
-      "inputSettings": {"TargetName": audio.target, "CaptureMode": 0,
+      "inputSettings": {"TargetName": targets.audio.target, "CaptureMode": 0,
         "ExceptApp": false, "MatchPriorty": 1}, "overlay": true})
-  result = audio.pending
+  result = targets.audio.pending
 
-proc bindFirefoxCapture(bridge: ObsBridge, snapshot: WorkspaceSnapshot,
+proc bindWindowCapture(bridge: ObsBridge, snapshot: WorkspaceSnapshot, project: ObsProject,
     frozen: bool): Future[bool] {.async.} =
-  ## Verify Firefox capture, clearing idle audio capture when the demo cannot be proven.
-  let client = bridge.client
+  ## Verify exclusive capture, clearing idle capture when its window cannot be proven.
+  ## Firefox keeps its last window binding; WoW clears both inputs so a stale or
+  ## reused window id never stays selected.
+  let
+    client = bridge.client
+    spec = projectSpec(project)
   var failure: ref ObsError
   try:
-    result = await bridge.verifyFirefoxCapture(snapshot, frozen)
+    result = await bridge.verifyWindowCapture(snapshot, project, frozen)
   except ObsError as error:
     failure = error
   if failure != nil:
     if failure of ObsConnectionError: raise failure
-    if not frozen and snapshot.audioKind == AppAudioKind and client.isOpen:
-      await client.clearFirefoxAudio()
+    if not frozen and client.isOpen:
+      if snapshot.audioKind == AppAudioKind:
+        await client.clearAppAudio(spec.audio)
+      if project == WowProject and snapshot.videoKind == XCompositeKind:
+        await client.clearWindowCapture(spec.video)
     raise newException(ObsCommandError, failure.msg)
 
 proc log(bridge: ObsBridge, message: string) =
@@ -460,6 +515,8 @@ proc replaceObsState(bridge: ObsBridge, next: ObsStatus) =
   status.minecraftSized = bridge.status.minecraftSized
   status.firefoxRunning = bridge.status.firefoxRunning
   status.firefoxSized = bridge.status.firefoxSized
+  status.wowRunning = bridge.status.wowRunning
+  status.wowSized = bridge.status.wowSized
   bridge.status = status
 
 proc refreshPresence(bridge: ObsBridge) =
@@ -490,6 +547,18 @@ proc refreshPresence(bridge: ObsBridge) =
         bridge.lastFirefoxPresenceLog = message
         if bridge.hooks.log != nil:
           bridge.hooks.log("Firefox demo presence unavailable: " & message)
+  if bridge.hooks.wowState != nil:
+    try:
+      let wow = bridge.hooks.wowState()
+      bridge.status.wowRunning = wow.running
+      bridge.status.wowSized = wow.running and wow.sized
+      bridge.lastWowPresenceLog = ""
+    except ObsError, OSError, IOError, MinecraftWindowError:
+      let message = conciseError(getCurrentExceptionMsg())
+      if message != bridge.lastWowPresenceLog:
+        bridge.lastWowPresenceLog = message
+        if bridge.hooks.log != nil:
+          bridge.hooks.log("WoW presence unavailable: " & message)
 
 proc setOffline(bridge: ObsBridge, message: string) =
   ## Report OBS as unavailable; unknown state never reads as stopped and ready.
@@ -587,8 +656,8 @@ proc resync(bridge: ObsBridge) {.async.} =
       of MinecraftProject:
         captureReady = await bridge.bindGameVideo(snapshot.videoKind)
         await bridge.bindGameAudio(snapshot.audioKind)
-      of FirefoxProject:
-        audioPending = await bridge.bindFirefoxCapture(snapshot,
+      of FirefoxProject, WowProject:
+        audioPending = await bridge.bindWindowCapture(snapshot, snapshot.project,
           snapshot.recording or snapshot.streaming)
         captureReady = true
   except ObsConnectionError:
@@ -642,22 +711,26 @@ proc requireWorkspace(client: ObsClient): Future[ObsProject] {.async.} =
   result = knownProject(names.profile, names.collection).project
 
 proc toggleRecording(bridge: ObsBridge) {.async.} =
-  ## Stop an active recording or start one only when the active setup is captured.
+  ## Stop the actual recording, record a human-selected scene as is, or start a
+  ## managed setup scene only once its capture is proven.
   let
     client = bridge.requireConnected()
-    project = await client.requireWorkspace()
     record = await client.readRecordState()
   if record.active:
     discard await client.request("StopRecord")
   else:
-    let scene = await client.request("GetCurrentProgramScene")
-    let selectedScene = scene.requireStr("currentProgramSceneName", "GetCurrentProgramScene")
+    let
+      names = await client.readProfileAndCollection()
+      current = knownProject(names.profile, names.collection)
+      selectedScene = (await client.request("GetCurrentProgramScene")).requireStr(
+        "currentProgramSceneName", "GetCurrentProgramScene")
     if selectedScene.len == 0:
       raise newException(ObsCommandError, "Select an OBS scene before recording.")
-    if selectedScene != projectSpec(project).scene:
+    if not current.known or selectedScene != projectSpec(current.project).scene:
       discard await client.request("StartRecord")
       return
     let
+      project = current.project
       snapshot = await client.readWorkspace()
       error = snapshot.workspaceError()
     if error.len > 0:
@@ -673,15 +746,15 @@ proc toggleRecording(bridge: ObsBridge) {.async.} =
         raise newException(ObsCommandError,
           "Minecraft is not running, so recording was not started.")
       await bridge.bindGameAudio(snapshot.audioKind)
-    of FirefoxProject:
-      discard await bridge.bindFirefoxCapture(snapshot, snapshot.streaming)
+    of FirefoxProject, WowProject:
+      discard await bridge.bindWindowCapture(snapshot, project, snapshot.streaming)
     discard await client.request("StartRecord")
 
 proc togglePause(bridge: ObsBridge) {.async.} =
-  ## Pause or resume the active Minecraft recording.
-  let client = bridge.requireConnected()
-  discard await client.requireWorkspace()
-  let record = await client.readRecordState()
+  ## Pause or resume the actual recording, whichever scene or setup it records.
+  let
+    client = bridge.requireConnected()
+    record = await client.readRecordState()
   if not record.active:
     raise newException(ObsCommandError, "OBS is not recording.")
   if record.paused:
@@ -707,40 +780,57 @@ proc outputsIdle(bridge: ObsBridge): Future[bool] {.async.} =
     streaming = await bridge.client.readStreamActive()
   result = not (record.active or record.paused or streaming or bridge.status.transitioning)
 
-proc requireOutputsIdle(bridge: ObsBridge, label: string) {.async.} =
-  ## Refuse a setup change unless a fresh read shows no recording, stream, or transition.
+proc requireOutputsIdle(bridge: ObsBridge, action: string) {.async.} =
+  ## Refuse an action unless a fresh read shows no recording, stream, reconnect, or transition.
   let
-    record = await bridge.client.readRecordState()
-    streaming = await bridge.client.readStreamActive()
+    client = bridge.requireConnected()
+    record = await client.readRecordState()
+    streaming = await client.readStreamActive()
   if record.active or record.paused:
-    raise newException(ObsCommandError, "OBS is recording; stop recording before switching to " &
-      label & ".")
+    raise newException(ObsCommandError, "OBS is recording; stop recording before " &
+      action & ".")
   if streaming:
-    raise newException(ObsCommandError, "OBS is streaming; stop streaming before switching to " &
-      label & ".")
+    raise newException(ObsCommandError, "OBS is streaming; stop streaming before " &
+      action & ".")
   if bridge.status.transitioning:
-    raise newException(ObsCommandError, "OBS output is changing; switch to " & label &
+    raise newException(ObsCommandError, "OBS output is changing; retry " & action &
       " once it settles.")
+
+proc requireSwitchIdle(bridge: ObsBridge, label: string) {.async.} =
+  ## Refuse a setup change unless every OBS output is freshly observed idle.
+  await bridge.requireOutputsIdle("switching to " & label)
+
+proc requireResizeIdle(bridge: ObsBridge, subject: string) {.async.} =
+  ## Refuse resizing unless OBS is connected and every output is freshly observed idle.
+  ## A running OBS without its WebSocket is never assumed idle.
+  if not bridge.client.isOpen:
+    raise newException(ObsCommandError, "OBS is not connected; resizing " & subject &
+      " needs OBS connected and idle.")
+  await bridge.requireOutputsIdle("resizing " & subject)
 
 proc switchProject(bridge: ObsBridge, spec: ObsProjectSpec) {.async.} =
   ## Move to an existing profile, collection, and scene, checking outputs before each change.
+  ## A profile already accepted for the setup is kept; otherwise the shared demo
+  ## profile is chosen when installed, falling back to the setup's legacy profile.
   let
     client = bridge.client
     profiles = await client.request("GetProfileList")
     collections = await client.request("GetSceneCollectionList")
     profile = profiles.requireStr("currentProfileName", "GetProfileList")
     collection = collections.requireStr("currentSceneCollectionName", "GetSceneCollectionList")
-  if spec.profile notin profiles.stringsIn("profiles", "GetProfileList"):
-    raise newException(ObsCommandError, "OBS profile \"" & spec.profile &
+    installed = profiles.stringsIn("profiles", "GetProfileList")
+    target = if spec.acceptsProfile(profile): profile else: spec.preferredProfile(installed)
+  if target notin installed:
+    raise newException(ObsCommandError, "OBS profile \"" & target &
       "\" does not exist; run the OBS setup tool.")
   if spec.collection notin collections.stringsIn("sceneCollections", "GetSceneCollectionList"):
     raise newException(ObsCommandError, "OBS scene collection \"" & spec.collection &
       "\" does not exist; run the OBS setup tool.")
-  if profile != spec.profile:
-    await bridge.requireOutputsIdle(spec.label)
-    discard await client.request("SetCurrentProfile", %*{"profileName": spec.profile})
+  if profile != target:
+    await bridge.requireSwitchIdle(spec.label)
+    discard await client.request("SetCurrentProfile", %*{"profileName": target})
   if collection != spec.collection:
-    await bridge.requireOutputsIdle(spec.label)
+    await bridge.requireSwitchIdle(spec.label)
     discard await client.request("SetCurrentSceneCollection",
       %*{"sceneCollectionName": spec.collection})
   let scenes = await client.request("GetSceneList")
@@ -748,7 +838,7 @@ proc switchProject(bridge: ObsBridge, spec: ObsProjectSpec) {.async.} =
     raise newException(ObsCommandError, "OBS scene \"" & spec.scene & "\" is missing.")
   let scene = await client.request("GetCurrentProgramScene")
   if scene.requireStr("currentProgramSceneName", "GetCurrentProgramScene") != spec.scene:
-    await bridge.requireOutputsIdle(spec.label)
+    await bridge.requireSwitchIdle(spec.label)
     discard await client.request("SetCurrentProgramScene", %*{"sceneName": spec.scene})
 
 proc selectProject(bridge: ObsBridge, project: ObsProject) {.async.} =
@@ -758,12 +848,12 @@ proc selectProject(bridge: ObsBridge, project: ObsProject) {.async.} =
     client = bridge.requireConnected()
     spec = projectSpec(project)
     names = await client.readProfileAndCollection()
-  var selected = names.profile == spec.profile and names.collection == spec.collection
+  var selected = projectId(names.profile, names.collection) == spec.id
   if selected:
     let scene = await client.request("GetCurrentProgramScene")
     selected = scene.requireStr("currentProgramSceneName", "GetCurrentProgramScene") == spec.scene
   if not selected:
-    await bridge.requireOutputsIdle(spec.label)
+    await bridge.requireSwitchIdle(spec.label)
     var failure: ref ObsError
     try:
       await bridge.switchProject(spec)
@@ -792,21 +882,35 @@ proc openObs(bridge: ObsBridge) {.async.} =
   else:
     bridge.hooks.launchObs()
 
-proc resizeOrLaunchFirefox(bridge: ObsBridge) =
-  ## Resize or focus the dedicated Firefox demo window, or open it when absent.
+proc resizeOrLaunchFirefox(bridge: ObsBridge) {.async.} =
+  ## Open the dedicated Firefox demo when absent, focus it once sized, or resize it while OBS is idle.
   if bridge.hooks.firefoxState == nil:
     raise newException(ObsCommandError, "Firefox demo control is not available.")
-  if bridge.hooks.firefoxState().running:
-    bridge.hooks.resizeFirefox()
-  else:
+  let firefox = bridge.hooks.firefoxState()
+  if not firefox.running:
     bridge.hooks.launchFirefox()
-
-proc resizeOrLaunchMinecraft(bridge: ObsBridge) =
-  ## Resize the running Minecraft game to 1920x1080, or open Prism when no game window exists.
-  if bridge.hooks.minecraftState().running:
-    bridge.hooks.resizeMinecraft()
+  elif firefox.sized and bridge.hooks.focusFirefox != nil:
+    bridge.hooks.focusFirefox()
   else:
+    await bridge.requireResizeIdle("the Firefox demo")
+    bridge.hooks.resizeFirefox()
+
+proc resizeOrLaunchMinecraft(bridge: ObsBridge) {.async.} =
+  ## Open Prism when no game window exists, or resize Minecraft to 1920x1080 while OBS is idle.
+  if not bridge.hooks.minecraftState().running:
     bridge.hooks.launchPrism()
+  else:
+    await bridge.requireResizeIdle("Minecraft")
+    bridge.hooks.resizeMinecraft()
+
+proc resizeWow(bridge: ObsBridge) {.async.} =
+  ## Resize the single WoW client to 1920x1080 while OBS is idle; WoW is never launched.
+  if bridge.hooks.wowState == nil or bridge.hooks.resizeWow == nil:
+    raise newException(ObsCommandError, "WoW control is not available.")
+  if not bridge.hooks.wowState().running:
+    raise newException(ObsCommandError, "The WoW client is not open.")
+  await bridge.requireResizeIdle("WoW")
+  bridge.hooks.resizeWow()
 
 proc runOperation*(bridge: ObsBridge, operation: string) {.async.} =
   ## Execute one bridge operation against actual OBS state, raising on failure.
@@ -820,10 +924,12 @@ proc runOperation*(bridge: ObsBridge, operation: string) {.async.} =
   of "open":
     await bridge.openObs()
   of "minecraft1080":
-    bridge.resizeOrLaunchMinecraft()
+    await bridge.resizeOrLaunchMinecraft()
   of "firefox1080":
-    bridge.resizeOrLaunchFirefox()
-  of "selectMinecraft", "selectFirefox":
+    await bridge.resizeOrLaunchFirefox()
+  of "wow1080":
+    await bridge.resizeWow()
+  of "selectMinecraft", "selectFirefox", "selectWow":
     await bridge.selectProject(projectForOperation(operation))
   else:
     raise newException(ObsCommandError, "Unknown OBS operation \"" &
