@@ -11,6 +11,8 @@ const
     "setup-minecraft-1080", "setup-minecraft-1080-needed", "setup-minecraft-1080-unavailable",
     "setup-firefox-1080", "setup-firefox-1080-needed", "setup-firefox-1080-unavailable",
     "setup-wow-1080", "setup-wow-1080-needed", "setup-wow-1080-unavailable"]
+  FlattenedObsOperations = ["selectMinecraft", "selectFirefox", "selectWow",
+    "minecraft1080", "firefox1080", "wow1080"]
 
 proc deckEntry(menu: JsonNode, key: int): JsonNode =
   ## Return an explicit Deck entry or nil when the key is unassigned.
@@ -28,13 +30,22 @@ proc installObsSetupsMenu*(source: JsonNode, artwork: Table[string, string]): Js
   ## Add paired recording setups inside OBS, preserving all existing menus and MIDI controls.
   ## The four standard navigation keys are copied unchanged; a free OBS key from 10 to 15
   ## opens the new menu. Reapplying an identical installation is a no-op; custom occupants
-  ## and an edited existing setup menu are refused without modifying the source.
+  ## and an edited existing setup menu are refused without modifying the source. An OBS menu
+  ## already holding all six setup and resize keys without this submenu is returned unchanged.
   result = parseJson($source)
   var obs, existing: JsonNode
   for menu in result["menus"]:
     if menu["id"].getStr() == "obs": obs = menu
     if menu["id"].getStr() == ObsSetupsMenuId: existing = menu
   if obs.isNil: raise newException(ValueError, "Install the OBS menu before adding its setups.")
+  # The workflow layout flattens these controls into OBS and removes this submenu.
+  var flattened = 0
+  for operation in FlattenedObsOperations:
+    for entry in obs["deck"]:
+      if entry["action"] == %*{"kind": "obs", "operation": operation}:
+        inc flattened
+        break
+  if existing.isNil and flattened == FlattenedObsOperations.len: return
   let menu = %*{"id": ObsSetupsMenuId, "title": ObsSetupsMenuTitle, "mixer": [], "deck": []}
   for key, target in [source["root"].getStr(), "obs", "discord", "work"]:
     let entry = obs.deckEntry(key + 1)
