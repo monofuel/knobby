@@ -17,7 +17,7 @@ const
 
 proc projectSpec*(project: ObsProject): ObsProjectSpec =
   ## Return the matched recording profile, collection, sources, and destination for one demo setup.
-  ObsProjects[project]
+  ObsProjects[ord(project)]
 
 proc projectId*(profile, collection: string): string =
   ## Identify a supported setup only when both the actual profile and collection match.
