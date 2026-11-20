@@ -31,7 +31,7 @@
         pname = "knobby";
         version = "0.1.0";
         src = self;
-        nativeBuildInputs = with pkgs; [ nim nimble makeWrapper xorg.xorgserver dbus systemd openbox ffmpeg-headless ];
+        nativeBuildInputs = with pkgs; [ nim nimble makeWrapper xorg.xorgserver dbus systemd openbox wmctrl ffmpeg-headless ];
         buildInputs = graphics;
         buildPhase = ''
           runHook preBuild
