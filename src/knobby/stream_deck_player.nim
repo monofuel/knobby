@@ -46,7 +46,7 @@ type
     hasActive: bool
     pending: DeckPage
     hasPending: bool
-    anchorMs: int64
+    anchors: array[StreamDeckKeyCount, int64]
     shown: array[StreamDeckKeyCount, int]
     selected: array[StreamDeckKeyCount, int]
     shownVisual: array[StreamDeckKeyCount, int]
@@ -354,23 +354,62 @@ proc selectVisuals(player: var Player) =
   for key in 0..<StreamDeckKeyCount:
     player.selected[key] = player.active.keys[key].visualIndex(player.indicators)
 
+proc sourcePath(page: DeckPage, image: int): string =
+  ## Name an image by its source path, which identifies it across pages.
+  page.sources[image].path
+
+proc sameKey(previous, next: DeckPage, key: int): bool =
+  ## Report whether a key shows exactly the same images, timing, and status variants on both pages.
+  let
+    old = previous.keys[key]
+    plan = next.keys[key]
+  result = old.states == plan.states and old.actionKind == plan.actionKind and
+    old.operation == plan.operation and old.visuals.len == plan.visuals.len
+  if result:
+    for index in 0..plan.visuals.high:
+      let
+        a = old.visuals[index]
+        b = plan.visuals[index]
+      result = result and a.ends == b.ends and a.normal.len == b.normal.len and
+        previous.sourcePath(a.pressed) == next.sourcePath(b.pressed)
+      if result:
+        for frame in 0..b.normal.high:
+          result = result and previous.sourcePath(a.normal[frame]) == next.sourcePath(b.normal[frame])
+
 proc activatePending(player: var Player) =
-  ## Make the loaded page current and restart its animation clock.
+  ## Make the loaded page current. Keys identical to the previous page stay on the device
+  ## with their animation clocks; every other key restarts its clock and is uploaded again.
   player.pending.finishLoading()
-  player.active = move(player.pending)
+  let nowMs = player.options.clock()
+  var next = move(player.pending)
   player.pending = DeckPage()
   player.hasPending = false
-  player.hasActive = true
-  player.anchorMs = player.options.clock()
   player.ready = false
   player.uploadedCount = 0
   player.roundRobin = 0
   for index in 0..<StreamDeckKeyCount:
-    player.shown[index] = NoImage
-    player.uploaded[index] = false
+    var shown = NoImage
+    if player.hasActive and player.uploaded[index] and player.shown[index] != NoImage and
+        sameKey(player.active, next, index):
+      shown = next.sourceIndex.getOrDefault(player.active.sourcePath(player.shown[index]), NoImage)
+    if shown == NoImage:
+      player.anchors[index] = nowMs
+      player.uploaded[index] = false
+    else:
+      inc player.uploadedCount
+    player.shown[index] = shown
+  player.active = move(next)
+  player.hasActive = true
   for message in player.active.diagnostics:
     player.options.onDiagnostic(message)
   player.selectVisuals()
+
+proc confirmReady(player: var Player, onReady: proc ()) =
+  ## Announce the active generation once every key of it is on the device.
+  if not player.ready and player.uploadedCount == StreamDeckKeyCount:
+    player.ready = true
+    if not onReady.isNil:
+      onReady()
 
 proc desiredImage(player: Player, key: int, nowMs: int64): int =
   ## Select the pressed image while held, otherwise the frame due now.
@@ -378,7 +417,7 @@ proc desiredImage(player: Player, key: int, nowMs: int64): int =
   if player.held[key]:
     result = plan.pressed
   else:
-    result = plan.normal[frameIndexAt(plan.ends, nowMs - player.anchorMs)]
+    result = plan.normal[frameIndexAt(plan.ends, nowMs - player.anchors[key])]
 
 proc nextUpload(player: var Player, nowMs: int64): int =
   ## Choose the next stale key: unstaged keys, then press or OBS state changes,
@@ -405,7 +444,7 @@ proc idleWait(player: Player, nowMs: int64): int =
   for key in 0..<StreamDeckKeyCount:
     if not player.held[key]:
       let wait = msUntilNextFrame(
-        player.active.keys[key].visuals[player.selected[key]].ends, nowMs - player.anchorMs)
+        player.active.keys[key].visuals[player.selected[key]].ends, nowMs - player.anchors[key])
       result = min(result.int64, wait).int
   result = max(result, 0)
 
@@ -451,6 +490,7 @@ proc runPlayer(player: var Player, shouldStop: proc (): bool,
     if player.hasPending:
       if player.pending.fullyLoaded():
         player.activatePending()
+        player.confirmReady(onReady)
       else:
         player.pending.loadNextSource()
     else:
@@ -462,10 +502,7 @@ proc runPlayer(player: var Player, shouldStop: proc (): bool,
         player.pollInput(player.idleWait(nowMs))
       else:
         player.uploadImage(key, player.desiredImage(key, nowMs))
-        if not player.ready and player.uploadedCount == StreamDeckKeyCount:
-          player.ready = true
-          if not onReady.isNil:
-            onReady()
+        player.confirmReady(onReady)
   player.deck.showLogo()
 
 proc runConfiguredSession*(deck: StreamDeck, shouldStop: proc (): bool,

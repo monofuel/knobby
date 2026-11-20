@@ -193,6 +193,8 @@ proc serveState*(server: LocalServer) =
         request.peer.queueMessage(message)
       elif request.message{"type"}.getStr().startsWith("config."):
         request.peer.queueMessage(processConfigRequest(request.message))
+      elif request.message{"type"}.getStr() == DeckNavigationRequest:
+        request.peer.queueMessage(processDeckNavigationRequest(request.message))
       elif request.message{"type"}.getStr() == "obs.status":
         request.peer.queueMessage(%*{"version": ProtocolVersion, "type": "result",
           "ok": true, "obs": readObsStatus()})

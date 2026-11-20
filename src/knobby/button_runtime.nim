@@ -14,6 +14,7 @@ type
     startedMs, finishedMs: int64
   OperationFailure = object of CatchableError
     code, field: string
+  DeckNavigationError* = object of ValueError
   ConfigJob = object
     kind: OperationKind
     id, baseRevision, payload: string
@@ -40,10 +41,13 @@ type
     diskText: string
     diskExists, diskMatchesActive: bool
     menus: array[ButtonDevice, string]
+    drawer: string
     history: seq[Transition]
     input: array[ButtonDevice, DeviceInput]
     deckGeneration, deckReadGeneration: int64
     deckReady: bool
+    configEpoch, confirmedEpoch: int64
+    confirmedBase: string
     actions: seq[CapturedAction]
     actionSequence: int64
     job: ConfigJob
@@ -60,6 +64,8 @@ const
   MaxRetainedManifests* = 8
   ManifestVersion = 1
   RequestPrefix = "config."
+  DeckNavigationRequest* = "deck.navigation"
+  NavigationOperations = ["toggle", "cancel", "select"]
   QueuedStatus = "queued"
   RunningStatus = "running"
   SucceededStatus = "succeeded"
@@ -270,6 +276,58 @@ proc goHome(current: var RuntimeState, devices = {MixerDevice, DeckDevice}) =
   for device in devices:
     current.setMenu(device, current.active.buttons.root)
 
+proc navigateTo(current: var RuntimeState, action: ConfiguredAction) =
+  ## Follow a menu link; a Deck-only link to the root is Home, which clears only Deck history.
+  if action.target == TargetDeck and action.menu == current.active.buttons.root:
+    current.goHome({DeckDevice})
+  else:
+    current.openMenu(action.target, action.menu)
+
+proc setDrawer(current: var RuntimeState, menu: string) =
+  ## Show or hide the Deck navigation drawer over the unchanged underlying page.
+  if current.drawer != menu:
+    current.drawer = menu
+    quarantineHeld(current.input[DeckDevice])
+    bumpDeckPage(current)
+
+proc pageDrawerMenu(current: RuntimeState): string =
+  ## Return the drawer the underlying Deck page's key 1 opens, or "" for a page without one.
+  if not current.initialized: return ""
+  let action = menuButtons(current.active.buttons, current.menus[DeckDevice]).deck[0].action
+  if action.kind == DeckMenuAction: action.menu else: ""
+
+proc toggleDrawer(current: var RuntimeState) =
+  ## Open the underlying page's drawer, or cancel an open drawer back to that same page.
+  if current.drawer.len > 0:
+    current.setDrawer("")
+  else:
+    let menu = current.pageDrawerMenu()
+    if menu.len == 0:
+      raise newException(DeckNavigationError, "The current Deck page has no Menu key.")
+    current.setDrawer(menu)
+
+proc drawerDestination(current: RuntimeState, key: int): ConfiguredAction =
+  ## Return the open drawer's menu link on a top-row key, or NoAction when it has none.
+  if current.drawer.len > 0 and key in 2..DrawerKeyCount:
+    result = menuButtons(current.active.buttons, current.drawer).deck[key - 1].action
+    if result.kind != MenuAction:
+      result = ConfiguredAction(kind: NoAction)
+
+proc selectDrawer(current: var RuntimeState, key: int) =
+  ## Navigate to an open drawer's destination and close the drawer; a refusal changes nothing.
+  let action = current.drawerDestination(key)
+  if action.kind != MenuAction:
+    raise newException(DeckNavigationError, "Deck key " & $key & " is not an open drawer destination.")
+  current.navigateTo(action)
+  current.setDrawer("")
+
+proc lowerKeyCurrent(current: RuntimeState, index: int): bool =
+  ## Report whether a key below the drawer row still shows the confirmed underlying page,
+  ## so a drawer-only page change does not interrupt the lower controls.
+  index >= DrawerKeyCount and current.confirmedBase.len > 0 and
+    current.confirmedBase == current.menus[DeckDevice] and
+    current.confirmedEpoch == current.configEpoch
+
 proc route(device: ButtonDevice, key: int, pressed: bool) =
   ## Resolve one physical edge against the active menu, navigating synchronously.
   ## Every fresh press updates the help overlay before its own action runs once.
@@ -282,9 +340,15 @@ proc route(device: ButtonDevice, key: int, pressed: bool) =
       state.input[device].quarantined[index] = false
     elif not state.input[device].held[index] and not state.input[device].quarantined[index]:
       state.input[device].held[index] = true
-      if device == DeckDevice and not state.deckReady:
+      if device == DeckDevice and not state.deckReady and not state.lowerKeyCurrent(index):
         state.input[device].quarantined[index] = true
         pressMixerOverlay(false)
+      elif device == DeckDevice and state.drawer.len > 0 and key <= DrawerKeyCount:
+        pressMixerOverlay(false)
+        if key == 1:
+          state.setDrawer("")
+        elif state.drawerDestination(key).kind == MenuAction:
+          state.selectDrawer(key)
       else:
         let
           menu = menuButtons(state.active.buttons, state.menus[device])
@@ -292,11 +356,9 @@ proc route(device: ButtonDevice, key: int, pressed: bool) =
         pressMixerOverlay(button.action.kind == MixerOverlayAction)
         case button.action.kind
         of NoAction: discard
-        of MenuAction:
-          if button.action.target == TargetDeck and button.action.menu == state.active.buttons.root:
-            state.goHome({DeckDevice})
-          else:
-            state.openMenu(button.action.target, button.action.menu)
+        of MenuAction: state.navigateTo(button.action)
+        of DeckMenuAction:
+          if device == DeckDevice: state.toggleDrawer()
         of BackAction: state.goBack(device)
         of HomeAction: state.goHome()
         else:
@@ -322,10 +384,16 @@ proc resetMixerInput*() =
   withState:
     state.input[MixerDevice] = DeviceInput()
 
+proc forgetDeckSession(current: var RuntimeState) =
+  ## Drop Deck input and upload confirmation, closing the drawer onto its underlying page.
+  current.setDrawer("")
+  current.input[DeckDevice] = DeviceInput()
+  current.confirmedBase = ""
+
 proc resetDeckInput*() =
-  ## Forget held and quarantined Deck keys and require a fresh page upload.
+  ## Forget held and quarantined Deck keys, close the drawer, and require a fresh page upload.
   withState:
-    state.input[DeckDevice] = DeviceInput()
+    state.forgetDeckSession()
     state.deckReady = false
     state.deckReadGeneration = 0
 
@@ -340,28 +408,47 @@ proc takeButtonActions*(): seq[JsonNode] =
       "menu": action.menu, "revision": action.revision, "title": action.title,
       "action": actionJson(action.action)})
 
+proc deckKeyMenus(current: RuntimeState): JsonNode =
+  ## Name the menu each Deck key of the effective page comes from, drawer row first.
+  result = newJArray()
+  for key in 1..DeckKeyCount:
+    result.add(%(if current.drawer.len > 0 and key <= DrawerKeyCount: current.drawer
+      else: current.menus[DeckDevice]))
+
 proc readDeckPage*(previousGeneration: int64): JsonNode =
-  ## Return the current Deck page when it differs from the player's, or nil when unchanged.
+  ## Return the effective Deck page when it differs from the player's, or nil when unchanged.
+  ## An open drawer replaces keys 1 to 5 with its menu's keys; keys 6 to 15 stay underlying.
   var
     generation: int64
-    menu, page: string
+    menu, drawer, page, drawerPage: string
   withState:
     if previousGeneration <= 0:
-      state.input[DeckDevice] = DeviceInput()
+      state.forgetDeckSession()
     if previousGeneration == state.deckGeneration:
       return nil
     state.deckReady = false
     state.deckReadGeneration = state.deckGeneration
     generation = state.deckGeneration
     menu = ownedCopy(state.menus[DeckDevice])
+    drawer = ownedCopy(state.drawer)
     page = ownedCopy(state.active.pages[menu])
-  result = %*{"generation": generation, "menu": menu, "keys": parseJson(page)}
+    if drawer.len > 0:
+      drawerPage = ownedCopy(state.active.pages[drawer])
+  var keys = parseJson(page)
+  if drawer.len > 0:
+    let top = parseJson(drawerPage)
+    for key in 1..DrawerKeyCount:
+      if top.hasKey($key): keys[$key] = top[$key]
+      elif keys.hasKey($key): keys.delete($key)
+  result = %*{"generation": generation, "menu": menu, "drawer": drawer, "keys": keys}
 
 proc deckPageReady*() =
   ## Accept Deck input once the page last read is uploaded and still current.
   withState:
     if state.deckReadGeneration == state.deckGeneration:
       state.deckReady = true
+      state.confirmedBase = state.menus[DeckDevice]
+      state.confirmedEpoch = state.configEpoch
 
 proc buttonDescription(button: ConfiguredButton, buttons: ButtonSet): string =
   ## Describe a configured button for the status catalog.
@@ -376,6 +463,9 @@ proc buttonDescription(button: ConfiguredButton, buttons: ButtonSet): string =
         of TargetBoth: "both devices"
       menu = menuButtons(buttons, button.action.menu)
     "Open " & (if menu.title.len > 0: menu.title else: menu.id) & " on " & target & "."
+  of DeckMenuAction:
+    let menu = menuButtons(buttons, button.action.menu)
+    "Open the " & (if menu.title.len > 0: menu.title else: menu.id) & " drawer on the Stream Deck."
   of BackAction: "Return to the previous menu."
   of HomeAction: "Return to the main menu."
   of ObsAction: obsOperationDescription(button.action.operation)
@@ -426,7 +516,9 @@ proc buttonRuntimeStatus*(): JsonNode =
       "startupError": state.startupError, "root": state.active.buttons.root,
       "mixerMenu": state.menus[MixerDevice], "deckMenu": state.menus[DeckDevice],
       "historyDepth": state.history.len, "deckGeneration": state.deckGeneration,
-      "deckReady": state.deckReady, "manifestPath": state.active.manifestPath,
+      "deckReady": state.deckReady, "deckReadGeneration": state.deckReadGeneration,
+      "deckDrawer": state.drawer, "deckDrawerMenu": state.pageDrawerMenu(),
+      "deckKeyMenus": state.deckKeyMenus(), "manifestPath": state.active.manifestPath,
       "busy": state.busy, "operation": newJNull(), "recent": [],
       "lastOperationSequence": state.operationSequence, "pendingActions": state.actions.len,
       "overlay": mixerOverlayStatus()}
@@ -450,6 +542,8 @@ proc installConfig(current: var RuntimeState, active: ActiveConfig) =
   ## Swap the active configuration, resetting navigation and quarantining held keys.
   current.active = ownedCopy(active)
   current.history = @[]
+  current.drawer = ""
+  inc current.configEpoch
   for device in ButtonDevice:
     current.menus[device] = active.buttons.root
     quarantineHeld(current.input[device])
@@ -766,3 +860,41 @@ proc processConfigRequest*(message: JsonNode): JsonNode =
       result = errorReply("unsupported", "Unsupported request type: " & kind)
   except ButtonConfigError as error:
     result = errorReply("invalid", error.msg, error.field)
+
+proc navigationReply(current: RuntimeState, changed: bool): JsonNode =
+  ## Describe the Deck navigation state an accepted drawer request produced.
+  result = resultReply(true)
+  result["changed"] = %changed
+  result["deckMenu"] = %current.menus[DeckDevice]
+  result["deckDrawer"] = %current.drawer
+  result["deckGeneration"] = %current.deckGeneration
+
+proc processDeckNavigationRequest*(message: JsonNode): JsonNode =
+  ## Toggle, cancel, or select the Deck drawer exactly as its physical keys do, without
+  ## injecting presses: no other key, page action, or application action is reachable.
+  if message.isNil or message.kind != JObject or message{"version"}.getInt(-1) != ProtocolVersion:
+    return errorReply("version", "Incompatible Knobby IPC version.")
+  let
+    operation = message{"operation"}.getStr()
+    keyNode = message{"key"}
+  if message{"type"}.getStr() != DeckNavigationRequest:
+    return errorReply("unsupported", "Unsupported request type: " & message{"type"}.getStr())
+  if operation notin NavigationOperations:
+    return errorReply("invalid", "Operation must be toggle, cancel, or select.", "operation")
+  if operation == "select" and (keyNode.isNil or keyNode.kind != JInt or
+      keyNode.getInt() notin 2..DrawerKeyCount):
+    return errorReply("invalid", "Select needs a drawer key from 2 to " & $DrawerKeyCount & ".", "key")
+  if operation != "select" and not keyNode.isNil:
+    return errorReply("invalid", "Only select takes a key.", "key")
+  try:
+    withState:
+      if not state.initialized:
+        raise newException(DeckNavigationError, "Button runtime is not initialized.")
+      let generation = state.deckGeneration
+      case operation
+      of "toggle": state.toggleDrawer()
+      of "cancel": state.setDrawer("")
+      else: state.selectDrawer(keyNode.getInt())
+      result = ownedCopy(state.navigationReply(state.deckGeneration != generation))
+  except DeckNavigationError, IOError:
+    result = errorReply("refused", getCurrentExceptionMsg())

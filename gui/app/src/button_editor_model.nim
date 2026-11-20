@@ -35,7 +35,7 @@ const
   BackKey* = 1
   ActionLabels*: array[ConfigActionKind, string] = ["None", "Command", "Grok",
     "Claude", "FFXIV", "Microphones", "Discord mute", "Open menu", "Back", "Home", "OBS",
-    "Discord deafen", "Open Discord", "Mixer overlay", "Answer voice", "Answer video"]
+    "Discord deafen", "Open Discord", "Mixer overlay", "Answer voice", "Answer video", "Menu drawer"]
   TargetLabels*: array[ButtonTarget, string] = ["Mixer", "Deck", "Both"]
   DeviceLabels*: array[ButtonDevice, string] = ["Arduino mixer", "Stream Deck"]
   StaleCode* = "stale"
@@ -92,6 +92,10 @@ proc entryAt*(config: JsonNode, menu: string, device: ButtonDevice, key: int): J
     %*{"key": key, "title": BackTitle, "action": {"kind": $BackAction}}
   else:
     %*{"key": key, "title": UnassignedTitle, "action": {"kind": $NoAction}}
+
+proc effectiveDeckMenu*(menu, drawer: string, key: int): string =
+  ## Return the menu a live Deck key shows: an open drawer covers keys 1 to 5.
+  if drawer.len > 0 and key in 1..DrawerKeyCount: drawer else: menu
 
 proc actionKind*(entry: JsonNode): ConfigActionKind =
   ## Return a slot's action kind.
@@ -166,6 +170,7 @@ proc describeAction*(config: JsonNode, entry: JsonNode): string =
     "Open " & config.menuTitle(action{"menu"}.getStr()) & " on " &
       TargetLabels[entry.menuTarget()].toLowerAscii()
   of HomeAction: "Return to main menu"
+  of DeckMenuAction: "Open the " & config.menuTitle(action{"menu"}.getStr()) & " drawer"
   of ObsAction: "OBS: " & obsOperationLabel(entry.obsOperation())
   else: ActionLabels[entry.actionKind()]
 
@@ -175,7 +180,8 @@ proc menuReferences*(config: JsonNode, id: string): seq[string] =
     for device in ButtonDevice:
       if menu{$device}.isNil: continue
       for entry in menu[$device]:
-        if entry.actionKind() == MenuAction and entry["action"]{"menu"}.getStr() == id:
+        if entry.actionKind() in {MenuAction, DeckMenuAction} and
+            entry["action"]{"menu"}.getStr() == id:
           result.add(config.menuTitle(menu{"id"}.getStr()) & " " & $device &
             " key " & $entry{"key"}.getInt())
 
@@ -339,8 +345,9 @@ proc selectVisualState*(model: var EditorModel, state: string) =
   model.visualState = state
 
 proc selectedLocked*(model: EditorModel): bool =
-  ## Report whether the selected slot is the reserved Home or Back key.
-  model.draft.isLockedBack(model.menu, model.key)
+  ## Report whether the selected slot is the reserved Home or Back key; a Deck Menu key stays editable.
+  model.draft.isLockedBack(model.menu, model.key) and
+    not (model.device == DeckDevice and model.selected().actionKind() == DeckMenuAction)
 
 proc mutableEntry(model: var EditorModel): JsonNode =
   ## Return the selected slot in the draft, materializing it in key order.
@@ -391,6 +398,11 @@ proc setActionKind*(model: var EditorModel, kind: ConfigActionKind) =
           break
     action["menu"] = %target
     action["target"] = %previous{"target"}.getStr($TargetBoth)
+  of DeckMenuAction:
+    var target = previous{"menu"}.getStr()
+    if model.draft.findMenu(target).isNil:
+      target = model.menu
+    action["menu"] = %target
   of ObsAction:
     let operation = previous{"operation"}.getStr()
     action["operation"] = %(if isObsOperation(operation): operation else: ObsOperations[0])
@@ -411,8 +423,8 @@ proc setMenuTarget*(model: var EditorModel, menu: string) =
   if model.draft.findMenu(menu).isNil:
     raise newException(ValueError, "Unknown menu: " & menu)
   let entry = model.mutableEntry()
-  if entry.actionKind() != MenuAction:
-    raise newException(ValueError, "Only menu actions have a target menu.")
+  if entry.actionKind() notin {MenuAction, DeckMenuAction}:
+    raise newException(ValueError, "Only menu and drawer actions have a target menu.")
   entry["action"]["menu"] = %menu
   model.touch()
 

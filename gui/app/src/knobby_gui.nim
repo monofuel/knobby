@@ -108,6 +108,14 @@ proc liveDeckMenu(viewer: Viewer): string =
     menu = viewer.state.buttons{"deckMenu"}.getStr()
   if model.loaded and menu.len > 0 and not model.live.findMenu(menu).isNil: menu else: ""
 
+proc liveDeckKeyMenu(viewer: Viewer, key: int): string =
+  ## Return the menu a live Deck key shows, honoring an open drawer over keys 1 to 5.
+  let
+    menu = viewer.liveDeckMenu()
+    drawer = viewer.state.buttons{"deckDrawer"}.getStr()
+  if menu.len > 0 and (drawer.len == 0 or not viewer.editor.model.live.findMenu(drawer).isNil):
+    result = effectiveDeckMenu(menu, drawer, key)
+
 proc drawDeck(sk: Silky, viewer: Viewer, x, width: float32) =
   ## Show the daemon's active Deck page with its prepared key images while highlighting input.
   let
@@ -132,7 +140,8 @@ proc drawDeck(sk: Silky, viewer: Viewer, x, width: float32) =
       sk.drawPreview(editor, index, position)
       editor.record("liveArt:" & $(index + 1), rect(position, vec2(PreviewSize, PreviewSize)))
     elif menu.len > 0:
-      let title = model.live.entryAt(menu, DeckDevice, index + 1){"title"}.getStr()
+      let title = model.live.entryAt(viewer.liveDeckKeyMenu(index + 1), DeckDevice,
+        index + 1){"title"}.getStr()
       editor.requestGlyphs(sk, title)
       discard sk.drawText("Small", title, vec2(left + 6, top), if lit: Background else: Foreground,
         maxWidth = size - 12, maxHeight = size, hAlign = CenterAlign, vAlign = MiddleAlign)
@@ -216,7 +225,7 @@ proc drawDetails(sk: Silky, viewer: Viewer, x, height: float32) =
   of DeckPage:
     let
       editor = viewer.editor
-      menu = viewer.liveDeckMenu()
+      menu = viewer.liveDeckKeyMenu(viewer.selected + 1)
     text("Key " & $(viewer.selected + 1), "Title")
     text("Stream Deck MK.2", "Small", Accent)
     if editor.liveDeckReady():
@@ -678,6 +687,18 @@ proc editorScript(phase, directory, fixtureImage: string, window: Window, sk: Si
           model().liveRevision == editor.status{"revision"}.getStr() and
           model().live.mixerSlot(2)["title"].getStr() == LateTitle and not fileExists(draftPath())),
       capture("reload-failed")]
+  of "drawer":
+    proc drawerArt(): bool =
+      ## Report whether the live grid shows a published page with the daemon's open drawer.
+      editor.liveDeckReady() and editor.liveDeckSource().drawer.len > 0 and
+        editor.previewCurrent(0) and editor.previewCurrent(7) and editor.previewCurrent(PressedSlot)
+    result = @[
+      click("page:DeckPage"),
+      waitFor("live configuration", proc (): bool = model().loaded and not editor.opened),
+      click("live:1"),
+      waitFor("live drawer art", proc (): bool = viewer.selected == 0 and drawerArt()),
+      settle(20),
+      capture("drawer-open")]
   else:
     raise newException(ValueError, "Unknown editor smoke phase: " & phase)
 

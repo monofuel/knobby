@@ -490,6 +490,46 @@ suite "Configured Stream Deck sessions":
     check secondPageUploads >= 1
     check 2'i64 in calls[]
 
+  test "a new generation re-uploads only changed keys and keeps unchanged animation clocks":
+    let
+      directory = getTempDir() / "knobby-player-drawer"
+      fake = newFakeDeck()
+    createDir(directory)
+    defer: removeDir(directory)
+    let
+      a = writeJpeg(directory, "a.jpg")
+      b = writeJpeg(directory, "b.jpg")
+      c = writeJpeg(directory, "c.jpg")
+      cBytes = readFile(c)
+      pages = new seq[JsonNode]
+      calls = new seq[int64]
+      SwitchMs = 550
+      AnimatedKey = 10
+    pages[].add(framePage(1, "root", [a, b], a, key = AnimatedKey))
+    var drawer = framePage(2, "root", [a, b], a, key = AnimatedKey)
+    for key in 1..5:
+      drawer["keys"][$key] = %*{"normal": [{"path": c, "durationMs": 0}], "pressed": c}
+    var ready: seq[int64]
+    let reader = proc (previousGeneration: int64): JsonNode =
+      ## Publish the drawer page partway through an animation frame.
+      if fake.nowMs >= SwitchMs and pages[].len == 1:
+        pages[].add(drawer)
+      result = pageReader(pages, calls)(previousGeneration)
+    runConfiguredSession(newStreamDeck(fake.transport()), proc (): bool = fake.nowMs >= 900,
+      ignoreKey, reader, proc () = ready.add(fake.nowMs), fake.fakeOptions())
+    var
+      anchor = -1'i64
+      changed: seq[int]
+    for upload in fake.uploads():
+      if upload.key == AnimatedKey - 1:
+        if anchor < 0: anchor = upload.startMs
+        check (upload.startMs - anchor) mod FrameMs == 0
+      elif upload.startMs >= SwitchMs:
+        changed.add(upload.key)
+        check upload.jpeg == cBytes
+    check changed == @[0, 1, 2, 3, 4]
+    check ready.len == 2
+
   test "stopping during staging restores the logo without a ready callback":
     let fake = newFakeDeck()
     fake.writeCostMs = 1

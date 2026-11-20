@@ -24,7 +24,7 @@ type
     frames: seq[tuple[path: string, durationMs: int]]
   PreviewPage = object
     sources: array[16, PreviewSource]
-    manifestPath, menu: string
+    manifestPath, menu, drawer: string
     indicators: string
     pressedKey: int
   SlotPixels = object
@@ -194,8 +194,9 @@ proc draftVariant(entry: JsonNode, state: string): JsonNode =
     if not variant.isNil and variant.kind == JObject: result = variant
 
 proc menuPage(manifest: JsonNode, menu: string, selectedKey: int, state = NormalState,
-    status: JsonNode = nil): PreviewPage =
+    status: JsonNode = nil, drawer = ""): PreviewPage =
   ## Translate one manifest menu into player sources, choosing status variants by live indicators or draft state.
+  ## An open drawer menu covers keys 1 to 5 exactly as on the physical Deck.
   let keys = manifest{"menus"}{menu}
   proc shown(entry: JsonNode): JsonNode =
     ## Resolve live keys exactly as the Deck player does; draft keys follow the editor's state.
@@ -213,9 +214,13 @@ proc menuPage(manifest: JsonNode, menu: string, selectedKey: int, state = Normal
       for frame in entry{"normal"}.getElems():
         result.frames.add((frame{"path"}.getStr(), frame{"durationMs"}.getInt(100)))
   if keys.isNil: return
+  proc keyEntry(key: int): JsonNode =
+    ## Return the manifest entry the effective page shows on one key.
+    manifest{"menus"}{effectiveDeckMenu(menu, drawer, key)}{$key}
   for key in 1..DeckKeyCount:
-    result.sources[key - 1] = source(shown(keys{$key}), false)
-  result.sources[PressedSlot] = source(shown(keys{$selectedKey}), true)
+    result.sources[key - 1] = source(shown(keyEntry(key)), false)
+  if selectedKey in 1..DeckKeyCount:
+    result.sources[PressedSlot] = source(shown(keyEntry(selectedKey)), true)
 
 proc resolveLivePage(page: var PreviewPage, cachedPath: var string, cached: var JsonNode): string =
   ## Fill a live page from the daemon's active manifest file, returning a failure message or "".
@@ -224,11 +229,13 @@ proc resolveLivePage(page: var PreviewPage, cachedPath: var string, cached: var 
     if page.manifestPath != cachedPath:
       cached = parseFile(page.manifestPath)
       cachedPath = page.manifestPath
-    if cached{"menus"}{page.menu}.isNil:
-      raise newException(ValueError, "Active manifest has no menu " & page.menu & ".")
+    for menu in [page.menu, page.drawer]:
+      if menu.len > 0 and cached{"menus"}{menu}.isNil:
+        raise newException(ValueError, "Active manifest has no menu " & menu & ".")
     let status = if page.indicators.len == 0: %*{"obs": unavailableObsStatus(),
       "controls": unavailableControlStatus()} else: parseJson(page.indicators)
-    page.sources = cached.menuPage(page.menu, page.pressedKey, status = status).sources
+    page.sources = cached.menuPage(page.menu, page.pressedKey, status = status,
+      drawer = page.drawer).sources
   except CatchableError as failure:
     cachedPath = ""
     cached = nil
@@ -441,10 +448,11 @@ proc requestImport*(editor: ButtonEditor, source: string) =
     state: editor.model.visualState)
   editor.queued.incl(ImportJob)
 
-proc liveDeckSource(editor: ButtonEditor): tuple[manifestPath, menu: string] =
-  ## Return the daemon's active Deck manifest and menu, never the draft being edited.
+proc liveDeckSource*(editor: ButtonEditor): tuple[manifestPath, menu, drawer: string] =
+  ## Return the daemon's active Deck manifest, underlying menu, and open drawer, never the draft.
   if editor.status.isNil or editor.status.kind != JObject: return
-  (editor.status{"manifestPath"}.getStr(), editor.status{"deckMenu"}.getStr())
+  (editor.status{"manifestPath"}.getStr(), editor.status{"deckMenu"}.getStr(),
+    editor.status{"deckDrawer"}.getStr())
 
 proc indicators*(editor: ButtonEditor): JsonNode =
   ## Combine the daemon's OBS and control status exactly as the Deck player reads them.
@@ -468,8 +476,8 @@ proc publishPreviewPage(editor: ButtonEditor, view: PreviewView) =
       of NoPreview: ""
       of LivePreview:
         if live.manifestPath.len == 0 or live.menu.len == 0: ""
-        else: "live/" & live.manifestPath & "/" & live.menu & "/" & $editor.liveKey & "/" &
-          editor.liveStatusSignature()
+        else: "live/" & live.manifestPath & "/" & live.menu & "/" & live.drawer & "/" &
+          $editor.liveKey & "/" & editor.liveStatusSignature()
       of DraftPreview:
         if editor.manifest.isNil or editor.model.device != DeckDevice: ""
         else: "draft/" & editor.model.menu & "/" & $editor.model.key & "/" & $editor.previewEdits &
@@ -478,8 +486,8 @@ proc publishPreviewPage(editor: ButtonEditor, view: PreviewView) =
   editor.pageKey = key
   var page = PreviewPage()
   if key.len > 0 and view == LivePreview:
-    page = PreviewPage(manifestPath: live.manifestPath, menu: live.menu, pressedKey: editor.liveKey,
-      indicators: $editor.indicators())
+    page = PreviewPage(manifestPath: live.manifestPath, menu: live.menu, drawer: live.drawer,
+      pressedKey: editor.liveKey, indicators: $editor.indicators())
   elif key.len > 0:
     page = editor.manifest.menuPage(editor.model.menu, editor.model.key, editor.model.visualState)
   withLock playerLock:
@@ -1059,8 +1067,11 @@ proc drawDetails(sk: Silky, window: Window, editor: ButtonEditor, x, height: flo
     let chipWidth = floor((width - Gap) / 2)
     var actions: seq[ConfigActionKind]
     for action in ConfigActionKind:
-      if action != BackAction or model.menu != model.draft.rootMenu():
-        actions.add(action)
+      let allowed =
+        if action == BackAction: model.menu != model.draft.rootMenu()
+        elif action == DeckMenuAction: model.device == DeckDevice and model.key == 1
+        else: true
+      if allowed: actions.add(action)
     for index, action in actions:
       let bounds = rect(x + (index mod 2).float32 * (chipWidth + Gap),
         y + (index div 2).float32 * (ChipHeight + 6), chipWidth, ChipHeight)
@@ -1100,6 +1111,16 @@ proc drawDetails(sk: Silky, window: Window, editor: ButtonEditor, x, height: flo
             TargetLabels[device], active = current.menuTarget() == device):
           editor.applyEdit: editor.model.setTargetDevice(device)
       y += ChipHeight + 14
+    of DeckMenuAction:
+      heading("Drawer menu")
+      let target = current["action"]{"menu"}.getStr()
+      for id in model.draft.menuIds():
+        if sk.chip(editor, "drawer:" & id, rect(x, y, width, ChipHeight),
+            model.draft.menuTitle(id), active = id == target):
+          editor.applyEdit: editor.model.setMenuTarget(id)
+        y += ChipHeight + 6
+      y += sk.label("Keys 1 to 5 of this menu cover the top row until Menu or a destination is pressed.",
+        x, y, width, "Small", Muted) + 12
     of ObsAction:
       heading("OBS operation")
       let

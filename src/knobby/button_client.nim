@@ -79,6 +79,37 @@ proc waitConfigOperation*(id: string, timeoutMs = OperationTimeoutMs,
     sleep(ClientPollMs)
   raise newException(IOError, "Operation " & id & " did not finish within " & $timeoutMs & " ms.")
 
+proc readButtonStatus*(path = daemonSocketPath(), timeoutMs = RequestTimeoutMs): JsonNode =
+  ## Return the daemon's current button runtime status from one state message.
+  let peer = connectLocal(path)
+  defer: peer.close()
+  peer.queueMessage(%*{"version": ProtocolVersion, "type": SubscribeType})
+  let deadline = monotonicMs() + timeoutMs
+  while monotonicMs() < deadline:
+    for message in peer.pump():
+      let status = message{"state"}{StatusKey}
+      if message{"type"}.getStr() == StateType and not status.isNil:
+        return status
+    sleep(ClientPollMs)
+  raise newException(IOError, "Knobby sent no state within " & $timeoutMs & " ms.")
+
+proc waitDeckPage*(generation: int64, timeoutMs = RequestTimeoutMs,
+    path = daemonSocketPath()): JsonNode =
+  ## Wait until the physical Deck acknowledges uploading a page at least as new as generation.
+  let peer = connectLocal(path)
+  defer: peer.close()
+  peer.queueMessage(%*{"version": ProtocolVersion, "type": SubscribeType})
+  let deadline = monotonicMs() + timeoutMs
+  while monotonicMs() < deadline:
+    for message in peer.pump():
+      let status = message{"state"}{StatusKey}
+      if message{"type"}.getStr() == StateType and not status.isNil and
+          status{"deckReady"}.getBool() and status{"deckReadGeneration"}.getBiggestInt() >= generation:
+        return status
+    sleep(ClientPollMs)
+  raise newException(IOError, "The Stream Deck did not confirm page " & $generation &
+    " within " & $timeoutMs & " ms.")
+
 proc requestError(node: JsonNode): ref ConfigRequestError =
   ## Convert a rejected reply or failed record into an error carrying its field metadata.
   result = newException(ConfigRequestError, node{"error"}.getStr("Knobby rejected the request."))

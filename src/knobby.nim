@@ -54,10 +54,13 @@ when isMainModule:
   let args = commandLineParams()
   if args.len > 0 and args[0] == "config":
     runButtonConfigCli(args[1..^1])
+  elif args.len > 0 and args[0] == "navigation":
+    runNavigationCli(args[1..^1])
   elif args == @["--help"]:
-    echo "Usage: knobby [config COMMAND]"
+    echo "Usage: knobby [config COMMAND | navigation COMMAND]"
     echo configUsage()
+    echo navigationUsage()
   elif args.len == 0:
     run()
   else:
-    raise newException(ValueError, "Usage: knobby [config COMMAND]")
+    raise newException(ValueError, "Usage: knobby [config COMMAND | navigation COMMAND]")

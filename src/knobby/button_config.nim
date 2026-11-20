@@ -12,7 +12,8 @@ type
     MenuAction = "menu", BackAction = "back", HomeAction = "home",
     ObsAction = "obs", DiscordDeafenAction = "discordDeafen",
     OpenDiscordAction = "openDiscord", MixerOverlayAction = "mixerOverlay",
-    DiscordAcceptVoiceAction = "discordAcceptVoice", DiscordAcceptVideoAction = "discordAcceptVideo"
+    DiscordAcceptVoiceAction = "discordAcceptVoice", DiscordAcceptVideoAction = "discordAcceptVideo",
+    DeckMenuAction = "deckMenu"
   ButtonTarget* = enum
     TargetMixer = "mixer", TargetDeck = "deck", TargetBoth = "both"
   ButtonDevice* = enum
@@ -46,6 +47,7 @@ const
   MaxCommandBytes* = 4096
   MaxConfigBytes* = 512 * 1024
   MaxAssetNameBytes = 128
+  DrawerKeyCount* = 5
   RootMenuId* = "root"
   RootMenuTitle = "Main"
   BackTitle* = "Back"
@@ -195,6 +197,7 @@ proc parseAction(node: JsonNode, field: string, menuIds: HashSet[string]): Confi
     raise configError(join(field, "kind"), "Unknown action kind: " & kindText)
   for name in ActionFields:
     let used = (name == "command" and result.kind == CommandAction) or
+      (name == "menu" and result.kind == DeckMenuAction) or
       (name in ["menu", "target"] and result.kind == MenuAction) or
       (name == "operation" and result.kind == ObsAction)
     if node.hasKey(name) and not used:
@@ -217,6 +220,10 @@ proc parseAction(node: JsonNode, field: string, menuIds: HashSet[string]): Confi
       result.target = parseEnum[ButtonTarget](targetText)
     except ValueError:
       raise configError(join(field, "target"), "Target must be mixer, deck, or both.")
+  of DeckMenuAction:
+    result.menu = requireMember(node, "menu", field, JString).getStr()
+    if result.menu notin menuIds:
+      raise configError(join(field, "menu"), "Unknown menu: " & result.menu)
   of ObsAction:
     result.operation = requireMember(node, "operation", field, JString).getStr()
     if not isObsOperation(result.operation):
@@ -255,9 +262,11 @@ proc parseEntries(menu: JsonNode, device: ButtonDevice, field, rootId: string,
       join(entryField, "action"), menuIds)
     let deckHome = device == DeckDevice and action.kind == MenuAction and
       action.menu == rootId and action.target == TargetDeck
-    if not isRoot and key == 1 and action.kind != BackAction and not deckHome:
+    if action.kind == DeckMenuAction and (device != DeckDevice or key != 1):
+      raise configError(join(entryField, "action"), "Only Stream Deck key 1 can open a menu drawer.")
+    if not isRoot and key == 1 and action.kind notin {BackAction, DeckMenuAction} and not deckHome:
       raise configError(join(entryField, "action"),
-        "Key 1 of a submenu must be Back, or a Deck-only link to Home on the Deck.")
+        "Key 1 of a submenu must be Back, a menu drawer, or a Deck-only link to Home on the Deck.")
     if entry.hasKey("visual"):
       let visualField = join(entryField, "visual")
       let visual = entry["visual"]
@@ -284,6 +293,20 @@ proc parseEntries(menu: JsonNode, device: ButtonDevice, field, rootId: string,
             raise configError(join(statesField, state),
               "State image must be a managed file path such as assets/<name>.png.")
     buttons[key - 1] = ConfiguredButton(key: int(key), title: title, action: action, explicit: true)
+
+proc validateDrawerMenu(buttons: ButtonSet, id: string) =
+  ## Require a drawer menu to cancel itself on key 1 and offer only Deck-only menu links on keys 2 to 5,
+  ## so opening or using the drawer can never run an application action.
+  for position, menu in buttons.menus:
+    if menu.id == id:
+      let field = "menus[" & $position & "].deck"
+      if menu.deck[0].action.kind != DeckMenuAction or menu.deck[0].action.menu != id:
+        raise configError(field, "Deck key 1 of drawer menu " & id & " must open drawer " & id & ".")
+      for index in 1..<DrawerKeyCount:
+        let action = menu.deck[index].action
+        if action.kind != NoAction and (action.kind != MenuAction or action.target != TargetDeck):
+          raise configError(field, "Deck key " & $(index + 1) & " of drawer menu " & id &
+            " must be unassigned or a Deck-only menu link.")
 
 proc parseButtonSet*(config: JsonNode): ButtonSet =
   ## Validate a configuration and convert it to the typed, reference-free routing model.
@@ -314,6 +337,9 @@ proc parseButtonSet*(config: JsonNode): ButtonSet =
     parseEntries(menu, MixerDevice, field, result.root, menuIds, parsed.mixer)
     parseEntries(menu, DeckDevice, field, result.root, menuIds, parsed.deck)
     result.menus.add(parsed)
+  for menu in result.menus:
+    if menu.deck[0].action.kind == DeckMenuAction:
+      validateDrawerMenu(result, menu.deck[0].action.menu)
 
 proc actionJson*(action: ConfiguredAction): JsonNode =
   ## Encode an action with only the fields its kind uses, in canonical order.
@@ -323,6 +349,7 @@ proc actionJson*(action: ConfiguredAction): JsonNode =
   of MenuAction:
     result["menu"] = %action.menu
     result["target"] = %($action.target)
+  of DeckMenuAction: result["menu"] = %action.menu
   of ObsAction: result["operation"] = %action.operation
   else: discard
 

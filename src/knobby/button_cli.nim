@@ -1,5 +1,5 @@
 import
-  std/[json, os],
+  std/[json, os, strutils],
   ./[button_client, button_config]
 
 proc configUsage*(): string =
@@ -12,6 +12,48 @@ proc configUsage*(): string =
 Export an editable {baseRevision, config} JSON document, edit it, validate,
 then apply it. Apply rejects stale revisions and never executes button actions.
 Import copies PNG, JPEG, or GIF artwork into managed configuration assets."""
+
+proc navigationUsage*(): string =
+  ## Describe the Deck drawer navigation commands.
+  """Usage: knobby navigation status
+       knobby navigation toggle|cancel
+       knobby navigation select KEY
+
+Open, cancel, or choose a destination (keys 2-5) of the Stream Deck Menu drawer,
+exactly as the physical keys do, then wait for the Deck to confirm the page.
+It never presses other keys or runs application actions."""
+
+proc navigationSummary(status: JsonNode): JsonNode =
+  ## Select the Deck navigation fields of the daemon's button status.
+  result = newJObject()
+  for key in ["deckMenu", "deckDrawer", "deckDrawerMenu", "deckKeyMenus", "deckGeneration",
+      "deckReadGeneration", "deckReady", "historyDepth", "mixerMenu", "revision"]:
+    result[key] = if status.hasKey(key): status[key] else: newJNull()
+
+proc runNavigationCli*(args: seq[string]) =
+  ## Drive the Deck drawer through the daemon's bounded navigation request.
+  if args.len == 0 or args[0] in ["--help", "help"]:
+    echo navigationUsage()
+    return
+  var payload: JsonNode
+  case args[0]
+  of "status":
+    if args.len != 1:
+      raise newException(ValueError, navigationUsage())
+    echo navigationSummary(readButtonStatus())
+    return
+  of "toggle", "cancel":
+    if args.len != 1:
+      raise newException(ValueError, navigationUsage())
+    payload = %*{"operation": args[0]}
+  of "select":
+    if args.len != 2:
+      raise newException(ValueError, navigationUsage())
+    payload = %*{"operation": "select", "key": parseInt(args[1])}
+  else:
+    raise newException(ValueError, navigationUsage())
+  let reply = requireConfigResult(requestConfig("deck.navigation", payload))
+  echo navigationSummary(waitDeckPage(reply["deckGeneration"].getBiggestInt()))
 
 proc readCandidate(path: string): JsonNode =
   ## Read an exported draft or a bare configuration for validation.

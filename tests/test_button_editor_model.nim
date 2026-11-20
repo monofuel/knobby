@@ -80,6 +80,36 @@ suite "Button editor model":
     model.setActionKind(GrokAction)
     check model.validation == ""
 
+  test "a Deck Menu key edits its drawer target through the menu selector":
+    var config = withSubmenu()
+    config["menus"].add(%*{"id": "nav", "title": "Menu", "mixer": [], "deck": [
+      {"key": 1, "title": "Menu", "action": {"kind": "deckMenu", "menu": "nav"}},
+      {"key": 2, "title": "Home", "action": {"kind": "menu", "menu": "root", "target": "deck"}}]})
+    config["menus"][1]["deck"] = %*[{"key": 1, "title": "Menu",
+      "action": {"kind": "deckMenu", "menu": "nav"}}]
+    var model = liveModel(config)
+    model.selectMenu("games")
+    model.selectDevice(DeckDevice)
+    model.selectKey(1)
+    check not model.selectedLocked()
+    check model.draft.describeAction(model.selected()) == "Open the Menu drawer"
+    expect ValueError: model.deleteMenu("nav")
+    model.setMenuTarget("root")
+    check model.validation.contains("must open drawer root")
+    model.setMenuTarget("nav")
+    check model.validation.len == 0 and not model.isDirty()
+    model.selectDevice(MixerDevice)
+    check model.selectedLocked()
+    model.selectMenu("root")
+    model.selectDevice(DeckDevice)
+    model.setActionKind(DeckMenuAction)
+    check model.selected()["action"] == %*{"kind": "deckMenu", "menu": "root"}
+    model.setMenuTarget("nav")
+    check model.validation.len == 0
+    check effectiveDeckMenu("obs", "nav", 5) == "nav"
+    check effectiveDeckMenu("obs", "nav", 6) == "obs"
+    check effectiveDeckMenu("obs", "", 1) == "obs"
+
   test "menus can be created, renamed, targeted, and deleted only when unreferenced":
     var model = liveModel()
     let id = model.createMenu("Spiele ✓")

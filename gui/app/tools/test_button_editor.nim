@@ -31,6 +31,9 @@ const
   GatePollMs = 10
   StateFrames = [("recording", 5), ("paused", 6), ("muted", 10), ("unavailable", 9)]
   ObsKey = 6
+  DrawerMenu = "deck-navigation"
+  DrawerNumbers = [11, 12, 13, 14, 15]
+  DrawerLowerKey = 8
 
 var
   serverThread: Thread[void]
@@ -455,6 +458,48 @@ proc main() =
   if not obsArt.isNil:
     checkPreview(obsDirectory, "obs-editor", "preview:6", [stateFrame("default")])
   removeFile(smokeControlPath(ObsPausedName))
+
+  var drawerConfig = requireConfigResult(requestConfig("config.get"))["envelope"]
+  var navigation = %*{"id": DrawerMenu, "title": "Menu", "mixer": [], "deck": [
+    {"key": 1, "title": "Menu", "action": {"kind": "deckMenu", "menu": DrawerMenu},
+      "visual": {"builtinNumber": DrawerNumbers[0], "showTitle": false}}]}
+  for key in 2..DrawerKeyCount:
+    navigation["deck"].add(%*{"key": key, "title": "Go " & $key,
+      "action": {"kind": "menu", "menu": RootMenuId, "target": "deck"},
+      "visual": {"builtinNumber": DrawerNumbers[key - 1], "showTitle": false}})
+  drawerConfig["config"]["menus"].add(navigation)
+  for menu in drawerConfig["config"]["menus"]:
+    if menu["id"].getStr() == RootMenuId:
+      menu.putEntry("deck", %*{"key": 1, "title": "Menu",
+        "action": {"kind": "deckMenu", "menu": DrawerMenu},
+        "visual": {"builtinNumber": 1, "showTitle": false}})
+  discard runConfigOperation("config.apply", %*{"envelope": drawerConfig})
+  discard readDeckPage(0)
+  deckPageReady()
+  let toggled = processDeckNavigationRequest(%*{"version": ProtocolVersion,
+    "type": DeckNavigationRequest, "operation": "toggle"})
+  doAssert toggled["ok"].getBool() and toggled["deckDrawer"].getStr() == DrawerMenu
+  doAssert takeButtonActions().len == 0, "Opening the drawer queued an action."
+  let
+    drawerDraft = readDraft(draftPath())
+    lowerEntry = drawerConfig["config"].deckEntry(RootMenuId, DrawerLowerKey)
+    appliesBeforeDrawer = requestCount("config.apply")
+  runPhase(binary, "drawer", directory, fixture)
+  doAssert requestCount("config.apply") == appliesBeforeDrawer
+  doAssert buttonRuntimeStatus()["deckDrawer"].getStr() == DrawerMenu,
+    "The viewer changed the Deck drawer."
+  doAssert readDraft(draftPath())["config"] == drawerDraft["config"], "Viewing the drawer lost the draft."
+  let drawerDirectory = directory / "drawer"
+  for key in 1..DrawerKeyCount:
+    checkPreview(drawerDirectory, "drawer-open", "liveArt:" & $key,
+      [DeckAssets / ($DrawerNumbers[key - 1] & "-normal.jpg")])
+  checkPreview(drawerDirectory, "drawer-open", "liveDetail:Pressed",
+    [DeckAssets / ($DrawerNumbers[0] & "-pressed.jpg")])
+  if not lowerEntry{"visual"}{"builtinNumber"}.isNil:
+    checkPreview(drawerDirectory, "drawer-open", "liveArt:" & $DrawerLowerKey,
+      [DeckAssets / ($lowerEntry["visual"]["builtinNumber"].getInt() & "-normal.jpg")])
+  doAssert processDeckNavigationRequest(%*{"version": ProtocolVersion,
+    "type": DeckNavigationRequest, "operation": "cancel"})["ok"].getBool()
   withLock requestLock:
     for kind in requestKinds:
       doAssert kind in AllowedRequests, "Editor sent an unexpected request: " & kind
