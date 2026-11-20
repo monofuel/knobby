@@ -666,7 +666,13 @@ proc writeProfileRecording(configDir, profileName, renderDevice, recordDir,
     profileDir = findProfileDir(configDir, profileName)
     iniPath = profileDir / ProfileSettingsFile
     encoderPath = profileDir / RecordEncoderFile
-    iniText = setIniValues(readFile(iniPath), recordingIniValues(recordDir))
+  var values = recordingIniValues(recordDir)
+  if profileName == projectSpec(FirefoxProject).profile:
+    values.add(@[("Video", "BaseCX", $CanvasWidth), ("Video", "BaseCY", $CanvasHeight),
+      ("Video", "OutputCX", $CanvasWidth), ("Video", "OutputCY", $CanvasHeight),
+      ("Video", "FPSType", "1"), ("Video", "FPSNum", $FramesPerSecond), ("Video", "FPSDen", "1")])
+  let
+    iniText = setIniValues(readFile(iniPath), values)
     encoderText = recordEncoderJson(
       if fileExists(encoderPath): readFile(encoderPath) else: "", renderDevice)
   if not dirExists(recordDir):
@@ -835,6 +841,17 @@ proc provisionFirefoxSelection(setup: OnlineSetup, micSettings: JsonNode) {.asyn
   await setup.ensureVideo()
   await setup.ensureProjectSources(micSettings)
 
+proc requireConfigLocations(configDir: string) =
+  ## Refuse copied OBS configurations whose absolute storage paths still point outside configDir.
+  let globalPath = configDir / "global.ini"
+  if fileExists(globalPath):
+    let text = readFile(globalPath)
+    for key in ["Configuration", "Profiles", "SceneCollections"]:
+      let base = iniValue(text, "Locations", key)
+      if base.len > 0 and (base / ObsConfigDirName).normalizedPath() != configDir.absolutePath().normalizedPath():
+        raise setupError("OBS Locations." & key & " points outside " & configDir &
+          "; use the actual OBS storage directory before provisioning.")
+
 proc provisionFirefox*(client: ObsClient, configDir: string, renderDevice = "",
     recordDir = defaultFirefoxRecordDir(), log: SetupLog = logStderr,
     stamp = now().format(BackupStampFormat)): Future[FirefoxReport] {.async.} =
@@ -847,6 +864,7 @@ proc provisionFirefox*(client: ObsClient, configDir: string, renderDevice = "",
   let
     firefox = projectSpec(FirefoxProject)
     setup = OnlineSetup(client: client, spec: firefox, removeExtras: false, log: log)
+  requireConfigLocations(configDir)
   await client.requireIdle()
   let original = await client.readSelection()
   if original.profile == firefox.profile or original.collection == firefox.collection:

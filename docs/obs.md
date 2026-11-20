@@ -218,6 +218,8 @@ specified with `--render-device PATH`. The demo browser stays closed until
 you press its button. Existing Minecraft capture and encoding choices are
 preserved. The tool refuses to provision while an output is active, or to
 replace an unrelated existing Firefox collection.
+It also rejects copied configurations whose saved absolute data locations
+point elsewhere.
 
 Window binding uses X11 identity directly. OBS 32.1.2 crashed when its WebSocket
 window-property-list request encountered a null item, so the production bridge

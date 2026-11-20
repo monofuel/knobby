@@ -724,6 +724,9 @@ proc testFirefoxProvisioning() =
   doAssert report.files.len == 3, $report.files
   doAssert dirExists(recordDir)
   doAssert iniValue(ini, "General", "Name") == firefox.profile
+  for (key, value) in [("BaseCX", "1920"), ("BaseCY", "1080"), ("OutputCX", "1920"),
+      ("OutputCY", "1080"), ("FPSType", "1"), ("FPSNum", "60"), ("FPSDen", "1")]:
+    doAssert iniValue(ini, "Video", key) == value
   doAssert iniValue(ini, "AdvOut", "RecFilePath") == recordDir
   doAssert iniValue(ini, "AdvOut", "RecEncoder") == "ffmpeg_vaapi_tex"
   doAssert iniValue(ini, "AdvOut", "RecFormat2") == "mkv"
@@ -859,7 +862,7 @@ proc testFirefoxRefusesMalformedOrMismatched() =
   ## Refuse malformed profile files, an unknown render device, and audio formats that prompt a restart.
   let firefox = projectSpec(FirefoxProject)
   for variant in ["firefoxEncoder", "minecraftEncoder", "noDevice", "minecraftRate",
-      "firefoxRate", "relativeRecord"]:
+      "firefoxRate", "relativeRecord", "copiedLocations"]:
     let fake = newMinecraftFake()
     var renderDevice = ""
     case variant
@@ -877,6 +880,8 @@ proc testFirefoxRefusesMalformedOrMismatched() =
         "{\"qp\": 20}")
     of "minecraftRate":
       fake.audioFormats[fake.profile] = ("44100", "Stereo")
+    of "copiedLocations":
+      writeFile(fake.configDir / "global.ini", "[Locations]\nProfiles=/unrelated/original\n")
     else:
       renderDevice = "/dev/null"
     let filesBefore = readTree(fake.configDir)
