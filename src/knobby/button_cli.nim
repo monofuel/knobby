@@ -19,7 +19,7 @@ proc navigationUsage*(): string =
        knobby navigation toggle|cancel
        knobby navigation select KEY
 
-Open, cancel, or choose a destination (keys 2-5) of the Stream Deck Menu drawer or Home,
+Open, cancel, or choose a destination (keys 1-5) of the Stream Deck Menu drawer or Home,
 exactly as the physical keys do, then wait for the Deck to confirm the page.
 It never presses other keys or runs application actions."""
 

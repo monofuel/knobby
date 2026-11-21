@@ -41,20 +41,21 @@ links during recording. An already-running browser is unaffected.
 
 ## Stream Deck
 
-Open **OBS controls (2)** from Home or press **Menu (1)**, then **OBS (2)**.
+Open **OBS controls (2)** from Home or press **Menu (5)**, then **OBS (2)**.
 Entering the page never launches OBS or starts recording. Menu temporarily
 reveals navigation only on the top row; the MIDI controller stays independent.
 
 | Key | Action |
 | --- | --- |
-| 1 | Toggle Menu; press again to restore this page's controls |
+| 1 | Return to Home, with Menu open or closed |
 | 2 | Open/focus OBS |
 | 3 | Record/Stop the currently selected OBS scene |
 | 4 | Pause/resume recording |
-| 5 | Mute/unmute OBS Commentary |
+| 5 | Toggle Menu; press again to restore this page's controls |
 | 6 | Minecraft Setup: select its collection and the shared profile |
 | 7 | WoW Setup: select its collection and the shared profile |
 | 8 | Firefox Setup: select its collection and the shared profile |
+| 9 | Mute/unmute OBS Commentary |
 | 11 | Minecraft 1080p; opens Prism when Minecraft is closed |
 | 12 | WoW 1080p: resize the current Classic or Nim client |
 | 13 | Firefox 1080p: open/focus the dedicated demo or resize it |

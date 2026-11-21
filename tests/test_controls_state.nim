@@ -136,7 +136,7 @@ suite "status snapshot compatibility":
     let encoded = encodeState(StatusSnapshot(version: StatusVersion, session: "s",
       catalog: %*{"buttons": [], "faders": []}))
     check encoded["controls"]["discord"]["state"].getStr() == "unavailable"
-    check encoded["version"].getInt() == 5
+    check encoded["version"].getInt() == StatusVersion
     let reader = encoded.to(ProtocolFourReader)
     check reader.session == "s"
 

@@ -419,6 +419,9 @@ proc installNavigationMenu(config: JsonNode, rootId: string, artwork: Table[stri
       if destination == 0:
         raise newException(ValueError, "The " & DeckNavigationMenuId & " menu key " & $key &
           " holds another action; refusing to replace it.")
+      for previous in moved:
+        if previous["key"].getInt() == destination:
+          raise newException(ValueError, "Duplicate navigation destination; refusing to discard a face.")
       moved.add(current.copyEntry(destination))
     for key in 1..DrawerKeyCount: menu.removeKey(key)
     for entry in moved: menu.setEntry(entry)
@@ -487,19 +490,21 @@ proc migrateWorkflowMenus*(source: JsonNode, artwork: Table[string, string]): Js
   elif root.isHomePage():
     root.clearHomeMenuKey(rootId)
     root.fillMissing(rootLinkFaces(artwork))
-  else: organizeRoot(root, rootId, artwork)
+  else:
+    organizeRoot(root, rootId, artwork)
+    root.clearHomeMenuKey(rootId)
   if setups.isNil and obs.isCompleted():
     obs.moveMenuRight(rootId, artwork, PreservedObsKeys[^1])
     obs.fillMissing(obsFaces(artwork))
   else: organizeObs(obs, setups, rootId, artwork)
   if discord.isCompleted():
-    discord.moveMenuRight(rootId, artwork, DiscordControlKeys[DiscordControlKinds.find("openDiscord")])
     if not aligned: discord.positionLinks(DiscordLinks)
+    discord.moveMenuRight(rootId, artwork, DiscordControlKeys[DiscordControlKinds.find("openDiscord")])
     discord.fillMissing(linkFaces(DiscordLinks, artwork))
   else: organizeDiscord(discord, rootId, artwork)
   if work.isCompleted():
-    work.moveMenuRight(rootId, artwork, WorkOpenDiscordKey)
     if not aligned: work.positionLinks(WorkLinks)
+    work.moveMenuRight(rootId, artwork, WorkOpenDiscordKey)
     work.fillMissing(linkFaces(WorkLinks, artwork))
   else: organizeWork(work, rootId, artwork)
   for menu in result["menus"]:

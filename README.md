@@ -77,8 +77,8 @@ WoW follows the single running Classic/Wine or Nim client.
 The [Discord submenu](docs/discord.md) separates system mic mute, Discord mute,
 and deafen. The [Softmax submenu](docs/work.md) launches Prism, both WoW clients,
 Discord, Slack, the research dashboards, and the private WoW server. All three
-use [Menu at key 1](docs/navigation.md) to reveal navigation temporarily; the rest
-of the top row belongs to each page's controls. The MIDI mixer's top-right button
+keep [Home at key 1 and Menu at key 5](docs/navigation.md); Menu reveals workflow
+destinations on keys 2–4 temporarily. The MIDI mixer's top-right button
 brings up a temporary legend without taking focus away from your application.
 
 The viewer uses Windy and Silky and can stay in the system tray. See

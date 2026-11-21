@@ -1,6 +1,6 @@
 import
   std/[json, strutils, tables, unittest],
-  knobby/[obs_menu, workflow_menu]
+  knobby/[button_config, obs_menu, workflow_menu]
 
 const
   StartCommand = "cd /home/monofuel/src/wow-coworld && " &
@@ -122,10 +122,17 @@ proc relocate(config: JsonNode, id: string, moves: openArray[(int, int)]) =
     if not moving: kept.add(current)
   menu(config, id)["deck"] = %(kept & moved)
 
+proc leftMenuConfig(): JsonNode =
+  ## Recreate the installed Home-left/Menu-left layout with the original key 5 controls.
+  result = migrateWorkflowMenus(liveLikeConfig(), artwork())
+  for (id, oldKey) in [("obs", 9), ("discord", 8), ("work", 13)]:
+    relocate(result, id, [(5, 1), (oldKey, 5)])
+  relocate(result, DeckNavigationMenuId, [(1, 5), (5, 1)])
+
 suite "Workflow menu layout":
   test "upgrades the installed offset drawer and moves whole crosslinks to the bottom-right pair":
     let expected = migrateWorkflowMenus(liveLikeConfig(), artwork())
-    let previous = expected.copy()
+    let previous = leftMenuConfig()
     entry(previous, "root", 1)["action"] = parseJson(MenuAction)
     entry(previous, "root", 1)["title"] = %"Menu"
     entry(previous, "root", 1)["visual"]["image"] = %artwork()[MenuArt]
@@ -150,26 +157,28 @@ suite "Workflow menu layout":
     check layout(result, "root")[0..3] == @[(1, "Home", $(%*{"kind": "none"})),
       (2, "OBS Controls", $link("obs")), (3, "Discord Controls", $link("discord")),
       (4, "Softmax", $link("work"))]
-    for key in 5..15: check entry(result, "root", key) == entry(source, "root", key)
-    check layout(result, "obs") == @[(1, "Menu", $parseJson(MenuAction)),
+    check entry(result, "root", 5).isNil
+    for key in 6..15: check entry(result, "root", key) == entry(source, "root", key)
+    check layout(result, "obs") == @[(1, "Home", $link("root")),
       (2, "Open OBS", $obsOp("open")), (3, "Record", $obsOp("recordToggle")),
-      (4, "Pause", $obsOp("pauseToggle")), (5, "Commentary", $obsOp("micToggle")),
+      (4, "Pause", $obsOp("pauseToggle")), (5, "Menu", $parseJson(MenuAction)),
       (6, "Minecraft Setup", $obsOp("selectMinecraft")), (7, "WoW Setup", $obsOp("selectWow")),
-      (8, "Firefox Setup", $obsOp("selectFirefox")), (11, "Minecraft 1080p", $obsOp("minecraft1080")),
+      (8, "Firefox Setup", $obsOp("selectFirefox")), (9, "Commentary", $obsOp("micToggle")),
+      (11, "Minecraft 1080p", $obsOp("minecraft1080")),
       (12, "WoW 1080p", $obsOp("wow1080")), (13, "Firefox 1080p", $obsOp("firefox1080"))]
     var discordTitles, workTitles: seq[string]
     for (key, title, action) in layout(result, "discord"): discordTitles.add(title)
     for (key, title, action) in layout(result, "work"): workTitles.add(title)
-    check discordTitles == @["Menu", "System Mic", "Discord Mic", "Deafen", "Open Discord",
-      "Answer voice", "Answer video", "Softmax", "OBS Controls"]
-    check workTitles == @["Menu", "Prism", "WoW Vanilla", "WoW Nim", "Open Discord", "Slack",
+    check discordTitles == @["Home", "System Mic", "Discord Mic", "Deafen", "Menu",
+      "Answer voice", "Answer video", "Open Discord", "Softmax", "OBS Controls"]
+    check workTitles == @["Home", "Prism", "WoW Vanilla", "WoW Nim", "Menu", "Slack",
       "Autoresearch", "Fast-XP Prod", "Fast-XP Staging", "Next Games", "WoW Dashboard",
-      "Start WoW Server", "Discord Controls", "OBS Controls"]
+      "Start WoW Server", "Open Discord", "Discord Controls", "OBS Controls"]
     check entry(result, "discord", 14)["action"] == link("work")
     check entry(result, "discord", 15)["action"] == link("obs")
     check entry(result, "work", 14)["action"] == link("discord")
     check entry(result, "work", 15)["action"] == link("obs")
-    check entry(result, "work", 13).isNil
+    check entry(result, "work", 13)["action"] == %*{"kind": "openDiscord"}
     check menu(result, "obs-setups").isNil
     check "obs-setups" notin $result
 
@@ -178,14 +187,15 @@ suite "Workflow menu layout":
       result = migrateWorkflowMenus(liveLikeConfig(), artwork())
       drawer = menu(result, DeckNavigationMenuId)
     check drawer["mixer"].len == 0
-    check layout(result, DeckNavigationMenuId) == @[(1, "Menu", $parseJson(MenuAction)),
+    check layout(result, DeckNavigationMenuId) == @[(1, "Home", $link("root")),
       (2, "OBS Controls", $link("obs")), (3, "Discord Controls", $link("discord")),
-      (4, "Softmax", $link("work")), (5, "Home", $link("root"))]
-    check entry(result, DeckNavigationMenuId, 1)["visual"]["image"].getStr() ==
+      (4, "Softmax", $link("work")), (5, "Menu", $parseJson(MenuAction))]
+    check entry(result, DeckNavigationMenuId, 5)["visual"]["image"].getStr() ==
       "assets/new-workflow-menu-open.png"
     for id in ["obs", "discord", "work"]:
-      check entry(result, id, 1)["action"] == parseJson(MenuAction)
-      check entry(result, id, 1)["visual"]["image"].getStr() == "assets/new-workflow-menu.png"
+      check entry(result, id, 1)["action"] == link("root")
+      check entry(result, id, 5)["action"] == parseJson(MenuAction)
+      check entry(result, id, 5)["visual"]["image"].getStr() == "assets/new-workflow-menu.png"
     check entry(result, "root", 1)["action"] == %*{"kind": "none"}
     for key in 2..4:
       check entry(result, "root", key)["action"] == entry(result, DeckNavigationMenuId, key)["action"]
@@ -194,13 +204,14 @@ suite "Workflow menu layout":
     let result = migrateWorkflowMenus(liveLikeConfig(), artwork())
     check sameEntry(result, "obs", 3, oldEntry("obs", 5))
     check sameEntry(result, "obs", 4, oldEntry("obs", 6))
-    check sameEntry(result, "obs", 5, oldEntry("obs", 7))
-    for offset in 0..5: check sameEntry(result, "discord", 2 + offset, oldEntry("discord", 5 + offset))
+    check sameEntry(result, "obs", 9, oldEntry("obs", 7))
+    for offset, key in [2, 3, 4, 8, 6, 7]:
+      check sameEntry(result, "discord", key, oldEntry("discord", 5 + offset))
     for offset in 0..10:
       let original = oldEntry("work", 5 + offset)
       if original["action"] == %*{"kind": "openDiscord"}:
         original["title"] = %"Open Discord"
-      check sameEntry(result, "work", 2 + offset, original)
+      check sameEntry(result, "work", [2, 3, 4, 13, 6, 7, 8, 9, 10, 11, 12][offset], original)
     check entry(result, "work", 12)["action"]["command"].getStr() == StartCommand
     for id in ["root", "obs", "discord", "work"]:
       check menu(result, id)["mixer"] == menu(liveLikeConfig(), id)["mixer"]
@@ -235,7 +246,7 @@ suite "Workflow menu layout":
     for (key, operation) in [(6, "selectMinecraft"), (7, "selectWow"), (8, "selectFirefox"),
         (11, "minecraft1080"), (12, "wow1080"), (13, "firefox1080")]:
       check entry(result, "obs", key)["action"] == obsOp(operation)
-    check entry(result, "obs", 9)["action"] == %*{"kind": "command", "command": "true"}
+    check entry(result, "obs", 10)["action"] == %*{"kind": "command", "command": "true"}
 
   test "keeps custom extras from both OBS menus and refuses overflow":
     let source = liveLikeConfig()
@@ -244,9 +255,9 @@ suite "Workflow menu layout":
     menu(source, "obs-setups")["mixer"].add(%*{"key": 4, "title": "Setups", "action": link("obs-setups")})
     menu(source, "discord")["deck"].add(button(12, "Ping", %*{"kind": "command", "command": "ping"}))
     let result = migrateWorkflowMenus(source, artwork())
-    check sameEntry(result, "obs", 9, entry(source, "obs", 11))
-    check sameEntry(result, "obs", 10, entry(source, "obs-setups", 13))
-    check sameEntry(result, "discord", 8, entry(source, "discord", 12))
+    check sameEntry(result, "obs", 10, entry(source, "obs", 11))
+    check sameEntry(result, "obs", 14, entry(source, "obs-setups", 13))
+    check sameEntry(result, "discord", 9, entry(source, "discord", 12))
     check menu(result, "obs")["mixer"] == %*[
       {"key": 4, "title": "Setups", "action": {"kind": "menu", "menu": "obs", "target": "deck"}}]
     let crowded = parseJson($source)
@@ -280,9 +291,10 @@ suite "Workflow menu layout":
         {"key": 2, "title": "Setups", "action": {"kind": "menu", "menu": "obs-setups", "target": "both"},
           "visual": {"image": "assets/custom.png", "showTitle": true}}]})
     let result = migrateWorkflowMenus(source, artwork())
-    check sameEntry(result, "root", 5, entry(source, "root", 3))
+    check sameEntry(result, "root", 6, entry(source, "root", 3))
     check entry(result, "root", 3)["action"] == link("discord")
-    check entry(result, "games", 1)["action"] == parseJson(MenuAction)
+    check entry(result, "games", 1)["action"] == link("root")
+    check entry(result, "games", 5)["action"] == parseJson(MenuAction)
     check entry(result, "games", 2) == %*{"key": 2, "title": "Setups",
       "action": {"kind": "menu", "menu": "obs", "target": "both"},
       "visual": {"image": "assets/custom.png", "showTitle": true}}
@@ -298,7 +310,7 @@ suite "Workflow menu layout":
     entry(first, "obs", 7)["visual"]["image"] = %"assets/raid.png"
     entry(first, "root", 1)["visual"]["image"] = %"assets/my-menu.png"
     entry(first, DeckNavigationMenuId, 2)["title"] = %"Main"
-    entry(first, "work", 15)["key"] = %13
+    relocate(first, "work", [(13, 15), (15, 13)])
     let before = $first
     check migrateWorkflowMenus(first, artwork()) == first
     check $first == before
@@ -321,3 +333,49 @@ suite "Workflow menu layout":
         for name in ObsSetupsArtworkNames: names[name] = "assets/" & name & ".png"
         names
     check installObsSetupsMenu(flattened, setupArt) == flattened
+
+  test "upgrades the current left Menu without changing commands or edited faces":
+    let source = leftMenuConfig()
+    menu(source, "root")["deck"].add(%*{"key": 5, "title": "5",
+      "action": {"kind": "none"}, "visual": {"builtinNumber": 5}})
+    entry(source, "obs", 1)["visual"]["image"] = %"assets/custom-menu.png"
+    entry(source, "work", 10)["action"]["command"] = %"xdg-open https://polyworld.gg/"
+    let original = $source
+    let updated = migrateWorkflowMenus(source, artwork())
+    validateButtonConfig(updated)
+    check $source == original
+    check entry(updated, "root", 5).isNil
+    for (id, key) in [("obs", 9), ("discord", 8), ("work", 13)]:
+      check sameEntry(updated, id, key, entry(source, id, 5))
+      check sameEntry(updated, id, 5, entry(source, id, 1))
+    check entry(updated, "work", 10) == entry(source, "work", 10)
+    check migrateWorkflowMenus(updated, artwork()) == updated
+
+  test "occupied standard destinations refuse without changing the source":
+    for (id, key) in [("obs", 9), ("discord", 8), ("work", 13)]:
+      let source = leftMenuConfig()
+      menu(source, id)["deck"].add(button(key, "Keep", %*{"kind": "command", "command": "keep"}))
+      let original = $source
+      expect ValueError: discard migrateWorkflowMenus(source, artwork())
+      check $source == original
+
+  test "custom Home key 5 moves whole and a full Home page refuses":
+    let source = leftMenuConfig()
+    let custom = button(5, "Keep", %*{"kind": "command", "command": "keep"})
+    menu(source, "root")["deck"].add(custom)
+    let updated = migrateWorkflowMenus(source, artwork())
+    check sameEntry(updated, "root", 6, custom)
+    check entry(updated, "root", 5).isNil
+    for key in 6..15:
+      entry(source, "root", key)["action"] = %*{"kind": "command", "command": "keep " & $key}
+    let original = $source
+    expect ValueError: discard migrateWorkflowMenus(source, artwork())
+    check $source == original
+
+  test "a duplicate legacy navigation destination is refused rather than overwritten":
+    let source = leftMenuConfig()
+    entry(source, DeckNavigationMenuId, 3)["action"] = link("obs")
+    validateButtonConfig(source)
+    let original = $source
+    expect ValueError: discard migrateWorkflowMenus(source, artwork())
+    check $source == original

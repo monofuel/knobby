@@ -1,22 +1,23 @@
 # Discord controls and the MIDI legend
 
-Open **Discord controls (3)** from Home, or press **Menu (1)** then **Discord (3)**.
+Open **Discord controls (3)** from Home, or press **Menu (5)** then **Discord (3)**.
 The top-row menu is temporary; pressing Menu again restores the page's own
 controls. Mixer buttons remain independent.
 
 | Key | Control | What it changes |
 | --- | --- | --- |
-| 1 | Menu | Toggle top-row navigation, without executing covered controls. |
+| 1 | Home | Return to Home, with Menu open or closed. |
 | 2 | System Mic | Toggle all real system microphone inputs together. |
 | 3 | Discord Mic | Toggle Discord's own self-mute. |
 | 4 | Deafen | Toggle Discord's own deafen state. |
-| 5 | Open Discord | Focus Discord, or launch it when closed. |
+| 5 | Menu | Reveal/cancel workflow navigation on keys 2–4. |
 | 6 | Answer voice | Answer the current incoming call with voice. |
 | 7 | Answer video | Answer the current incoming call with video. |
+| 8 | Open Discord | Focus Discord, or launch it when closed. |
 | 14 | Softmax menu | Switch to work controls, consistently at the bottom right. |
 | 15 | OBS controls | Direct link to recording controls. |
 
-Softmax key 5 opens the Discord app; its key 14 opens this controls page.
+Softmax key 13 opens the Discord app; its key 14 opens this controls page.
 Navigation leaves the MIDI mixer unchanged.
 
 System mic mute affects applications using those microphones. Discord mic mute

@@ -165,6 +165,30 @@ suite "Button editor model":
     check model.draft.entryAt(id, MixerDevice, 1).actionKind() == BackAction
     check model.validation == ""
 
+  test "new menus inherit Home on 1 and the closed Menu on 5":
+    var config = withSubmenu()
+    let
+      home = %*{"key": 1, "title": "Home", "action": {"kind": "menu", "menu": "root", "target": "deck"},
+        "visual": {"image": "assets/home.png", "showTitle": false}}
+      toggle = %*{"key": 5, "title": "Menu", "action": {"kind": "deckMenu", "menu": "nav"},
+        "visual": {"image": "assets/menu.png", "showTitle": false}}
+    config["menus"][1]["deck"] = %*[home, toggle]
+    config["menus"].add(%*{"id": "nav", "title": "Menu", "mixer": [], "deck": [home.copy(), toggle.copy()]})
+    var model = liveModel(config)
+    let id = model.createMenu("New workflow")
+    check model.draft.entryAt(id, DeckDevice, 1) == home
+    check model.draft.entryAt(id, DeckDevice, 5) == toggle
+    check model.draft.entryAt(id, MixerDevice, 1).actionKind() == BackAction
+    model.selectDevice(DeckDevice)
+    model.selectKey(5)
+    check not model.selectedLocked()
+    model.setMenuTarget("nav")
+    check model.validation == ""
+    check effectiveDeckMenu("games", "nav", 1, 5) == "games"
+    check effectiveDeckMenu("games", "nav", 2, 5) == "nav"
+    check effectiveDeckMenu("games", "nav", 5, 5) == "nav"
+    check effectiveDeckMenu("games", "nav", 6, 5) == "games"
+
   test "local validation points at the offending slot":
     var model = liveModel()
     model.selectDevice(DeckDevice)

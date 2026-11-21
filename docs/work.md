@@ -1,16 +1,16 @@
 # Softmax submenu
 
-Open **Softmax (4)** from Home, or press **Menu (1)** then **Softmax (4)**.
-Menu temporarily replaces the top row; press it again to cancel. Its navigation
+Open **Softmax (4)** from Home, or press **Menu (5)** then **Softmax (4)**.
+Menu temporarily reveals destinations on keys 2–4; press it again to cancel. Its navigation
 leaves the MIDI mixer unchanged. See [Menu navigation](navigation.md).
 
 | Key | Label | Opens |
 | --- | --- | --- |
-| 1 | MENU | Toggle temporary navigation |
+| 1 | HOME | Return to Home |
 | 2 | PRISM | Open/focus Prism using the existing launcher |
 | 3 | WOW VANILLA | The genuine 1.12.1 client (`make play-classic`) |
 | 4 | WOW NIM | The native human Nim client (`make play`) |
-| 5 | DISCORD | Open/focus the Discord app |
+| 5 | MENU | Reveal/cancel temporary navigation |
 | 6 | SLACK | Open the installed Slack app |
 | 7 | LAB | Local autoresearch dashboard, port 8103 |
 | 8 | PROD | Fast-XP production performance dashboard |
@@ -18,6 +18,7 @@ leaves the MIDI mixer unchanged. See [Menu navigation](navigation.md).
 | 10 | NEXT | Polyworld games at `https://polyworld.gg/` |
 | 11 | REALM | Private-world dashboard, port 7777 |
 | 12 | START | Start the existing persistent private WoW server |
+| 13 | DISCORD | Open/focus the Discord app |
 | 14 | DISCORD MENU | Switch to Discord controls |
 | 15 | OBS MENU | Open OBS controls |
 

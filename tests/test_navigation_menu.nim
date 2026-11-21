@@ -144,7 +144,7 @@ suite "Shared navigation prefix":
     check entry(updated, "work", 10)["action"]["command"].getStr() == "xdg-open http://127.0.0.1:8103/"
     check entry(updated, "work", 14)["action"]["command"].getStr() == "xdg-open http://127.0.0.1:7777/"
     check entry(updated, "work", 13)["action"]["command"].getStr() ==
-      "xdg-open https://fast-xp-k8s-staging.tail0f4a29.ts.net/next/"
+      "xdg-open https://polyworld.gg/"
     check entry(updated, "work", 15) == %*{"key": 15, "title": "Start WoW Server",
       "action": {"kind": "command", "command": StartCommand},
       "visual": {"image": "assets/nav-wow-server.png", "showTitle": false}}

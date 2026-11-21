@@ -1,27 +1,29 @@
 # Menu toggle and workflow pages
 
 Home already shows the navigation destinations: **2 OBS, 3 Discord, 4 Softmax**.
-Its top-left Home indicator does nothing. Other pages have **MENU at key 1**;
+Its top-left Home indicator does nothing, and key 5 is blank. Other pages keep
+**Home at key 1** and **MENU at key 5**;
 press it to reveal those same destinations in those same positions, or again
 to cancel and restore the current page's controls.
 
 | Key | Navigation open |
 | --- | --- |
-| 1 | MENU, highlighted as open; press to cancel |
+| 1 | Home, always at the top left |
 | 2 | OBS controls |
 | 3 | Discord controls |
 | 4 | Softmax |
-| 5 | Home |
+| 5 | MENU, highlighted as open; press to cancel |
 
-Choosing a destination opens that page and closes navigation. Only the top
-row changes while navigation is open: keys 6–15 keep their current actions and
-images. Opening or closing Menu never launches an application, changes OBS's
+Choosing a destination opens that page and closes navigation. Keys 2–4 reveal
+the workflow destinations, and key 5 indicates whether Menu is open. Home at
+key 1 and keys 6–15 retain their actions and images. Opening or closing Menu
+never launches an application, changes OBS's
 selected capture, resizes a window, or starts a recording. Covered controls do
-not fire. The mixer and its navigation remain independent. Home is an explicit
-destination inside Menu. Choosing a drawer destination jumps directly there
+not fire. The mixer and its navigation remain independent. Home works with
+Menu open or closed. Choosing a drawer destination jumps directly there
 and clears Deck navigation history without discarding MIDI navigation history.
 
-With navigation closed, keys 2–5 belong to the current workflow. There is no
+With navigation closed, keys 2–4 belong to the current workflow. There is no
 permanent global menu row. Home provides one entry each for OBS, Discord,
 and Softmax. Purple **MENU** faces navigate; **OPEN OBS** launches/focuses the
 app; **Minecraft/WoW/Firefox SETUP** selects recording sources and the shared
@@ -33,8 +35,8 @@ All requested recording and setup controls are on this one page:
 
 | Row | 1st key | 2nd key | 3rd key | 4th key | 5th key |
 | --- | --- | --- | --- | --- | --- |
-| 1 | MENU | Open OBS | Record/Stop | Pause/Resume | Commentary mic |
-| 2 | Minecraft Setup | WoW Setup | Firefox Setup | spare | spare |
+| 1 | Home | Open OBS | Record/Stop | Pause/Resume | MENU |
+| 2 | Minecraft Setup | WoW Setup | Firefox Setup | Commentary mic | spare |
 | 3 | Minecraft 1080p | WoW 1080p | Firefox 1080p | spare | spare |
 
 The setup and resize keys are aligned by application. There is no extra SETUP
@@ -45,12 +47,12 @@ Managed scene capture checks and the recording/streaming guards still apply.
 
 ## Other workflows
 
-Discord uses keys 2 System mic, 3 Discord mic, 4 Deafen, 5 Open Discord,
-6 Answer voice, 7 Answer video, 14 Softmax menu, and 15 OBS controls.
+Discord uses keys 2 System mic, 3 Discord mic, 4 Deafen, 5 Menu,
+6 Answer voice, 7 Answer video, 8 Open Discord, 14 Softmax menu, and 15 OBS controls.
 
-Softmax uses keys 2 Prism, 3 WoW Vanilla, 4 WoW Nim, 5 Open Discord, 6 Slack,
+Softmax uses keys 2 Prism, 3 WoW Vanilla, 4 WoW Nim, 5 Menu, 6 Slack,
 7 Autoresearch, 8 Fast-XP Prod, 9 Fast-XP Staging, 10 Next Games,
-11 WoW Dashboard, 12 Start WoW Server, 14 Discord menu, and 15 OBS controls.
+11 WoW Dashboard, 12 Start WoW Server, 13 Open Discord, 14 Discord menu, and 15 OBS controls.
 Both pages use the bottom-right pair consistently: 14 switches work/voice
 context, and 15 opens OBS controls.
 Their existing actions, launch commands, media states, and private-world
