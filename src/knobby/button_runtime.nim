@@ -295,11 +295,24 @@ proc setDrawer(current: var RuntimeState, menu: string) =
     quarantineHeld(current.input[DeckDevice])
     bumpDeckPage(current)
 
+proc pageMenuKey(current: RuntimeState): int =
+  ## Return the underlying Deck page's Menu key, 1 (legacy) or 5, or 0 for a page without one.
+  if not current.initialized: return 0
+  menuButtons(current.active.buttons, current.menus[DeckDevice]).menuToggleKey()
+
 proc pageDrawerMenu(current: RuntimeState): string =
-  ## Return the drawer the underlying Deck page's key 1 opens, or "" for a page without one.
-  if not current.initialized: return ""
-  let action = menuButtons(current.active.buttons, current.menus[DeckDevice]).deck[0].action
-  if action.kind == DeckMenuAction: action.menu else: ""
+  ## Return the drawer the underlying Deck page's Menu key opens, or "" for a page without one.
+  let key = current.pageMenuKey()
+  if key > 0: menuButtons(current.active.buttons, current.menus[DeckDevice]).deck[key - 1].action.menu
+  else: ""
+
+proc pageDrawerKeys(current: RuntimeState): Slice[int] =
+  ## Return the Deck keys the underlying page's drawer covers while open.
+  drawerKeys(current.pageMenuKey())
+
+proc drawerCovers(current: RuntimeState, key: int): bool =
+  ## Report whether an open drawer currently shows its own key over the underlying page.
+  current.drawer.len > 0 and key in current.pageDrawerKeys()
 
 proc toggleDrawer(current: var RuntimeState) =
   ## Open the underlying page's drawer, or cancel an open drawer back to that same page.
@@ -312,13 +325,19 @@ proc toggleDrawer(current: var RuntimeState) =
     current.setDrawer(menu)
 
 proc drawerDestination(current: RuntimeState, key: int): ConfiguredAction =
-  ## Return a Deck-only destination from an open drawer or the already-expanded Home page.
-  let menu = if current.drawer.len > 0: current.drawer
-    elif current.menus[DeckDevice] == current.active.buttons.root: current.active.buttons.root
-    else: ""
-  if menu.len > 0 and key in 2..DrawerKeyCount:
+  ## Return a Deck-only destination from an open drawer, the already-expanded Home page, or the
+  ## page's own Deck-only Home link on key 1; a Menu key or any other action is never a destination.
+  let
+    root = current.active.buttons.root
+    base = current.menus[DeckDevice]
+    menu = if current.drawerCovers(key): current.drawer
+      elif key == LegacyMenuKey: base
+      elif current.drawer.len == 0 and base == root and key in 2..DrawerKeyCount: root
+      else: ""
+  if menu.len > 0 and key in 1..DrawerKeyCount:
     result = menuButtons(current.active.buttons, menu).deck[key - 1].action
-    if result.kind != MenuAction or result.target != TargetDeck:
+    if result.kind != MenuAction or result.target != TargetDeck or
+        (key == LegacyMenuKey and menu == base and result.menu != root):
       result = ConfiguredAction(kind: NoAction)
 
 proc selectDrawer(current: var RuntimeState, key: int) =
@@ -334,9 +353,9 @@ proc selectDrawer(current: var RuntimeState, key: int) =
   current.setDrawer("")
 
 proc lowerKeyCurrent(current: RuntimeState, index: int): bool =
-  ## Report whether a key below the drawer row still shows the confirmed underlying page,
-  ## so a drawer-only page change does not interrupt the lower controls.
-  index >= DrawerKeyCount and current.confirmedBase.len > 0 and
+  ## Report whether a key outside the drawer's span still shows the confirmed underlying page,
+  ## so a drawer-only page change does not interrupt the page's other controls.
+  index + 1 notin current.pageDrawerKeys() and current.confirmedBase.len > 0 and
     current.confirmedBase == current.menus[DeckDevice] and
     current.confirmedEpoch == current.configEpoch
 
@@ -352,15 +371,14 @@ proc route(device: ButtonDevice, key: int, pressed: bool) =
       state.input[device].quarantined[index] = false
     elif not state.input[device].held[index] and not state.input[device].quarantined[index]:
       state.input[device].held[index] = true
-      let menuToggle = device == DeckDevice and key == 1 and
-        (state.drawer.len > 0 or state.pageDrawerMenu().len > 0)
+      let menuToggle = device == DeckDevice and key == state.pageMenuKey()
       if device == DeckDevice and not state.deckReady and not state.lowerKeyCurrent(index) and
           not menuToggle:
         state.input[device].quarantined[index] = true
         pressMixerOverlay(false)
-      elif device == DeckDevice and state.drawer.len > 0 and key <= DrawerKeyCount:
+      elif device == DeckDevice and state.drawerCovers(key):
         pressMixerOverlay(false)
-        if key == 1:
+        if menuToggle:
           state.setDrawer("")
         elif state.drawerDestination(key).kind == MenuAction:
           state.selectDrawer(key)
@@ -427,15 +445,16 @@ proc deckKeyMenus(current: RuntimeState): JsonNode =
   ## Name the menu each Deck key of the effective page comes from, drawer row first.
   result = newJArray()
   for key in 1..DeckKeyCount:
-    result.add(%(if current.drawer.len > 0 and key <= DrawerKeyCount: current.drawer
-      else: current.menus[DeckDevice]))
+    result.add(%(if current.drawerCovers(key): current.drawer else: current.menus[DeckDevice]))
 
 proc readDeckPage*(previousGeneration: int64): JsonNode =
   ## Return the effective Deck page when it differs from the player's, or nil when unchanged.
-  ## An open drawer replaces keys 1 to 5 with its menu's keys; keys 6 to 15 stay underlying.
+  ## An open drawer replaces its span (keys 1 to 5, or 2 to 5 for a key 5 Menu) with its menu's
+  ## keys; every other key stays underlying.
   var
     generation: int64
     menu, drawer, page, drawerPage: string
+    span: Slice[int]
   withState:
     if previousGeneration <= 0:
       state.forgetDeckSession()
@@ -451,10 +470,11 @@ proc readDeckPage*(previousGeneration: int64): JsonNode =
     page = ownedCopy(state.active.pages[menu])
     if drawer.len > 0:
       drawerPage = ownedCopy(state.active.pages[drawer])
+      span = state.pageDrawerKeys()
   var keys = parseJson(page)
   if drawer.len > 0:
     let top = parseJson(drawerPage)
-    for key in 1..DrawerKeyCount:
+    for key in span:
       if top.hasKey($key): keys[$key] = top[$key]
       elif keys.hasKey($key): keys.delete($key)
   result = %*{"generation": generation, "menu": menu, "drawer": drawer, "keys": keys}
@@ -535,6 +555,7 @@ proc buttonRuntimeStatus*(): JsonNode =
       "historyDepth": state.history.len, "deckGeneration": state.deckGeneration,
       "deckReady": state.deckReady, "deckReadGeneration": state.deckReadGeneration,
       "deckDrawer": state.drawer, "deckDrawerMenu": state.pageDrawerMenu(),
+      "deckMenuKey": state.pageMenuKey(),
       "deckKeyMenus": state.deckKeyMenus(), "manifestPath": state.active.manifestPath,
       "busy": state.busy, "operation": newJNull(), "recent": [],
       "lastOperationSequence": state.operationSequence, "pendingActions": state.actions.len,
@@ -899,8 +920,8 @@ proc processDeckNavigationRequest*(message: JsonNode): JsonNode =
   if operation notin NavigationOperations:
     return errorReply("invalid", "Operation must be toggle, cancel, or select.", "operation")
   if operation == "select" and (keyNode.isNil or keyNode.kind != JInt or
-      keyNode.getInt() notin 2..DrawerKeyCount):
-    return errorReply("invalid", "Select needs a drawer key from 2 to " & $DrawerKeyCount & ".", "key")
+      keyNode.getInt() notin 1..DrawerKeyCount):
+    return errorReply("invalid", "Select needs a navigation key from 1 to " & $DrawerKeyCount & ".", "key")
   if operation != "select" and not keyNode.isNil:
     return errorReply("invalid", "Only select takes a key.", "key")
   try:

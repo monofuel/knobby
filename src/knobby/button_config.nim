@@ -48,6 +48,9 @@ const
   MaxConfigBytes* = 512 * 1024
   MaxAssetNameBytes = 128
   DrawerKeyCount* = 5
+  LegacyMenuKey* = 1
+  MenuToggleKey* = 5
+  MenuKeys* = [LegacyMenuKey, MenuToggleKey]
   RootMenuId* = "root"
   RootMenuTitle = "Main"
   BackTitle* = "Back"
@@ -57,7 +60,7 @@ const
   AssetDirectoryName = "assets"
   LastAppliedVersion = 1
   ConfigKeys = ["version", "root", "menus"]
-  MenuKeys = ["id", "title", "mixer", "deck"]
+  MenuFields = ["id", "title", "mixer", "deck"]
   MixerEntryKeys = ["key", "title", "action"]
   DeckEntryKeys = ["key", "title", "action", "visual"]
   VisualKeys = ["image", "showTitle", "builtinNumber", "states"]
@@ -262,8 +265,8 @@ proc parseEntries(menu: JsonNode, device: ButtonDevice, field, rootId: string,
       join(entryField, "action"), menuIds)
     let deckHome = device == DeckDevice and action.kind == MenuAction and
       action.menu == rootId and action.target == TargetDeck
-    if action.kind == DeckMenuAction and (device != DeckDevice or key != 1):
-      raise configError(join(entryField, "action"), "Only Stream Deck key 1 can open a menu drawer.")
+    if action.kind == DeckMenuAction and (device != DeckDevice or int(key) notin MenuKeys):
+      raise configError(join(entryField, "action"), "Only Stream Deck key 1 or 5 can open a menu drawer.")
     if not isRoot and key == 1 and action.kind notin {BackAction, DeckMenuAction} and not deckHome:
       raise configError(join(entryField, "action"),
         "Key 1 of a submenu must be Back, a menu drawer, or a Deck-only link to Home on the Deck.")
@@ -294,18 +297,32 @@ proc parseEntries(menu: JsonNode, device: ButtonDevice, field, rootId: string,
               "State image must be a managed file path such as assets/<name>.png.")
     buttons[key - 1] = ConfiguredButton(key: int(key), title: title, action: action, explicit: true)
 
-proc validateDrawerMenu(buttons: ButtonSet, id: string) =
-  ## Require a drawer menu to cancel itself on key 1 and offer only Deck-only menu links on keys 2 to 5,
-  ## so opening or using the drawer can never run an application action.
+proc menuToggleKey*(menu: ConfiguredMenu): int =
+  ## Return the Deck key that opens this page's drawer, 1 or 5, or 0 for a page without one.
+  for key in MenuKeys:
+    if menu.deck[key - 1].action.kind == DeckMenuAction: return key
+
+proc drawerKeys*(menuKey: int): Slice[int] =
+  ## Return the Deck keys an open drawer covers for a page whose Menu key is menuKey.
+  ## The legacy key 1 Menu covers the whole top row; the right-hand Menu leaves key 1 to the page.
+  if menuKey == MenuToggleKey: 2..DrawerKeyCount else: 1..DrawerKeyCount
+
+proc validateDrawerMenu(buttons: ButtonSet, id: string, menuKey: int) =
+  ## Require a drawer menu to cancel itself on the opening page's Menu key and offer only Deck-only
+  ## menu links on the other covered keys, so the drawer can never run an application action.
   for position, menu in buttons.menus:
     if menu.id == id:
-      let field = "menus[" & $position & "].deck"
-      if menu.deck[0].action.kind != DeckMenuAction or menu.deck[0].action.menu != id:
-        raise configError(field, "Deck key 1 of drawer menu " & id & " must open drawer " & id & ".")
-      for index in 1..<DrawerKeyCount:
-        let action = menu.deck[index].action
-        if action.kind != NoAction and (action.kind != MenuAction or action.target != TargetDeck):
-          raise configError(field, "Deck key " & $(index + 1) & " of drawer menu " & id &
+      let
+        field = "menus[" & $position & "].deck"
+        toggle = menu.deck[menuKey - 1].action
+      if toggle.kind != DeckMenuAction or toggle.menu != id:
+        raise configError(field, "Deck key " & $menuKey & " of drawer menu " & id &
+          " must open drawer " & id & ".")
+      for key in drawerKeys(menuKey):
+        let action = menu.deck[key - 1].action
+        if key != menuKey and action.kind != NoAction and
+            (action.kind != MenuAction or action.target != TargetDeck):
+          raise configError(field, "Deck key " & $key & " of drawer menu " & id &
             " must be unassigned or a Deck-only menu link.")
 
 proc parseButtonSet*(config: JsonNode): ButtonSet =
@@ -321,7 +338,7 @@ proc parseButtonSet*(config: JsonNode): ButtonSet =
   var menuIds: HashSet[string]
   for position, menu in menus.elems:
     let field = "menus[" & $position & "]"
-    requireObject(menu, field, MenuKeys)
+    requireObject(menu, field, MenuFields)
     let id = requireMember(menu, "id", field, JString).getStr()
     validateId(id, join(field, "id"))
     if id in menuIds:
@@ -337,9 +354,13 @@ proc parseButtonSet*(config: JsonNode): ButtonSet =
     parseEntries(menu, MixerDevice, field, result.root, menuIds, parsed.mixer)
     parseEntries(menu, DeckDevice, field, result.root, menuIds, parsed.deck)
     result.menus.add(parsed)
-  for menu in result.menus:
-    if menu.deck[0].action.kind == DeckMenuAction:
-      validateDrawerMenu(result, menu.deck[0].action.menu)
+  for position, menu in result.menus:
+    if menu.deck[LegacyMenuKey - 1].action.kind == DeckMenuAction and
+        menu.deck[MenuToggleKey - 1].action.kind == DeckMenuAction:
+      raise configError("menus[" & $position & "].deck", "A Deck page can have only one Menu key.")
+    let menuKey = menu.menuToggleKey()
+    if menuKey > 0:
+      validateDrawerMenu(result, menu.deck[menuKey - 1].action.menu, menuKey)
 
 proc actionJson*(action: ConfiguredAction): JsonNode =
   ## Encode an action with only the fields its kind uses, in canonical order.

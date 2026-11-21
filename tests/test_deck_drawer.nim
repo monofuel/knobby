@@ -59,6 +59,24 @@ proc legacyConfig(): JsonNode =
     {"id": "root", "title": "Main", "deck": [deckLink(1, "root"), deckLink(2, "obs")]},
     {"id": "obs", "title": "OBS", "deck": [deckLink(1, "root"), deckLink(2, "obs"), command(3, "rec")]}]}
 
+proc rightMenuConfig(): JsonNode =
+  ## Describe Home with links on 2 to 4, and context pages with Home on 1, commands on 2 to 4,
+  ## Menu on 5, and a lower command, so obscured or held actions would be captured.
+  let menuKey = %*{"key": 5, "title": "Menu", "action": {"kind": "deckMenu", "menu": NavigationId}}
+  result = %*{"version": 1, "root": "root", "menus": [
+    {"id": NavigationId, "title": "Menu", "mixer": [], "deck": [deckLink(1, "root"),
+      deckLink(2, "obs"), deckLink(3, "discord"), deckLink(4, "work"), menuKey]},
+    {"id": "root", "title": "Main", "mixer": [], "deck": [
+      %*{"key": 1, "title": "Home", "action": {"kind": "none"}},
+      deckLink(2, "obs"), deckLink(3, "discord"), deckLink(4, "work"), command(7, "root-low-7")]}]}
+  for id in ["obs", "discord", "work"]:
+    var deck = %*[deckLink(1, "root")]
+    for key in 2..4: deck.add(command(key, id & "-top-" & $key))
+    deck.add(menuKey)
+    deck.add(command(7, id & "-low-7"))
+    result["menus"].add(%*{"id": id, "title": id, "deck": deck,
+      "mixer": [{"key": 2, "title": "Both obs", "action": {"kind": "menu", "menu": "obs", "target": "both"}}]})
+
 proc newPaths(): ButtonPaths =
   ## Create empty private config and state directories for one test.
   inc directoryCounter
@@ -511,7 +529,7 @@ suite "Deck navigation requests":
     discard syncDeck()
     let generation = status()["deckGeneration"].getBiggestInt()
     for (operation, key, code) in [("select", 3, "refused"), ("select", 6, "invalid"),
-        ("select", 1, "invalid"), ("select", 0, "invalid"), ("press", 0, "invalid"),
+        ("select", 1, "refused"), ("select", 0, "invalid"), ("press", 0, "invalid"),
         ("toggle", 3, "invalid")]:
       let reply = navigate(operation, key)
       checkpoint(operation & " " & $key)
@@ -541,3 +559,115 @@ suite "Deck navigation requests":
     check status()["deckDrawer"].getStr() == NavigationId
     check status()["deckGeneration"].getBiggestInt() == generation
     check takeButtonActions().len == 0
+
+suite "Right-hand Menu drawer":
+  test "the configuration validates and both Menu placements stay valid":
+    validateButtonConfig(rightMenuConfig())
+    validateButtonConfig(drawerConfig())
+    var both = rightMenuConfig()
+    both["menus"][2]["deck"].elems[0] = drawerKey()
+    expect ButtonConfigError: validateButtonConfig(both)
+    var wrongSelf = rightMenuConfig()
+    wrongSelf["menus"][0]["deck"].elems[4] = command(5, "nav-app")
+    expect ButtonConfigError: validateButtonConfig(wrongSelf)
+    var app = rightMenuConfig()
+    app["menus"][0]["deck"].elems[2] = command(3, "nav-app")
+    expect ButtonConfigError: validateButtonConfig(app)
+    var misplaced = rightMenuConfig()
+    misplaced["menus"][2]["deck"].elems[2] = %*{"key": 3, "title": "Menu",
+      "action": {"kind": "deckMenu", "menu": NavigationId}}
+    expect ButtonConfigError: validateButtonConfig(misplaced)
+
+  test "key 5 opens and cancels, keeping key 1 and the lower keys underlying":
+    let paths = start(rightMenuConfig())
+    defer: finish(paths)
+    press(1)
+    check status()["deckMenu"].getStr() == "root"
+    discard navigate("select", 2)
+    discard syncDeck()
+    let closed = readDeckPage(0)
+    deckSeen = closed["generation"].getBiggestInt()
+    deckPageReady()
+    check status()["deckMenuKey"].getInt() == 5
+    down(5)
+    let open = readDeckPage(deckSeen)
+    check open["drawer"].getStr() == NavigationId
+    check keyPath(open, 1) == keyPath(closed, 1)
+    for key in 2..5: check keyPath(open, key) != keyPath(closed, key)
+    for key in 6..DeckKeyCount:
+      if closed["keys"].hasKey($key): check keyPath(open, key) == keyPath(closed, key)
+    check status()["deckKeyMenus"][0].getStr() == "obs"
+    check status()["deckKeyMenus"][4].getStr() == NavigationId
+    # A second fresh press cancels even before the open page is uploaded.
+    up(5)
+    down(5)
+    up(5)
+    check status()["deckDrawer"].getStr() == ""
+    discard syncDeck()
+    check titles().len == 0
+
+  test "hidden keys never fire and destinations close the drawer":
+    let paths = start(rightMenuConfig())
+    defer: finish(paths)
+    discard navigate("select", 2)
+    discard syncDeck()
+    press(5)
+    check status()["deckDrawer"].getStr() == NavigationId
+    press(3)
+    check status()["deckMenu"].getStr() == "discord"
+    check status()["deckDrawer"].getStr() == ""
+    check status()["mixerMenu"].getStr() == "root"
+    check titles().len == 0
+    press(5)
+    down(4)
+    check status()["deckMenu"].getStr() == "work"
+    check status()["deckDrawer"].getStr() == ""
+    # The held destination cannot reach the underlying key 4 on the new page.
+    discard syncDeck()
+    up(4)
+    check titles().len == 0
+    down(5)
+    down(5)
+    up(5)
+    check status()["deckDrawer"].getStr() == NavigationId
+    discard syncDeck()
+    press(7)
+    check titles() == @["work-low-7"]
+
+  test "Home on key 1 closes the drawer and leaves the mixer alone":
+    let paths = start(rightMenuConfig())
+    defer: finish(paths)
+    discard navigate("select", 2)
+    discard syncDeck()
+    check status()["mixerMenu"].getStr() == "root"
+    press(5)
+    down(1)
+    up(1)
+    check status()["deckMenu"].getStr() == "root"
+    check status()["deckDrawer"].getStr() == ""
+    check status()["historyDepth"].getInt() == 0
+    discard syncDeck()
+    press(1)
+    press(5)
+    check status()["deckMenu"].getStr() == "root"
+    check status()["deckDrawer"].getStr() == ""
+    check titles().len == 0
+
+  test "navigation requests select Home and links but never key 5 or an app":
+    let paths = start(rightMenuConfig())
+    defer: finish(paths)
+    discard syncDeck()
+    check not navigate("select", 5)["ok"].getBool()
+    check not navigate("select", 1)["ok"].getBool()
+    check navigate("select", 4)["deckMenu"].getStr() == "work"
+    for key in 2..5:
+      check navigate("select", key)["code"].getStr() == "refused"
+    discard navigate("toggle")
+    check navigate("select", 5)["code"].getStr() == "refused"
+    check status()["deckDrawer"].getStr() == NavigationId
+    let reply = navigate("select", 1)
+    check reply["deckMenu"].getStr() == "root"
+    check reply["deckDrawer"].getStr() == ""
+    discard navigate("select", 3)
+    check navigate("select", 1)["deckMenu"].getStr() == "root"
+    check titles().len == 0

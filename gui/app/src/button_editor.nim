@@ -26,7 +26,7 @@ type
     sources: array[16, PreviewSource]
     manifestPath, menu, drawer: string
     indicators: string
-    pressedKey: int
+    pressedKey, menuKey: int
   SlotPixels = object
     generation, page: int
     pixels: seq[ColorRGBX]
@@ -194,9 +194,9 @@ proc draftVariant(entry: JsonNode, state: string): JsonNode =
     if not variant.isNil and variant.kind == JObject: result = variant
 
 proc menuPage(manifest: JsonNode, menu: string, selectedKey: int, state = NormalState,
-    status: JsonNode = nil, drawer = ""): PreviewPage =
+    status: JsonNode = nil, drawer = "", menuKey = LegacyMenuKey): PreviewPage =
   ## Translate one manifest menu into player sources, choosing status variants by live indicators or draft state.
-  ## An open drawer menu covers keys 1 to 5 exactly as on the physical Deck.
+  ## An open drawer menu covers the same keys as on the physical Deck.
   let keys = manifest{"menus"}{menu}
   proc shown(entry: JsonNode): JsonNode =
     ## Resolve live keys exactly as the Deck player does; draft keys follow the editor's state.
@@ -216,7 +216,7 @@ proc menuPage(manifest: JsonNode, menu: string, selectedKey: int, state = Normal
   if keys.isNil: return
   proc keyEntry(key: int): JsonNode =
     ## Return the manifest entry the effective page shows on one key.
-    manifest{"menus"}{effectiveDeckMenu(menu, drawer, key)}{$key}
+    manifest{"menus"}{effectiveDeckMenu(menu, drawer, key, menuKey)}{$key}
   for key in 1..DeckKeyCount:
     result.sources[key - 1] = source(shown(keyEntry(key)), false)
   if selectedKey in 1..DeckKeyCount:
@@ -235,7 +235,7 @@ proc resolveLivePage(page: var PreviewPage, cachedPath: var string, cached: var 
     let status = if page.indicators.len == 0: %*{"obs": unavailableObsStatus(),
       "controls": unavailableControlStatus()} else: parseJson(page.indicators)
     page.sources = cached.menuPage(page.menu, page.pressedKey, status = status,
-      drawer = page.drawer).sources
+      drawer = page.drawer, menuKey = page.menuKey).sources
   except CatchableError as failure:
     cachedPath = ""
     cached = nil
@@ -448,11 +448,12 @@ proc requestImport*(editor: ButtonEditor, source: string) =
     state: editor.model.visualState)
   editor.queued.incl(ImportJob)
 
-proc liveDeckSource*(editor: ButtonEditor): tuple[manifestPath, menu, drawer: string] =
-  ## Return the daemon's active Deck manifest, underlying menu, and open drawer, never the draft.
+proc liveDeckSource*(editor: ButtonEditor): tuple[manifestPath, menu, drawer: string, menuKey: int] =
+  ## Return the daemon's active Deck manifest, underlying menu, open drawer, and Menu key, never
+  ## the draft. A daemon that predates the key 5 Menu reports no key and uses the key 1 drawer.
   if editor.status.isNil or editor.status.kind != JObject: return
   (editor.status{"manifestPath"}.getStr(), editor.status{"deckMenu"}.getStr(),
-    editor.status{"deckDrawer"}.getStr())
+    editor.status{"deckDrawer"}.getStr(), editor.status{"deckMenuKey"}.getInt(LegacyMenuKey))
 
 proc indicators*(editor: ButtonEditor): JsonNode =
   ## Combine the daemon's OBS and control status exactly as the Deck player reads them.
@@ -476,7 +477,7 @@ proc publishPreviewPage(editor: ButtonEditor, view: PreviewView) =
       of NoPreview: ""
       of LivePreview:
         if live.manifestPath.len == 0 or live.menu.len == 0: ""
-        else: "live/" & live.manifestPath & "/" & live.menu & "/" & live.drawer & "/" &
+        else: "live/" & live.manifestPath & "/" & live.menu & "/" & live.drawer & "/" & $live.menuKey & "/" &
           $editor.liveKey & "/" & editor.liveStatusSignature()
       of DraftPreview:
         if editor.manifest.isNil or editor.model.device != DeckDevice: ""
@@ -487,6 +488,7 @@ proc publishPreviewPage(editor: ButtonEditor, view: PreviewView) =
   var page = PreviewPage()
   if key.len > 0 and view == LivePreview:
     page = PreviewPage(manifestPath: live.manifestPath, menu: live.menu, drawer: live.drawer,
+      menuKey: live.menuKey,
       pressedKey: editor.liveKey, indicators: $editor.indicators())
   elif key.len > 0:
     page = editor.manifest.menuPage(editor.model.menu, editor.model.key, editor.model.visualState)
@@ -1069,7 +1071,7 @@ proc drawDetails(sk: Silky, window: Window, editor: ButtonEditor, x, height: flo
     for action in ConfigActionKind:
       let allowed =
         if action == BackAction: model.menu != model.draft.rootMenu()
-        elif action == DeckMenuAction: model.device == DeckDevice and model.key == 1
+        elif action == DeckMenuAction: model.device == DeckDevice and model.key in MenuKeys
         else: true
       if allowed: actions.add(action)
     for index, action in actions:

@@ -93,9 +93,10 @@ proc entryAt*(config: JsonNode, menu: string, device: ButtonDevice, key: int): J
   else:
     %*{"key": key, "title": UnassignedTitle, "action": {"kind": $NoAction}}
 
-proc effectiveDeckMenu*(menu, drawer: string, key: int): string =
-  ## Return the menu a live Deck key shows: an open drawer covers keys 1 to 5.
-  if drawer.len > 0 and key in 1..DrawerKeyCount: drawer else: menu
+proc effectiveDeckMenu*(menu, drawer: string, key: int, menuKey = LegacyMenuKey): string =
+  ## Return the menu a live Deck key shows: an open drawer covers keys 1 to 5 for a key 1 Menu,
+  ## or keys 2 to 5 for a key 5 Menu, leaving the page's own key 1.
+  if drawer.len > 0 and key in drawerKeys(menuKey): drawer else: menu
 
 proc actionKind*(entry: JsonNode): ConfigActionKind =
   ## Return a slot's action kind.
@@ -491,6 +492,31 @@ proc setShowTitle*(model: var EditorModel, show: bool) =
   model.deckVisual()["showTitle"] = %show
   model.touch()
 
+proc isDeckHomeLink(config: JsonNode, entry: JsonNode): bool =
+  ## Report whether an entry is the Deck-only link to the root menu that context pages show on key 1.
+  entry.actionKind() == MenuAction and entry["action"]{"target"}.getStr() == $TargetDeck and
+    entry["action"]{"menu"}.getStr() == config.rootMenu()
+
+proc inheritedMenuKeys(config: JsonNode): seq[JsonNode] =
+  ## Return the Deck navigation keys a new menu copies from a normal page: a key 5 Menu with its
+  ## key 1 Home link, or else a legacy key 1 Menu. The Home page and drawer menus are not normal pages.
+  var legacy: JsonNode
+  for existing in config.menus():
+    let id = existing["id"].getStr()
+    for key in MenuKeys:
+      let entry = config.entryAt(id, DeckDevice, key)
+      if entry.actionKind() == DeckMenuAction and entry["action"]["menu"].getStr() != id:
+        if key == MenuToggleKey and result.len == 0:
+          let home = config.entryAt(id, DeckDevice, BackKey)
+          if config.isDeckHomeLink(home): result.add(home)
+          result.add(entry)
+        elif key == LegacyMenuKey and legacy.isNil and id != config.rootMenu():
+          legacy = entry
+  if result.len == 0:
+    let first = config.entryAt(config.rootMenu(), DeckDevice, BackKey)
+    if first.actionKind() == DeckMenuAction: result.add(first)
+    elif not legacy.isNil: result.add(legacy)
+
 proc createMenu*(model: var EditorModel, title: string): string =
   ## Add a submenu with a stable ASCII ID, inheriting an existing Deck Menu key when configured.
   let name = title.strip()
@@ -501,17 +527,8 @@ proc createMenu*(model: var EditorModel, title: string): string =
   if model.draft.menus().len >= MaxMenus:
     raise newException(ValueError, "At most " & $MaxMenus & " menus are supported.")
   result = model.draft.menuIdFromTitle(name)
-  var first = model.draft.entryAt(model.draft.rootMenu(), DeckDevice, BackKey)
   let menu = %*{"id": result, "title": name, "mixer": [], "deck": []}
-  if first.actionKind() != DeckMenuAction:
-    for existing in model.draft.menus():
-      let candidate = model.draft.entryAt(existing["id"].getStr(), DeckDevice, BackKey)
-      if candidate.actionKind() == DeckMenuAction and
-          candidate["action"]["menu"].getStr() != existing["id"].getStr():
-        first = candidate
-        break
-  if first.actionKind() == DeckMenuAction:
-    menu["deck"].add(first.copy())
+  for entry in model.draft.inheritedMenuKeys(): menu["deck"].add(entry.copy())
   model.draft["menus"].add(menu)
   model.menu = result
   model.key = BackKey

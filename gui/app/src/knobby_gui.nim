@@ -109,12 +109,13 @@ proc liveDeckMenu(viewer: Viewer): string =
   if model.loaded and menu.len > 0 and not model.live.findMenu(menu).isNil: menu else: ""
 
 proc liveDeckKeyMenu(viewer: Viewer, key: int): string =
-  ## Return the menu a live Deck key shows, honoring an open drawer over keys 1 to 5.
+  ## Return the menu a live Deck key shows, honoring an open drawer over its covered keys.
   let
     menu = viewer.liveDeckMenu()
     drawer = viewer.state.buttons{"deckDrawer"}.getStr()
+    menuKey = viewer.state.buttons{"deckMenuKey"}.getInt(LegacyMenuKey)
   if menu.len > 0 and (drawer.len == 0 or not viewer.editor.model.live.findMenu(drawer).isNil):
-    result = effectiveDeckMenu(menu, drawer, key)
+    result = effectiveDeckMenu(menu, drawer, key, menuKey)
 
 proc drawDeck(sk: Silky, viewer: Viewer, x, width: float32) =
   ## Show the daemon's active Deck page with its prepared key images while highlighting input.
