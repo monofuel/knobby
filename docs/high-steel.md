@@ -1,8 +1,8 @@
 # High-Steel Scope
 
-This doc defines what knobby v1 should do on `high-steel`, monofuel's NixOS
-desktop. Per the README, nothing is configurable yet: knobby should work for
-exactly this machine and this hardware before anything clever happens.
+This doc describes Knobby's integration with `high-steel`, monofuel's NixOS
+desktop. Buttons and menus now use the [shared editable configuration](buttons.md);
+fader and audio targeting remain specific to this machine.
 
 ## Background
 
@@ -39,7 +39,7 @@ Replicate the Windows MIDI Mixer setup:
 - Each fader is bound to a volume target. CC value 0-127 maps linearly to
   0-100% volume.
 - Buttons are bound to simple actions such as launching apps.
-- Bindings are hardcoded constants for this machine. No config file.
+- Fader targeting uses compiled bindings; button assignments use shared JSON.
 
 ### Bindings
 
@@ -59,10 +59,16 @@ numbers refer to the grid in `docs/hardware.md`:
 |--------|--------------|----------------------------------------------------|
 | 12     | Top left     | Launch Firefox and open grok.com                   |
 | 9      | Top, col 2   | Launch Firefox and open claude.ai                  |
+| 6      | Top, col 3   | Open https://chatgpt.com/ in a new Firefox window |
+| 3      | Top right    | Show the temporary MIDI button legend             |
 | 10     | Bottom left  | Launch FINAL FANTASY XIV through Steam (XIVLauncher) |
 | 11     | Middle left  | Toggle mic mute on every real input source at once |
 | 8      | Middle, col 2 | Toggle Discord self-mute through its local RPC socket |
 | Others | -            | TBD                                                |
+
+The ChatGPT binding is an ordinary editable `command` action:
+`firefox --new-window https://chatgpt.com/`. It follows the Grok and Claude
+browser-launch behavior and requires no daemon or viewer restart when assigned.
 
 Button 11 mutes all mics together rather than just the default source: the
 preferred BenQ monitor mic is not the PipeWire default, and muting everything
