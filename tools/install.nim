@@ -45,7 +45,7 @@ proc main() =
     copyFile(package / "share/knobby" / unit, unitDir / unit)
   copyFile(package / "share/knobby/knobby-gui.desktop", desktopDir / "knobby.desktop")
   for name in ["knobby", "knobby-gui", "knobby-overlay", "knobby-assets", "knobby-obs", "knobby-obs-setup",
-      "knobby-obs-shared-setup"]:
+      "knobby-obs-shared-setup", "knobby-spotify"]:
     let launcher = binDir / name
     if symlinkExists(launcher):
       removeFile(launcher)

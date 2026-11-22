@@ -37,6 +37,7 @@
 - `src/knobby/discord_calls.nim` - bounded incoming-call AT-SPI observation and explicit voice/video answer queue.
 - `src/knobby/work_menu.nim` - pure Softmax submenu install from `docs/work-menu-targets.json` (`tools/setup_work_buttons.nim`).
 - `src/knobby/task_menu_links.nim` - reciprocal Deck shortcuts between Softmax and Discord (`tools/setup_task_links.nim`).
+- `src/knobby/spotify.nim`, `spotify_menu.nim` - explicit local Spotify playback and an additive submenu; `tools/knobby_spotify.nim` handles on-demand PKCE/API requests, never background playback.
 - `src/knobby/workflow_menu.nim` - compact workflow layouts with Home at key 1, Menu at key 5 on subpages, fixed bottom-right context links, and flattened OBS controls (`tools/setup_workflow_layout.nim`; see docs/navigation.md).
 - `src/knobby/navigation_menu.nim` - historical four-key-prefix migration retained for legacy configuration tests; current setup does not reserve a permanent global header.
 - `src/knobby/discord_worker.nim`, `controls_state.nim` - isolated Discord RPC supervision and shared observed microphone/control state.

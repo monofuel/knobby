@@ -76,7 +76,9 @@ with Minecraft, Firefox, and WoW setup buttons and explicit 1080p window control
 WoW follows the single running Classic/Wine or Nim client.
 The [Discord submenu](docs/discord.md) separates system mic mute, Discord mute,
 and deafen. The [Softmax submenu](docs/work.md) launches Prism, both WoW clients,
-Discord, Slack, the research dashboards, and the private WoW server. All three
+Discord, Slack, the research dashboards, and the private WoW server. The
+[Spotify submenu](docs/spotify.md) plays selected albums, Ambient, or the current
+queue on this computer, with a separate one-time Spotify authorization. These menus
 keep [Home at key 1 and Menu at key 5](docs/navigation.md); Menu reveals workflow
 destinations on keys 2–4 temporarily. The MIDI mixer's top-right button
 brings up a temporary legend without taking focus away from your application.

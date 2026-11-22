@@ -43,6 +43,7 @@
           CONFIG
           nim c -o:knobby-daemon src/knobby.nim
           nim c -o:knobby-assets tools/prepare_button_media.nim
+          nim c -o:knobby-spotify tools/knobby_spotify.nim
           nim c -o:gui/app/dist/knobby_gui gui/app/src/knobby_gui.nim
           nim c -o:gui/app/dist/knobby_overlay gui/app/src/knobby_overlay.nim
           nim c -o:gui/app/dist/knobby_obs gui/app/tools/knobby_obs.nim
@@ -54,6 +55,7 @@
         checkPhase = ''
           runHook preCheck
           for test in tests/test*.nim; do nim r "$test"; done
+          nim r tools/test_spotify_cli.nim "$PWD/knobby-spotify"
           export LD_LIBRARY_PATH="${pkgs.lib.makeLibraryPath (graphics ++ [pkgs.xorg.libXtst])}"
           export LIBGL_DRIVERS_PATH="${pkgs.mesa}/lib/dri"
           export DBUS_SESSION_CONF="${pkgs.dbus}/share/dbus-1/session.conf"
@@ -76,6 +78,7 @@
           mkdir -p "$out/bin" "$out/libexec" "$out/share/knobby"
           cp knobby-daemon "$out/libexec/knobby"
           cp knobby-assets "$out/libexec/knobby-assets"
+          cp knobby-spotify "$out/libexec/knobby-spotify"
           cp gui/app/assets/DejaVuSans.ttf "$out/share/knobby/DejaVuSans.ttf"
           cp gui/app/dist/knobby_gui "$out/libexec/knobby-gui"
           cp gui/app/dist/knobby_overlay "$out/libexec/knobby-overlay"
@@ -87,6 +90,7 @@
           cp -r assets/work "$out/share/knobby/work-icons"
           cp -r assets/navigation "$out/share/knobby/navigation-icons"
           cp -r assets/workflow "$out/share/knobby/workflow-icons"
+          cp -r assets/spotify "$out/share/knobby/spotify-icons"
           ln -s ${obsAudioPlugin} "$out/share/knobby/obs-audio-plugin"
           makeWrapper "$out/libexec/knobby" "$out/bin/knobby" \
             --prefix PATH : "${pkgs.lib.makeBinPath runtimeTools}"
@@ -97,6 +101,8 @@
             --prefix LD_LIBRARY_PATH : "${pkgs.lib.makeLibraryPath graphics}"
           makeWrapper "$out/libexec/knobby-assets" "$out/bin/knobby-assets" \
             --prefix PATH : "${pkgs.lib.makeBinPath [pkgs.ffmpeg-headless]}"
+          makeWrapper "$out/libexec/knobby-spotify" "$out/bin/knobby-spotify" \
+            --prefix PATH : "${pkgs.lib.makeBinPath [pkgs.curl pkgs.systemd]}"
           makeWrapper "$out/libexec/knobby-obs" "$out/bin/knobby-obs" \
             --prefix PATH : "${pkgs.lib.makeBinPath runtimeTools}" \
             --prefix LD_LIBRARY_PATH : "${pkgs.lib.makeLibraryPath [pkgs.xorg.libX11 pkgs.xorg.libXres]}"

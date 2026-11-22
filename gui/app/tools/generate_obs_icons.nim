@@ -32,6 +32,7 @@ const
   CompactRowTops = [CompactBandTop, CompactBandTop + 11]
   CompactSingleTop = 52
   CompactFont = {
+    ' ': @[".", ".", ".", ".", "."],
     '0': @["###", "#.#", "#.#", "#.#", "###"],
     '1': @[".#.", "##.", ".#.", ".#.", "###"],
     '8': @["###", "#.#", "###", "#.#", "###"],
@@ -54,7 +55,8 @@ const
     'U': @["#.#", "#.#", "#.#", "#.#", "###"],
     'V': @["#.#", "#.#", "#.#", "#.#", ".#."],
     'W': @["#...#", "#...#", "#.#.#", "#.#.#", ".#.#."],
-    'X': @["#.#", "#.#", ".#.", "#.#", "#.#"]}.toTable
+    'X': @["#.#", "#.#", ".#.", "#.#", "#.#"],
+    'Y': @["#.#", "#.#", ".#.", ".#.", ".#."]}.toTable
   Seed = 0x2f6e2b1'u32
   ChatSprite = @[
     "................", "..############..", ".#hhhhhhhhhhhh#.", ".#hrrrrrrrrrrr#.",
@@ -902,9 +904,50 @@ proc generateWorkflowIcons() =
       image.drawCompactLabel([label, "SETUP"], tone.labelColor())
       image.writeFile(Directory / ("setup-" & name & suffix & ".png"))
 
+proc generateSpotifyIcons() =
+  ## Generate original music controls using existing stone frames and whole-pixel lettering.
+  const Directory = OutputDirectory.parentDir() / "spotify"
+  createDir(Directory)
+  for (name, label, tone) in [
+      ("menu", @["SPOTIFY", "MENU"], PurpleTone),
+      ("here", @["THIS PC", "PLAY"], GreenTone),
+      ("zero", @["LOW ROAR", "0"], GreenTone),
+      ("low-roar", @["LOW ROAR", "ALBUM"], AmberTone),
+      ("ambient", @["AMBIENT"], GreenTone)]:
+    let image = newImage(Size, Size)
+    image.fillStone(tone)
+    if name == "here":
+      let ink = rgb("#ccecb7")
+      for y in 11..34:
+        for x in 15..56:
+          if y in 11..13 or y in 32..34 or x in 15..17 or x in 54..56:
+            image[x, y] = ink
+      for y in 35..39:
+        for x in 33..38: image[x, y] = ink
+      for y in 40..42:
+        for x in 25..46: image[x, y] = ink
+    else:
+      let
+        green = rgb(if name == "low-roar": "#f1d19e" else: "#a9e278")
+        dark = rgb("#17251a")
+      for y in 9..42:
+        for x in 19..52:
+          let radius = (x - 36) * (x - 36) + (y - 26) * (y - 26)
+          if radius <= 16 * 16:
+            image[x, y] = if radius <= 4 * 4 or radius in 10 * 10..11 * 11: dark else: green
+      if name == "ambient":
+        for x in 14..57:
+          let y = 25 + int(round(sin(float(x - 14) / 5) * 6))
+          for dy in 0..2: image[x, y + dy] = rgb("#dcecff")
+    image.drawCompactLabel(label, tone.labelColor())
+    image.writeFile(Directory / (name & ".png"))
+
 proc main() =
   ## Regenerate the committed key faces without network access or system fonts.
   createDir(OutputDirectory)
+  if commandLineParams() == @["--spotify-only"]:
+    generateSpotifyIcons()
+    return
   if commandLineParams() == @["--workflow-only"]:
     generateWorkflowIcons()
     return
@@ -920,6 +963,7 @@ proc main() =
   generateNavigationIcons()
   generateObsSetupIcons()
   generateWorkflowIcons()
+  generateSpotifyIcons()
 
 when isMainModule:
   main()
