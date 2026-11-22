@@ -25,6 +25,9 @@ installer copies them to the user unit directory, enables graphical-login
 startup, and restarts the daemon. It neither launches nor restarts the desktop
 GUI. For a new editor or IPC version, choose **Quit viewer** from the tray and
 run `~/.local/bin/knobby-gui`; saved configurations and drafts are retained.
+The custom-logic editor update uses IPC version 7, so an older running viewer
+requires that one reopen before it can inspect the new metadata. The daemon and
+physical controls continue independently while the viewer is waiting to reopen.
 
 Before migrating from the standalone Stream Deck demo, stop that demo with
 Ctrl+C. The daemon now owns the same numbered page at 30% brightness and its

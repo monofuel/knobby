@@ -158,7 +158,8 @@ suite "Workflow menu layout":
       (2, "OBS Controls", $link("obs")), (3, "Discord Controls", $link("discord")),
       (4, "Softmax", $link("work"))]
     check entry(result, "root", 5).isNil
-    for key in 6..15: check entry(result, "root", key) == entry(source, "root", key)
+    check entry(result, "root", 6) == entry(source, "root", 6)
+    for key in 7..15: check entry(result, "root", key).isNil
     check layout(result, "obs") == @[(1, "Home", $link("root")),
       (2, "Open OBS", $obsOp("open")), (3, "Record", $obsOp("recordToggle")),
       (4, "Pause", $obsOp("pauseToggle")), (5, "Menu", $parseJson(MenuAction)),
@@ -367,7 +368,12 @@ suite "Workflow menu layout":
     check sameEntry(updated, "root", 6, custom)
     check entry(updated, "root", 5).isNil
     for key in 6..15:
-      entry(source, "root", key)["action"] = %*{"kind": "command", "command": "keep " & $key}
+      let occupied = entry(source, "root", key)
+      if occupied.isNil:
+        menu(source, "root")["deck"].add(button(key, "Keep " & $key,
+          %*{"kind": "command", "command": "keep " & $key}))
+      else:
+        occupied["action"] = %*{"kind": "command", "command": "keep " & $key}
     let original = $source
     expect ValueError: discard migrateWorkflowMenus(source, artwork())
     check $source == original

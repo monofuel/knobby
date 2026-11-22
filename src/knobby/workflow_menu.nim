@@ -399,6 +399,19 @@ proc clearHomeMenuKey(root: JsonNode, rootId: string) =
   if not current.isNil and isNavigation(current["action"], rootId): root.removeKey(MenuKey)
   root.vacateMenuKey(0)
 
+proc clearUnusedHomeNumbers*(source: JsonNode): JsonNode =
+  ## Blank only untouched numbered demo placeholders on Home keys 7 to 15, preserving assigned and custom faces.
+  result = parseJson($source)
+  let root = requireMenu(result, result["root"].getStr())
+  var kept = newJArray()
+  for entry in root["deck"]:
+    let key = entry["key"].getInt()
+    let numbered = key in 7..15 and entry["action"]{"kind"}.getStr() == "none" and
+      entry{"title"}.getStr() == $key and entry{"visual"}{"builtinNumber"}.getInt() == key and
+      entry{"visual"}{"image"}.isNil and entry{"visual"}{"states"}.isNil
+    if not numbered: kept.add(entry)
+  root["deck"] = kept
+
 proc installNavigationMenu(config: JsonNode, rootId: string, artwork: Table[string, string]) =
   ## Add or complete the drawer menu with Home on key 1, the workflow links on keys 2 to 4, and the
   ## open Menu on key 5. A legacy drawer's whole entries move to those keys, keeping edited faces;
@@ -519,3 +532,4 @@ proc migrateWorkflowMenus*(source: JsonNode, artwork: Table[string, string]): Js
       if menu["id"].getStr() != ObsSetupsMenuId: menus.add(menu)
     result["menus"] = %menus
   retargetSetupLinks(result)
+  result = clearUnusedHomeNumbers(result)

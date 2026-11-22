@@ -24,6 +24,7 @@ proc workButton(target: JsonNode, artwork: Table[string, string]): JsonNode =
   result = %*{"key": target["key"].getInt(), "title": target["title"].getStr(),
     "action": target["action"],
     "visual": {"image": artwork[target["art"].getStr()], "showTitle": false}}
+  if target.hasKey("customLogic"): result["customLogic"] = target["customLogic"]
   if target.hasKey("states"):
     result["visual"]["states"] = newJObject()
     for state, art in target["states"].pairs:

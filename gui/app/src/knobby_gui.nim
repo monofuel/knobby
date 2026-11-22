@@ -430,6 +430,28 @@ proc editorScript(phase, directory, fixtureImage: string, window: Window, sk: Si
   let openEditor = @[click("page:EditorPage"),
     waitFor("configuration loaded", proc (): bool = model().loaded and not editor.busy)]
   case phase
+  of "custom":
+    var originalImage: string
+    result = openEditor & @[
+      click("menu:spotify"),
+      waitFor("Deck-only menu selects Deck", proc (): bool = model().menu == "spotify" and model().device == DeckDevice),
+      click("key:2"),
+      waitFor("protected custom action", proc (): bool =
+        let ready = model().selected().isCustomLogic() and "action:none" notin editor.rects and
+          "command" notin editor.rects and "title" in editor.rects and editor.previewCurrent(model().key - 1)
+        if ready: originalImage = model().selected().stateImage(NormalState)
+        ready),
+      settle(12), capture("custom-protected")] &
+      replaceField("title", "My album") & @[
+      scrollTo("importPath")] & replaceField("importPath", fixtureImage) & @[
+      click("import"),
+      waitFor("custom artwork editable", proc (): bool =
+        model().selected().hasImage() and model().selected().isCustomLogic() and
+          model().selected().stateImage(NormalState) != originalImage and model().error.len == 0),
+      waitFor("custom draft saved", proc (): bool =
+        let draft = readDraft(draftPath())
+        not draft.isNil and draft["config"] == model().draft),
+      settle(12), capture("custom-artwork-edited")]
   of "edit":
     result = openEditor & @[
       click("device:deck"),

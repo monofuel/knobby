@@ -12,6 +12,19 @@ inspects or edits that button; it does not execute its action. Change its title,
 choose an existing helper or custom command, or make it open another menu.
 Choose whether a menu action affects the mixer, the Stream Deck, or both.
 
+Choosing a menu that has bindings on only one device selects that device's grid
+automatically. You can still choose the other device explicitly; its empty
+slots are genuinely unassigned, rather than copies of the other device's keys.
+
+Buttons marked **Custom logic** retain their working integration action. Their
+action chooser and command editor are unavailable, while their title and Stream
+Deck images remain editable. This includes the Spotify helpers and specialized
+Prism/WoW launchers. Ordinary commands and empty slots remain assignable.
+The shared button entry records this as `"customLogic": true`; intentional
+implementation changes remain possible through JSON or AI edits. An unknown
+action in a recovered draft is also shown as custom instead of being mistaken
+for None, and cannot be silently overwritten by the action chooser.
+
 Save & Apply validates the whole draft and prepares its artwork before changing
 the live controls. Preparation, validation, or save failures keep the working
 configuration and your draft. Another editor's saved changes cause a revision
@@ -31,6 +44,8 @@ Selecting a destination closes the row automatically. Home and the lower
 keys keep their actions and artwork while the row is open.
 Home already shows the workflow destinations at the same keys 2–4, with a
 non-action Home indicator at key 1 and no Menu button.
+Unused Home keys 7–15 are blank; assigning an action or a custom image preserves
+that button when the workflow layout is refreshed.
 
 Every submenu reserves button 1 for navigation. The mixer uses Back at its
 bottom-right; the installed Deck uses `deckMenu` at key 5. Its `menu` field

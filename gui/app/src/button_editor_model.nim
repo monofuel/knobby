@@ -102,6 +102,14 @@ proc actionKind*(entry: JsonNode): ConfigActionKind =
   ## Return a slot's action kind.
   parseEnum[ConfigActionKind](entry{"action"}{"kind"}.getStr("none"), NoAction)
 
+proc isCustomLogic*(entry: JsonNode): bool =
+  ## Recognize protected implementations and unknown action kinds without misrepresenting them as empty slots.
+  if entry{"customLogic"}.getBool(): return true
+  let kind = entry{"action"}{"kind"}.getStr("none")
+  for known in ConfigActionKind:
+    if kind == $known: return false
+  true
+
 proc menuTarget*(entry: JsonNode): ButtonTarget =
   ## Return a menu action's target devices.
   parseEnum[ButtonTarget](entry{"action"}{"target"}.getStr("both"), TargetBoth)
@@ -163,6 +171,7 @@ proc stateImage*(entry: JsonNode, state: string): string =
 
 proc describeAction*(config: JsonNode, entry: JsonNode): string =
   ## Summarize an action for compact grid tiles and status text.
+  if entry.isCustomLogic(): return "Custom logic"
   let action = entry{"action"}
   case entry.actionKind()
   of NoAction: "No action"
@@ -315,8 +324,12 @@ proc draftEnvelope*(model: EditorModel): JsonNode =
 
 proc selectMenu*(model: var EditorModel, id: string) =
   ## Choose the menu being edited without changing any device's live menu.
-  if model.draft.findMenu(id).isNil:
+  let destination = model.draft.findMenu(id)
+  if destination.isNil:
     raise newException(ValueError, "Unknown menu: " & id)
+  if id != model.menu and destination{$model.device}.getElems().len == 0:
+    let other = if model.device == MixerDevice: DeckDevice else: MixerDevice
+    if destination{$other}.getElems().len > 0: model.device = other
   model.menu = id
   model.ensureSelection()
 
@@ -350,6 +363,11 @@ proc selectedLocked*(model: EditorModel): bool =
   model.draft.isLockedBack(model.menu, model.key) and
     not (model.device == DeckDevice and model.selected().actionKind() == DeckMenuAction)
 
+proc requireEditableAction(model: EditorModel) =
+  ## Prevent GUI reassignment of a custom implementation while allowing its presentation to be edited.
+  if model.selected().isCustomLogic():
+    raise newException(ValueError, "Custom logic cannot be reassigned in the editor; titles and images remain editable.")
+
 proc mutableEntry(model: var EditorModel): JsonNode =
   ## Return the selected slot in the draft, materializing it in key order.
   if model.selectedLocked():
@@ -382,6 +400,7 @@ proc setTitle*(model: var EditorModel, title: string) =
 
 proc setActionKind*(model: var EditorModel, kind: ConfigActionKind) =
   ## Change a slot's action, keeping compatible fields and defaulting menu targets.
+  model.requireEditableAction()
   let
     entry = model.mutableEntry()
     previous = entry{"action"}
@@ -413,6 +432,7 @@ proc setActionKind*(model: var EditorModel, kind: ConfigActionKind) =
 
 proc setCommand*(model: var EditorModel, command: string) =
   ## Set the shell command for a command action.
+  model.requireEditableAction()
   let entry = model.mutableEntry()
   if entry.actionKind() != CommandAction:
     raise newException(ValueError, "Only command actions have a command.")
@@ -421,6 +441,7 @@ proc setCommand*(model: var EditorModel, command: string) =
 
 proc setMenuTarget*(model: var EditorModel, menu: string) =
   ## Choose the menu a menu action opens.
+  model.requireEditableAction()
   if model.draft.findMenu(menu).isNil:
     raise newException(ValueError, "Unknown menu: " & menu)
   let entry = model.mutableEntry()
@@ -431,6 +452,7 @@ proc setMenuTarget*(model: var EditorModel, menu: string) =
 
 proc setTargetDevice*(model: var EditorModel, target: ButtonTarget) =
   ## Choose whether a menu action opens on the mixer, Deck, or both.
+  model.requireEditableAction()
   let entry = model.mutableEntry()
   if entry.actionKind() != MenuAction:
     raise newException(ValueError, "Only menu actions have a target device.")
@@ -448,6 +470,7 @@ proc deckVisual(model: var EditorModel): JsonNode =
 
 proc setObsOperation*(model: var EditorModel, operation: string) =
   ## Choose what an OBS key does; its per-state images are kept for every operation.
+  model.requireEditableAction()
   if not isObsOperation(operation):
     raise newException(ValueError, "Unknown OBS operation: " & operation)
   let entry = model.mutableEntry()

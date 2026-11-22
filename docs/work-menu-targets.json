@@ -1,9 +1,9 @@
 [
-  {"key": 2, "title": "Prism", "art": "obs/minecraft-launch",
+  {"key": 2, "title": "Prism", "art": "obs/minecraft-launch", "customLogic": true,
     "action": {"kind": "command", "command": "\"$HOME/.local/bin/knobby-obs\" prism"}},
-  {"key": 3, "title": "WoW Vanilla", "art": "work/wow-classic",
+  {"key": 3, "title": "WoW Vanilla", "art": "work/wow-classic", "customLogic": true,
     "action": {"kind": "command", "command": "make -C /home/monofuel/src/wow-coworld/wow-shadow-army play-classic"}},
-  {"key": 4, "title": "WoW Nim", "art": "work/wow-nim",
+  {"key": 4, "title": "WoW Nim", "art": "work/wow-nim", "customLogic": true,
     "action": {"kind": "command", "command": "cd /home/monofuel/src/wow-coworld/wow-shadow-army && nix develop --command make play"}},
   {"key": 5, "title": "Discord", "art": "work/discord",
     "action": {"kind": "openDiscord"}},
@@ -17,7 +17,7 @@
     "action": {"kind": "command", "command": "xdg-open https://fast-xp-k8s-staging.tail0f4a29.ts.net/"}},
   {"key": 10, "title": "Next Games", "art": "work/next-games",
     "action": {"kind": "command", "command": "xdg-open https://polyworld.gg/"}},
-  {"key": 11, "title": "Start WoW Server", "art": "work/wow-server",
+  {"key": 11, "title": "Start WoW Server", "art": "work/wow-server", "customLogic": true,
     "action": {"kind": "command", "command": "cd /home/monofuel/src/wow-coworld && nix develop /home/monofuel/src/wow-coworld/wow-shadow-army --command bash /home/monofuel/src/wow-coworld/tools/private_realm.sh start"}},
   {"key": 12, "title": "WoW Dashboard", "art": "work/wow-dashboard",
     "action": {"kind": "command", "command": "xdg-open http://127.0.0.1:7777/"}}

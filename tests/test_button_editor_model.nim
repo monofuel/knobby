@@ -17,6 +17,54 @@ proc withSubmenu(): JsonNode =
       entry["action"] = %*{"kind": "menu", "menu": "games", "target": "both"}
 
 suite "Button editor model":
+  test "a Deck-only menu selects the right grid without overriding an explicit same-menu choice":
+    let config = withSubmenu()
+    config["menus"][1]["deck"].add(%*{"key": 2, "title": "Music", "action": {"kind": "command", "command": "play-music"}})
+    var model = liveModel(config)
+    check model.device == MixerDevice
+    model.selectMenu("games")
+    check model.device == DeckDevice
+    check model.draft.describeAction(model.draft.entryAt("games", DeckDevice, 2)) == "Run play-music"
+    model.selectDevice(MixerDevice)
+    model.selectMenu("games")
+    check model.device == MixerDevice
+
+  test "custom logic blocks reassignment while keeping titles and artwork editable":
+    let config = defaultButtonConfig()
+    let entry = config["menus"][0]["deck"][2]
+    entry["action"] = %*{"kind": "command", "command": "owned-integration"}
+    entry["customLogic"] = %true
+    var model = liveModel(config)
+    model.selectDevice(DeckDevice)
+    model.selectKey(3)
+    check model.selected().isCustomLogic()
+    check model.draft.describeAction(model.selected()) == "Custom logic"
+    let before = $model.draft
+    expect ValueError: model.setActionKind(NoAction)
+    expect ValueError: model.setCommand("another-command")
+    check $model.draft == before
+    check not model.isDirty()
+    model.setTitle("My album")
+    model.setImage("assets/album.png")
+    check model.selected()["title"].getStr() == "My album"
+    check model.selected()["visual"]["image"].getStr() == "assets/album.png"
+    check model.selected()["action"]["command"].getStr() == "owned-integration"
+    check model.selected().isCustomLogic()
+
+  test "unknown recovered action kinds remain custom and cannot be erased as None":
+    var model = liveModel()
+    model.selectDevice(DeckDevice)
+    model.selectKey(3)
+    let draft = model.draftEnvelope()
+    draft["config"]["menus"][0]["deck"][2]["action"] = %*{"kind": "futureIntegration", "payload": "keep-me"}
+    model.recoverDraft(draft)
+    check model.selected().isCustomLogic()
+    check model.draft.describeAction(model.selected()) == "Custom logic"
+    let before = $model.draft
+    expect ValueError: model.setActionKind(NoAction)
+    check $model.draft == before
+    check not model.canApply()
+
   test "loading live state starts clean and selection never edits":
     var model = liveModel()
     check model.loaded and not model.isDirty()

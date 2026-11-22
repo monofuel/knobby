@@ -61,8 +61,8 @@ const
   LastAppliedVersion = 1
   ConfigKeys = ["version", "root", "menus"]
   MenuFields = ["id", "title", "mixer", "deck"]
-  MixerEntryKeys = ["key", "title", "action"]
-  DeckEntryKeys = ["key", "title", "action", "visual"]
+  MixerEntryKeys = ["key", "title", "action", "customLogic"]
+  DeckEntryKeys = ["key", "title", "action", "visual", "customLogic"]
   VisualKeys = ["image", "showTitle", "builtinNumber", "states"]
   ActionFields = ["command", "menu", "target", "operation"]
   NamedActionKinds* = {GrokAction, ClaudeAction, FfxivAction, MicrophonesAction, DiscordAction,
@@ -263,6 +263,10 @@ proc parseEntries(menu: JsonNode, device: ButtonDevice, field, rootId: string,
     validateTitle(title, join(entryField, "title"))
     let action = parseAction(requireMember(entry, "action", entryField, JObject),
       join(entryField, "action"), menuIds)
+    if entry.hasKey("customLogic"):
+      let custom = requireMember(entry, "customLogic", entryField, JBool).getBool()
+      if custom and action.kind == NoAction:
+        raise configError(join(entryField, "customLogic"), "An unassigned button cannot have custom logic.")
     let deckHome = device == DeckDevice and action.kind == MenuAction and
       action.menu == rootId and action.target == TargetDeck
     if action.kind == DeckMenuAction and (device != DeckDevice or int(key) notin MenuKeys):
@@ -377,6 +381,7 @@ proc actionJson*(action: ConfiguredAction): JsonNode =
 proc canonicalEntry(entry: JsonNode, button: ConfiguredButton, device: ButtonDevice): JsonNode =
   ## Encode one explicit entry deterministically, materializing the title display default.
   result = %*{"key": button.key, "title": button.title, "action": actionJson(button.action)}
+  if entry.hasKey("customLogic"): result["customLogic"] = entry["customLogic"]
   if device == DeckDevice and entry.hasKey("visual"):
     let source = entry["visual"]
     var visual = newJObject()

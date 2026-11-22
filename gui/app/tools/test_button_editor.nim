@@ -500,6 +500,25 @@ proc main() =
       [DeckAssets / ($lowerEntry["visual"]["builtinNumber"].getInt() & "-normal.jpg")])
   doAssert processDeckNavigationRequest(%*{"version": ProtocolVersion,
     "type": DeckNavigationRequest, "operation": "cancel"})["ok"].getBool()
+  if fileExists(draftPath()): removeFile(draftPath())
+  let customEnvelope = requireConfigResult(requestConfig("config.get"))["envelope"]
+  customEnvelope["config"]["menus"].add(%*{"id": "spotify", "title": "Spotify", "mixer": [], "deck": [
+    {"key": 2, "title": "Music", "customLogic": true,
+      "action": {"kind": "command", "command": "fixture-custom-action-never-executed"},
+      "visual": {"builtinNumber": 2, "showTitle": false}}]})
+  discard runConfigOperation("config.apply", %*{"envelope": customEnvelope})
+  let appliesBeforeCustom = requestCount("config.apply")
+  runPhase(binary, "custom", directory, fixture)
+  doAssert requestCount("config.apply") == appliesBeforeCustom
+  doAssert takeButtonActions().len == 0, "Editing custom presentation queued an application action."
+  let customEntry = readDraft(draftPath())["config"].entryAt("spotify", DeckDevice, 2)
+  doAssert customEntry["customLogic"].getBool()
+  doAssert customEntry["title"].getStr() == "My album"
+  doAssert customEntry["action"]["command"].getStr() == "fixture-custom-action-never-executed"
+  doAssert customEntry["visual"]["image"].getStr().len > 0
+  let customRects = parseFile(directory / "custom/custom-protected.json")
+  doAssert not customRects.hasKey("action:none") and not customRects.hasKey("command")
+  doAssert customRects.hasKey("title") and customRects.hasKey("importPath")
   withLock requestLock:
     for kind in requestKinds:
       doAssert kind in AllowedRequests, "Editor sent an unexpected request: " & kind

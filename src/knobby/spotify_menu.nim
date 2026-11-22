@@ -51,8 +51,10 @@ proc installSpotifyMenu*(source: JsonNode, artwork: Table[string, string]): Json
     deck.add(home)
     deck.add(toggle)
     for (key, title, operation, art) in SpotifyCommands:
-      deck.add(spotifyFace(key, title,
-        %*{"kind": "command", "command": spotifyCommand(operation)}, artwork[art]))
+      let button = spotifyFace(key, title,
+        %*{"kind": "command", "command": spotifyCommand(operation)}, artwork[art])
+      button["customLogic"] = %true
+      deck.add(button)
     result["menus"].add(%*{"id": SpotifyMenuId, "title": "Spotify", "mixer": [], "deck": deck})
   if slot < 0:
     root["deck"].add(spotifyFace(SpotifyRootKey, "Spotify", action, artwork[SpotifyArtwork[0]]))

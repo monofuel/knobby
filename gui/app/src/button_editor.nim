@@ -877,7 +877,7 @@ proc drawSlot(sk: Silky, editor: ButtonEditor, bounds: Rect, key: int, showPrevi
     inner = bounds.w - 20
   var y = bounds.y + 8
   let caption = (if model.device == MixerDevice: "NOTE " else: "KEY ") & $key &
-    (if locked: " / BACK" else: "")
+    (if locked: " / BACK" elif entry.isCustomLogic(): "/CUSTOM" else: "")
   discard sk.drawText("Small", caption, vec2(bounds.x + 10, y), Muted,
     maxWidth = inner, maxHeight = 18)
   y += 20
@@ -1065,77 +1065,83 @@ proc drawDetails(sk: Silky, window: Window, editor: ButtonEditor, x, height: flo
     if titled.changed:
       editor.applyEdit: editor.model.setTitle(titled.text)
     y += FieldHeight + 14
-    heading("Action")
-    let chipWidth = floor((width - Gap) / 2)
-    var actions: seq[ConfigActionKind]
-    for action in ConfigActionKind:
-      let allowed =
-        if action == BackAction: model.menu != model.draft.rootMenu()
-        elif action == DeckMenuAction: model.device == DeckDevice and model.key in MenuKeys
-        else: true
-      if allowed: actions.add(action)
-    for index, action in actions:
-      let bounds = rect(x + (index mod 2).float32 * (chipWidth + Gap),
-        y + (index div 2).float32 * (ChipHeight + 6), chipWidth, ChipHeight)
-      if sk.chip(editor, "action:" & $action, bounds, ActionLabels[action], active = kind == action):
-        editor.applyEdit: editor.model.setActionKind(action)
-    y += ((actions.len + 1) div 2).float32 * (ChipHeight + 6) + 10
     let current = editor.model.selected()
-    case current.actionKind()
-    of CommandAction:
-      heading("Command")
-      let commanded = sk.textField(window, editor, "command", binding, rect(x, y, width, FieldHeight),
-        current["action"]{"command"}.getStr(),
-        error = slotProblem and model.problemField().endsWith(".command"),
-        placeholder = "Shell command")
-      if commanded.changed:
-        editor.applyEdit: editor.model.setCommand(commanded.text)
-      y += FieldHeight + 6
-      y += sk.label("Runs through the shell when the key is pressed.", x, y, width, "Small", Muted) + 12
-    of MenuAction:
-      heading("Opens menu")
-      let target = current["action"]{"menu"}.getStr()
-      var listed = 0
-      for id in model.draft.menuIds():
-        if id == model.menu: continue
-        if sk.chip(editor, "target:" & id, rect(x, y, width, ChipHeight),
-            model.draft.menuTitle(id), active = id == target):
-          editor.applyEdit: editor.model.setMenuTarget(id)
-        y += ChipHeight + 6
-        inc listed
-      if listed == 0:
-        y += sk.label("Create another menu in the sidebar first.", x, y, width, "Small", Danger) + 8
-      y += 4
-      heading("Opens on")
-      let third = floor((width - 2 * Gap) / 3)
-      for device in ButtonTarget:
-        if sk.chip(editor, "on:" & $device, rect(x + device.ord.float32 * (third + Gap), y, third, ChipHeight),
-            TargetLabels[device], active = current.menuTarget() == device):
-          editor.applyEdit: editor.model.setTargetDevice(device)
-      y += ChipHeight + 14
-    of DeckMenuAction:
-      heading("Drawer menu")
-      let target = current["action"]{"menu"}.getStr()
-      for id in model.draft.menuIds():
-        if sk.chip(editor, "drawer:" & id, rect(x, y, width, ChipHeight),
-            model.draft.menuTitle(id), active = id == target):
-          editor.applyEdit: editor.model.setMenuTarget(id)
-        y += ChipHeight + 6
-      y += sk.label("Keys 1 to 5 of this menu cover the top row until Menu or a destination is pressed.",
-        x, y, width, "Small", Muted) + 12
-    of ObsAction:
-      heading("OBS operation")
-      let
-        operation = current.obsOperation()
-        half = floor((width - Gap) / 2)
-      for index, choice in ObsOperations:
-        let bounds = rect(x + (index mod 2).float32 * (half + Gap),
-          y + (index div 2).float32 * (ChipHeight + 6), half, ChipHeight)
-        if sk.chip(editor, "obsOp:" & choice, bounds, obsOperationLabel(choice), active = operation == choice):
-          editor.applyEdit: editor.model.setObsOperation(choice)
-      y += ((ObsOperations.len + 1) div 2).float32 * (ChipHeight + 6) + 2
-      y += sk.label(obsOperationDescription(operation), x, y, width, "Small", Muted) + 12
-    else: discard
+    if current.isCustomLogic():
+      heading("Action")
+      y += sk.label("Custom logic", x, y, width, "Body", Accent) + 8
+      y += sk.text(editor, "This action is managed outside the editor. Its title and images remain editable.",
+        x, y, width, "Small", Muted) + 14
+    else:
+      heading("Action")
+      let chipWidth = floor((width - Gap) / 2)
+      var actions: seq[ConfigActionKind]
+      for action in ConfigActionKind:
+        let allowed =
+          if action == BackAction: model.menu != model.draft.rootMenu()
+          elif action == DeckMenuAction: model.device == DeckDevice and model.key in MenuKeys
+          else: true
+        if allowed: actions.add(action)
+      for index, action in actions:
+        let bounds = rect(x + (index mod 2).float32 * (chipWidth + Gap),
+          y + (index div 2).float32 * (ChipHeight + 6), chipWidth, ChipHeight)
+        if sk.chip(editor, "action:" & $action, bounds, ActionLabels[action], active = kind == action):
+          editor.applyEdit: editor.model.setActionKind(action)
+      y += ((actions.len + 1) div 2).float32 * (ChipHeight + 6) + 10
+      case current.actionKind()
+      of CommandAction:
+        heading("Command")
+        let commanded = sk.textField(window, editor, "command", binding, rect(x, y, width, FieldHeight),
+          current["action"]{"command"}.getStr(),
+          error = slotProblem and model.problemField().endsWith(".command"),
+          placeholder = "Shell command")
+        if commanded.changed:
+          editor.applyEdit: editor.model.setCommand(commanded.text)
+        y += FieldHeight + 6
+        y += sk.label("Runs through the shell when the key is pressed.", x, y, width, "Small", Muted) + 12
+      of MenuAction:
+        heading("Opens menu")
+        let target = current["action"]{"menu"}.getStr()
+        var listed = 0
+        for id in model.draft.menuIds():
+          if id == model.menu: continue
+          if sk.chip(editor, "target:" & id, rect(x, y, width, ChipHeight),
+              model.draft.menuTitle(id), active = id == target):
+            editor.applyEdit: editor.model.setMenuTarget(id)
+          y += ChipHeight + 6
+          inc listed
+        if listed == 0:
+          y += sk.label("Create another menu in the sidebar first.", x, y, width, "Small", Danger) + 8
+        y += 4
+        heading("Opens on")
+        let third = floor((width - 2 * Gap) / 3)
+        for device in ButtonTarget:
+          if sk.chip(editor, "on:" & $device, rect(x + device.ord.float32 * (third + Gap), y, third, ChipHeight),
+              TargetLabels[device], active = current.menuTarget() == device):
+            editor.applyEdit: editor.model.setTargetDevice(device)
+        y += ChipHeight + 14
+      of DeckMenuAction:
+        heading("Drawer menu")
+        let target = current["action"]{"menu"}.getStr()
+        for id in model.draft.menuIds():
+          if sk.chip(editor, "drawer:" & id, rect(x, y, width, ChipHeight),
+              model.draft.menuTitle(id), active = id == target):
+            editor.applyEdit: editor.model.setMenuTarget(id)
+          y += ChipHeight + 6
+        y += sk.label("Keys 1 to 5 of this menu cover the top row until Menu or a destination is pressed.",
+          x, y, width, "Small", Muted) + 12
+      of ObsAction:
+        heading("OBS operation")
+        let
+          operation = current.obsOperation()
+          half = floor((width - Gap) / 2)
+        for index, choice in ObsOperations:
+          let bounds = rect(x + (index mod 2).float32 * (half + Gap),
+            y + (index div 2).float32 * (ChipHeight + 6), half, ChipHeight)
+          if sk.chip(editor, "obsOp:" & choice, bounds, obsOperationLabel(choice), active = operation == choice):
+            editor.applyEdit: editor.model.setObsOperation(choice)
+        y += ((ObsOperations.len + 1) div 2).float32 * (ChipHeight + 6) + 2
+        y += sk.label(obsOperationDescription(operation), x, y, width, "Small", Muted) + 12
+      else: discard
     if model.device == DeckDevice:
       let state = editor.model.visualState
       heading(if state == NormalState: "Image" else: stateLabel(state) & " image")
