@@ -59,3 +59,21 @@ suite "Spotify menu installation":
     let conflict = fixture()
     conflict["menus"].add(%*{"id": "spotify", "title": "Human", "mixer": [], "deck": []})
     expect ValueError: discard installSpotifyMenu(conflict, artwork())
+
+  test "album artwork refresh follows moved actions and preserves other edits":
+    let before = installSpotifyMenu(fixture(), artwork())
+    let album = before["menus"][^1]["deck"][3]
+    album["key"] = %9
+    album["title"] = %"My favorite album"
+    album["visual"]["showTitle"] = %true
+    let original = $before
+    var updatedArt = artwork()
+    updatedArt["spotify/zero"] = "assets/new-zero.png"
+    updatedArt["spotify/low-roar"] = "assets/new-low-roar.png"
+    let after = refreshSpotifyAlbumArtwork(before, updatedArt)
+    check $before == original
+    let expected = parseJson($before)
+    expected["menus"][^1]["deck"][3]["visual"]["image"] = %"assets/new-zero.png"
+    expected["menus"][^1]["deck"][4]["visual"]["image"] = %"assets/new-low-roar.png"
+    check after == expected
+    check refreshSpotifyAlbumArtwork(after, updatedArt) == after

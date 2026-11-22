@@ -17,6 +17,10 @@ proc spotifyFace(key: int, title: string, action: JsonNode, image: string): Json
   %*{"key": key, "title": title, "action": action,
     "visual": {"image": image, "showTitle": false}}
 
+proc spotifyCommand*(operation: string): string =
+  ## Build the installed helper command with journal feedback for one explicit music action.
+  "systemd-cat --identifier=knobby-spotify \"$HOME/.local/bin/knobby-spotify\" " & operation
+
 proc installSpotifyMenu*(source: JsonNode, artwork: Table[string, string]): JsonNode =
   ## Add only Spotify's Home entry and submenu, refusing to replace unrelated controls or menus.
   result = parseJson($source)
@@ -48,10 +52,28 @@ proc installSpotifyMenu*(source: JsonNode, artwork: Table[string, string]): Json
     deck.add(toggle)
     for (key, title, operation, art) in SpotifyCommands:
       deck.add(spotifyFace(key, title,
-        %*{"kind": "command", "command": "systemd-cat --identifier=knobby-spotify \"$HOME/.local/bin/knobby-spotify\" " & operation}, artwork[art]))
+        %*{"kind": "command", "command": spotifyCommand(operation)}, artwork[art]))
     result["menus"].add(%*{"id": SpotifyMenuId, "title": "Spotify", "mixer": [], "deck": deck})
   if slot < 0:
     root["deck"].add(spotifyFace(SpotifyRootKey, "Spotify", action, artwork[SpotifyArtwork[0]]))
   elif root["deck"][slot]["action"] != action:
     root["deck"].elems[slot] = spotifyFace(SpotifyRootKey, "Spotify", action, artwork[SpotifyArtwork[0]])
+  validateButtonConfig(result)
+
+proc refreshSpotifyAlbumArtwork*(source: JsonNode, artwork: Table[string, string]): JsonNode =
+  ## Refresh only the two album images, finding moved buttons by their exact action and retaining user edits.
+  result = parseJson($source)
+  for operation in ["zero", "low-roar"]:
+    let action = %*{"kind": "command", "command": spotifyCommand(operation)}
+    var matches = 0
+    for menu in result["menus"]:
+      if menu["id"].getStr() == SpotifyMenuId:
+        for button in menu["deck"]:
+          if button["action"] == action:
+            inc matches
+            if not button.hasKey("visual"):
+              button["visual"] = %*{"showTitle": false}
+            button["visual"]["image"] = %artwork["spotify/" & operation]
+    if matches != 1:
+      raise newException(ValueError, "Spotify album " & operation & " needs exactly one standard action; refusing to replace custom controls.")
   validateButtonConfig(result)

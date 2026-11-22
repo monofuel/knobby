@@ -5,8 +5,8 @@ Home key **6** opens Spotify. The submenu keeps **Home at 1** and **Menu at 5**:
 | Key | Button | Result |
 | --- | --- | --- |
 | 2 | Play Here | Bring the current queue to this computer and resume it. |
-| 3 | Low Roar / 0 | Play Low Roar's album *0* on this computer. |
-| 4 | Low Roar / Album | Play Low Roar's self-titled album on this computer. |
+| 3 | 0 / Low Roar | Play Low Roar's album *0* on this computer. |
+| 4 | Low Roar / Low Roar | Play Low Roar's self-titled album on this computer. |
 | 6 | Ambient | Play the requested Ambient playlist on this computer. |
 
 These are explicit playback actions. Installation, authorization, and `status`
@@ -54,6 +54,18 @@ helper. The installer `nim r tools/setup_spotify_buttons.nim --apply` adds the
 menu using Knobby's revision-checked apply API and preserves other controls and
 subsequent Spotify edits. Artwork uses the existing pixel renderer:
 `cd gui && nim r app/tools/generate_obs_icons.nim --spotify-only`.
+Album buttons show a pixel-sized cover thumbnail, then a bright album title
+above a quieter artist line. Refresh only those images with
+`nim r tools/setup_spotify_buttons.nim --refresh-album-art`; actions, positions,
+titles, other artwork and editor drafts are retained.
+
+The cover thumbnails are the respective releases' artwork, obtained from
+Spotify's official oEmbed metadata. Artwork remains copyright its respective
+rights holders and is not covered by Knobby's code license. Committed source
+images make regeneration independent of the network:
+
+- [0 cover](https://image-cdn-fa.spotifycdn.com/image/ab67616d00001e02186edd9561b4f4f794919bf6)
+- [Low Roar cover](https://image-cdn-fa.spotifycdn.com/image/ab67616d00001e02ae0d42a58d5024f7788edf45)
 
 The destinations were verified against Spotify's own pages:
 

@@ -911,12 +911,20 @@ proc generateSpotifyIcons() =
   for (name, label, tone) in [
       ("menu", @["SPOTIFY", "MENU"], PurpleTone),
       ("here", @["THIS PC", "PLAY"], GreenTone),
-      ("zero", @["LOW ROAR", "0"], GreenTone),
-      ("low-roar", @["LOW ROAR", "ALBUM"], AmberTone),
+      ("zero", @["0", "LOW ROAR"], GreenTone),
+      ("low-roar", @["LOW ROAR", "LOW ROAR"], GreenTone),
       ("ambient", @["AMBIENT"], GreenTone)]:
     let image = newImage(Size, Size)
     image.fillStone(tone)
-    if name == "here":
+    if name in ["zero", "low-roar"]:
+      let cover = readImage(Directory / "covers" / (name & ".jpg")).resize(32, 32)
+      for y in 0..<32:
+        for x in 0..<32:
+          for dy in 0..1:
+            for dx in 0..1: image[Border + x * 2 + dx, Border + y * 2 + dy] = cover[x, y]
+      for y in LabelBandTop..<Size - Border:
+        for x in Border..<Size - Border: image[x, y] = rgb("#151a20")
+    elif name == "here":
       let ink = rgb("#ccecb7")
       for y in 11..34:
         for x in 15..56:
@@ -939,7 +947,11 @@ proc generateSpotifyIcons() =
         for x in 14..57:
           let y = 25 + int(round(sin(float(x - 14) / 5) * 6))
           for dy in 0..2: image[x, y + dy] = rgb("#dcecff")
-    image.drawCompactLabel(label, tone.labelColor())
+    if name in ["zero", "low-roar"]:
+      image.drawCompactLabel([label[0], ""], rgb("#f0f2f4"))
+      image.drawCompactLabel(["", label[1]], rgb("#abb2bd"))
+    else:
+      image.drawCompactLabel(label, tone.labelColor())
     image.writeFile(Directory / (name & ".png"))
 
 proc main() =
