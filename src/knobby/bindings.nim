@@ -12,7 +12,7 @@ type
 const
   MasterFaderController* = 16
   AppFaderBindings* = [
-    (17, "Firefox", @["Firefox"], false),
+    (17, "Browsers", @["Firefox", "Google Chrome", "Chrome", "Chromium"], false),
     (18, "Spotify", @["Spotify"], false),
     (19, "games", @["FINAL FANTASY XIV", "World of Warcraft"], true)]
   ButtonGrid* = [[12, 9, 6, 3], [11, 8, 5, 2], [10, 7, 4, 1]]
@@ -32,6 +32,8 @@ const
   StreamDeckDemoBrightness* = 30
   SteamAppIdVariable = "SteamAppId="
   GameMediaRole = "game"
+  ChromiumAppNames = ["google chrome", "chrome", "chromium"]
+  ChromiumChannels = [" stable", " beta", " dev", " unstable", " canary"]
 
 proc buttonBinding*(note: int): ButtonBinding =
   ## Look up a physical button's compiled action, including unassigned inputs.
@@ -59,8 +61,20 @@ proc isSteamGame*(processId: string): bool =
 proc matchesAudioTarget*(appName, mediaRole: string, steamGame: bool,
     appNames: openArray[string], includeGames: bool): bool =
   ## Match an application or game stream against one compiled fader target.
+  let lowerApp = appName.toLowerAscii()
   for name in appNames:
-    if name.toLowerAscii() in appName.toLowerAscii():
+    let lowerName = name.toLowerAscii()
+    if lowerName in ChromiumAppNames:
+      var browser = lowerApp.replace('-', ' ').splitWhitespace().join(" ")
+      for channel in ChromiumChannels:
+        if browser.endsWith(channel):
+          browser.setLen(browser.len - channel.len)
+          break
+      if lowerName == "chromium" and browser == "chromium browser":
+        return true
+      if browser == lowerName:
+        return true
+    elif lowerName in lowerApp:
       return true
   result = includeGames and (steamGame or mediaRole.toLowerAscii() == GameMediaRole)
 

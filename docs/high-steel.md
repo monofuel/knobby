@@ -48,7 +48,7 @@ Fader bindings match the old Windows MIDI Mixer profile:
 | Control   | Target                                        |
 |-----------|-----------------------------------------------|
 | Fader 16  | Master volume (the default output sink, normally the Bose PC desktop controller) |
-| Fader 17  | Firefox (often YouTube)                       |
+| Fader 17  | Browsers: Firefox, Google Chrome and Chromium |
 | Fader 18  | Spotify                                       |
 | Fader 19  | Games: any Steam-launched app (SteamAppId in `/proc/<pid>/environ`), any stream with `media.role = game` (OpenAL Soft apps like decompbound's player), plus a name whitelist (FINAL FANTASY XIV, World of Warcraft) |
 

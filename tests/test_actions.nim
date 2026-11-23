@@ -1,6 +1,29 @@
 import
   std/[strutils, tables, unittest],
-  knobby/[actions, midi_events]
+  knobby/[actions, audio_outputs, bindings, midi_events]
+
+suite "browser fader targets":
+  test "the second physical fader groups every named browser stream":
+    let (controller, label, apps, games) = AppFaderBindings[0]
+    check controller == 17
+    check label == "Browsers"
+    check not games
+    for name in ["Firefox", "Firefox Nightly", "knobby-firefox", "Google Chrome",
+        "google-chrome-stable", "Google Chrome Beta", "Chrome", "chrome-dev",
+        "Chromium", "chromium-browser", "Chromium Browser Beta", "CHROMIUM"]:
+      check streamMatches(AudioOutputStream(appName: name), apps, games)
+
+  test "browser identities exclude Electron applications and unrelated streams":
+    let (_, _, apps, games) = AppFaderBindings[0]
+    for name in ["Discord", "Slack", "Electron", "Chromium Embedded Framework",
+        "Chrome Cast", "Spotify", "World of Warcraft", "", "@DEFAULT_SINK@"]:
+      check not streamMatches(AudioOutputStream(appName: name, mediaRole: "game"), apps, games)
+
+  test "browser streams do not join the other application faders":
+    for index in 1..2:
+      let (_, _, apps, games) = AppFaderBindings[index]
+      for name in ["Firefox", "Google Chrome", "Chromium"]:
+        check not streamMatches(AudioOutputStream(appName: name), apps, games)
 
 suite "isNewSinkInputEvent":
   test "matches new sink-input events":

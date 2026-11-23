@@ -163,6 +163,16 @@ suite "Actual audio observations":
     check audio.streams[0].matchesFader(19, true)
     check not audio.streams[0].matchesFader(18, true)
 
+  test "the browser fader displays Chrome and Chromium with Firefox":
+    for name in ["Firefox", "knobby-firefox", "Google Chrome", "google-chrome-beta",
+        "Chrome", "Chromium", "chromium-browser"]:
+      let level = AudioLevel(appName: name)
+      check level.matchesFader(17, false)
+      check not level.matchesFader(18, false)
+      check not level.matchesFader(19, false)
+    for name in ["Discord", "Slack", "Chromium Embedded Framework"]:
+      check not AudioLevel(appName: name).matchesFader(17, false)
+
   test "empty audio servers and malformed output":
     check parseAudioStatus("{\"sinks\":[],\"sink_inputs\":[],\"sources\":[]}", "missing").master.levelText() == "Unavailable"
     expect JsonParsingError: discard parseAudioStatus("invalid", "bose")
