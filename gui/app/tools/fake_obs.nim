@@ -37,6 +37,8 @@ type
     hangupOn*: seq[string]
     override*: FakeOverride
     profile*, collection*, programScene*: string
+    recordDirectories*: Table[string, string]
+    persistentData*: Table[string, JsonNode]
     profiles*, collections*: seq[string]
     stored*: Table[string, FakeCollection]
     scenes*: seq[string]
@@ -110,6 +112,19 @@ proc handleRequest(fake: FakeObs, socket: WebSocket, requestType,
     ok(%*{"obsVersion": "32.1.2", "obsWebSocketVersion": "5.7.3", "rpcVersion": 1})
   of "GetProfileList":
     ok(%*{"currentProfileName": fake.profile, "profiles": fake.profiles})
+  of "GetRecordDirectory":
+    ok(%*{"recordDirectory": fake.recordDirectories.getOrDefault(fake.profile, "/recordings")})
+  of "SetRecordDirectory":
+    if fake.recording:
+      fail(500, "Recording is active.")
+    else:
+      fake.recordDirectories[fake.profile] = data["recordDirectory"].getStr()
+      ok()
+  of "GetPersistentData":
+    ok(%*{"slotValue": fake.persistentData.getOrDefault(fake.profile & data["slotName"].getStr(), newJNull())})
+  of "SetPersistentData":
+    fake.persistentData[fake.profile & data["slotName"].getStr()] = data["slotValue"]
+    ok()
   of "GetSceneCollectionList":
     ok(%*{"currentSceneCollectionName": fake.collection,
       "sceneCollections": fake.collections})

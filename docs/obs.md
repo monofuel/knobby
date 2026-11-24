@@ -7,7 +7,10 @@ select the shared profile and the chosen collection together. Switching is
 refused while recording, including paused recording, or streaming. Entering a
 menu never starts an app or recording.
 
-The shared profile records to `~/Videos/Demos/`, at 1920×1080 and 60 fps, with
+Firefox recordings go to `~/Videos/Firefox-Demos/`, including when using the
+shared profile. Knobby restores that profile's previous destination when
+switching to Minecraft or WoW. Folder changes wait until OBS outputs are idle.
+The shared profile otherwise records to `~/Videos/Demos/`, at 1920×1080 and 60 fps, with
 game/browser and Commentary on separate tracks as well as a combined track.
 It starts as a copy of the working Minecraft profile, including its encoder
 and stream settings. The original profiles remain available as rollback:
@@ -73,10 +76,9 @@ running session. Resizing is refused during recording or streaming and never
 happens during installation. Menu opening/cancelling never invokes a covered
 Record, app launcher, or resize control.
 
-An explicitly selected custom scene can also be
-recorded. Record uses that scene as configured in OBS and does not select a
-demo scene or rebind its inputs. The managed Minecraft and Firefox scenes
-retain their exact window and application-audio checks.
+Record starts or stops the currently selected OBS scene, including managed
+demo scenes, without requiring a particular application window or rebinding
+inputs. Capture setup warnings remain separate from recording controls.
 
 ## WoW demos
 
@@ -92,10 +94,9 @@ the helper uses the X server's XRes client PID when needed. This adds `libXRes`
 to the headless OBS helper's X11 runtime, without changing either game's code.
 Audio is verified against the selected game's process tree; generic Wine or
 OpenAL audio names never select unrelated applications. A silent game can be
-pending without capturing any other application's sound; the managed WoW
-record action becomes ready when the game's audio stream exists, so a first
-recording cannot silently lose its later soundtrack. Custom scenes retain
-ordinary OBS recording behavior. Commentary uses the
+pending without capturing any other application's sound. Record uses the
+current OBS sources even when capture setup reports a missing game or audio
+stream. Commentary uses the
 existing microphone settings, starts muted, and stays on tracks 1 and 3;
 game audio uses tracks 1 and 2.
 

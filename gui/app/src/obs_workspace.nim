@@ -1,5 +1,5 @@
 import
-  std/[asyncdispatch, deques, json, monotimes, strutils],
+  std/[asyncdispatch, deques, json, monotimes, os, strutils],
   knobby/obs_projects,
   ./[obs_client, minecraft_window]
 
@@ -25,6 +25,8 @@ const
   XCompositeIdField = 0
   XCompositeClassField = 2
   AsyncTracebackHeader = "\nAsync traceback:"
+  RecordingDirectorySlot = "knobby.firefox-recording-directory.v1"
+  ProfileDataRealm = "OBS_WEBSOCKET_DATA_REALM_PROFILE"
 
 type
   ObsCommandError* = object of ObsError
@@ -48,6 +50,7 @@ type
     captureReady*: bool
     audioPending*: bool
     recording*: bool
+    recordStateKnown*: bool
     paused*: bool
     streaming*: bool
     micMuted*: bool
@@ -56,6 +59,7 @@ type
     profile*: string
     collection*: string
     error*: string
+    recordError*: string
 
   ObsHooks* = object
     loadSettings*: proc (): tuple[url, password: string] {.gcsafe.}
@@ -132,6 +136,8 @@ proc statusJson*(status: ObsStatus): JsonNode =
     "captureReady": status.captureReady,
     "audioPending": status.audioPending,
     "recording": status.recording,
+    "recordStateKnown": status.recordStateKnown,
+    "recordError": status.recordError,
     "paused": status.paused,
     "streaming": status.streaming,
     "micMuted": status.micMuted,
@@ -249,17 +255,17 @@ proc observedPair(profile, collection: string): string =
   ## Describe the actual OBS profile and scene collection.
   "OBS is on profile \"" & profile & "\" with scene collection \"" & collection & "\"."
 
-proc readWorkspace(client: ObsClient): Future[WorkspaceSnapshot] {.async.} =
+proc readWorkspace(client: ObsClient, record: tuple[active, paused: bool],
+    streaming: bool): Future[WorkspaceSnapshot] {.async.} =
   ## Query the active setup, its required scene and inputs, outputs, and mic state.
   let names = await client.readProfileAndCollection()
   result.profile = names.profile
   result.collection = names.collection
   result.programScene = (await client.request("GetCurrentProgramScene")).requireStr(
     "currentProgramSceneName", "GetCurrentProgramScene")
-  let record = await client.readRecordState()
   result.recording = record.active
   result.paused = record.paused
-  result.streaming = await client.readStreamActive()
+  result.streaming = streaming
   (result.known, result.project) = knownProject(result.profile, result.collection)
   if result.known:
     let
@@ -599,6 +605,7 @@ proc handleEvent(bridge: ObsBridge, eventType: string, data: JsonNode) =
       (active != nil and active.kind == JBool and active.getBool())
   of "RecordStateChanged":
     inc bridge.stateEpoch
+    bridge.status.recordStateKnown = true
     case data{"outputState"}.getStr()
     of "OBS_WEBSOCKET_OUTPUT_STARTING", "OBS_WEBSOCKET_OUTPUT_STOPPING":
       bridge.status.transitioning = true
@@ -630,6 +637,46 @@ proc handleEvent(bridge: ObsBridge, eventType: string, data: JsonNode) =
   bridge.resyncWanted = true
   bridge.publish()
 
+proc syncRecordingDirectory(bridge: ObsBridge, profile, collection: string) {.async.} =
+  ## Route Firefox recordings while retaining the shared profile's previous destination.
+  ## OBS persists both output-mode paths and the profile-scoped restoration slot.
+  let
+    current = knownProject(profile, collection)
+    firefox = current.known and current.project == FirefoxProject
+  if not firefox and profile != SharedDemoProfileName:
+    return
+  let
+    client = bridge.client
+    firefoxDirectory = getHomeDir() / projectSpec(FirefoxProject).recordDirectory
+    directory = (await client.request("GetRecordDirectory")).requireStr(
+      "recordDirectory", "GetRecordDirectory")
+  var target = firefoxDirectory
+  if not firefox:
+    if directory != firefoxDirectory: return
+    let previous = (await client.request("GetPersistentData", %*{
+      "realm": ProfileDataRealm, "slotName": RecordingDirectorySlot})){"slotValue"}
+    if previous.isNil or previous.kind == JNull: return
+    if previous.kind != JString or not previous.getStr().isAbsolute:
+      raise newException(ObsCommandError, "The saved recording directory is invalid.")
+    target = previous.getStr()
+  if directory == target: return
+  let
+    record = await client.readRecordState()
+    streaming = await client.readStreamActive()
+    names = await client.readProfileAndCollection()
+  if record.active or record.paused or streaming or bridge.status.transitioning:
+    raise newException(ObsCommandError, "OBS outputs are active; the recording folder was left unchanged.")
+  if names.profile != profile or names.collection != collection:
+    raise newException(ObsCommandError, "The OBS setup changed; the recording folder was left unchanged.")
+  if firefox and profile == SharedDemoProfileName:
+    discard await client.request("SetPersistentData", %*{"realm": ProfileDataRealm,
+      "slotName": RecordingDirectorySlot, "slotValue": directory})
+  discard await client.request("SetRecordDirectory", %*{"recordDirectory": target})
+  let actual = (await client.request("GetRecordDirectory")).requireStr(
+    "recordDirectory", "GetRecordDirectory")
+  if actual != target:
+    raise newException(ObsCommandError, "OBS did not apply the recording folder: " & target)
+
 proc resync(bridge: ObsBridge) {.async.} =
   ## Replace cached status with actual OBS state unless an event raced the reads.
   ## A failed read keeps the last actual recording and mute values.
@@ -646,9 +693,17 @@ proc resync(bridge: ObsBridge) {.async.} =
     audioPending = false
     workspaceReady = false
     error = ""
+    record: tuple[active, paused: bool]
+    streaming = false
+    outputsRead = false
   try:
-    snapshot = await client.readWorkspace()
+    record = await client.readRecordState()
+    streaming = await client.readStreamActive()
+    outputsRead = true
+    snapshot = await client.readWorkspace(record, streaming)
     readOk = true
+    if not record.active and not record.paused and not streaming:
+      await bridge.syncRecordingDirectory(snapshot.profile, snapshot.collection)
     error = snapshot.workspaceError()
     workspaceReady = error.len == 0
     if error.len == 0 and not snapshot.customProgramScene():
@@ -680,17 +735,20 @@ proc resync(bridge: ObsBridge) {.async.} =
     bridge.status.error = error
     bridge.status.activeProject = ""
     bridge.status.customScene = readOk and snapshot.customProgramScene()
+    bridge.status.recordStateKnown = outputsRead
+    if outputsRead:
+      bridge.status.recordStateKnown = true
+      bridge.status.recording = record.active
+      bridge.status.paused = record.paused
+      bridge.status.streaming = streaming
+      if not record.active:
+        bridge.status.transitioning = false
     if readOk:
       bridge.status.profile = snapshot.profile
       bridge.status.collection = snapshot.collection
       if snapshot.known:
         bridge.status.activeProject = projectSpec(snapshot.project).id
-      bridge.status.recording = snapshot.recording
-      bridge.status.paused = snapshot.paused
-      bridge.status.streaming = snapshot.streaming
       bridge.status.micMuted = snapshot.micMuted
-      if not snapshot.recording:
-        bridge.status.transitioning = false
     if error.len > 0:
       bridge.log(error)
     bridge.publish()
@@ -711,45 +769,15 @@ proc requireWorkspace(client: ObsClient): Future[ObsProject] {.async.} =
   result = knownProject(names.profile, names.collection).project
 
 proc toggleRecording(bridge: ObsBridge) {.async.} =
-  ## Stop the actual recording, record a human-selected scene as is, or start a
-  ## managed setup scene only once its capture is proven.
+  ## Toggle OBS's actual recording without rebinding or requiring managed capture sources.
   let
     client = bridge.requireConnected()
     record = await client.readRecordState()
   if record.active:
     discard await client.request("StopRecord")
   else:
-    let
-      names = await client.readProfileAndCollection()
-      current = knownProject(names.profile, names.collection)
-      selectedScene = (await client.request("GetCurrentProgramScene")).requireStr(
-        "currentProgramSceneName", "GetCurrentProgramScene")
-    if selectedScene.len == 0:
-      raise newException(ObsCommandError, "Select an OBS scene before recording.")
-    if not current.known or selectedScene != projectSpec(current.project).scene:
-      discard await client.request("StartRecord")
-      return
-    let
-      project = current.project
-      snapshot = await client.readWorkspace()
-      error = snapshot.workspaceError()
-    if error.len > 0:
-      raise newException(ObsCommandError, error)
-    if snapshot.project != project:
-      raise newException(ObsCommandError, "The OBS setup changed; recording was not started.")
-    if (await client.request("GetCurrentProgramScene")).requireStr(
-        "currentProgramSceneName", "GetCurrentProgramScene") != selectedScene:
-      raise newException(ObsCommandError, "The OBS scene changed; press Record again.")
-    case project
-    of MinecraftProject:
-      if not await bridge.bindGameVideo(snapshot.videoKind):
-        raise newException(ObsCommandError,
-          "Minecraft is not running, so recording was not started.")
-      await bridge.bindGameAudio(snapshot.audioKind)
-    of FirefoxProject, WowProject:
-      let pending = await bridge.bindWindowCapture(snapshot, project, snapshot.streaming)
-      if project == WowProject and pending:
-        raise newException(ObsCommandError, "WoW has not opened its game audio stream yet; recording was not started.")
+    let names = await client.readProfileAndCollection()
+    await bridge.syncRecordingDirectory(names.profile, names.collection)
     discard await client.request("StartRecord")
 
 proc togglePause(bridge: ObsBridge) {.async.} =
@@ -863,6 +891,7 @@ proc selectProject(bridge: ObsBridge, project: ObsProject) {.async.} =
     if actual.profile != target or actual.collection != spec.collection:
       raise newException(ObsCommandError, spec.label & " was not selected. " &
         observedPair(actual.profile, actual.collection))
+  await bridge.syncRecordingDirectory(target, spec.collection)
 
 proc openObs(bridge: ObsBridge) {.async.} =
   ## Focus OBS without changing its setup, or launch its original Minecraft default when closed.
@@ -942,6 +971,8 @@ proc execute(bridge: ObsBridge, command: BridgeCommand) {.async.} =
       # Results stay one line; command stderr and tracebacks go to the log.
       bridge.log(detail)
   bridge.refreshPresence()
+  if command.operation == "recordToggle":
+    bridge.status.recordError = error
   bridge.publish()
   bridge.hooks.emit(resultJson(command.id, error))
   bridge.resyncWanted = true

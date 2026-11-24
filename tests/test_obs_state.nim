@@ -51,7 +51,7 @@ suite "OBS state":
 
   test "unknown or disconnected status never looks stopped":
     for snapshot in [JsonNode(nil), newJNull(), newJObject(), status(connected = false),
-        status(workspaceReady = false), status(connected = false, recording = true)]:
+        %*{"connected": true, "recordStateKnown": false}, status(connected = false, recording = true)]:
       for operation in ["recordToggle", "pauseToggle", "micToggle"]:
         check obsVisualState(operation, snapshot) == "unavailable"
     check obsVisualState("open", status(connected = false)) == "unavailable"
@@ -78,9 +78,9 @@ suite "OBS state":
       check obsOperationDescription(operation).len > 0
     check not isObsOperation("stream")
 
-  test "missing Minecraft blocks idle recording but keeps actual output state":
+  test "capture setup readiness does not block ordinary recording controls":
     let notReady = status(minecraftReady = false)
-    check obsVisualState("recordToggle", notReady) == "unavailable"
+    check obsVisualState("recordToggle", notReady) == ""
     check obsVisualState("pauseToggle", notReady) == "unavailable"
     check obsVisualState("recordToggle",
       status(recording = true, minecraftReady = false)) == "recording"
@@ -109,13 +109,16 @@ suite "OBS state":
     check obsVisualState("minecraft1080", offline) == "unavailable"
     check obsStatusDescription("minecraft1080", offline) == "Minecraft closed; press to open Prism"
 
-  test "record details explain capture prerequisites and retain actual recording state":
+  test "record details distinguish native recording errors from capture setup warnings":
     let waiting = status(minecraftReady = false)
-    check obsStatusDescription("recordToggle", waiting) == "Open Minecraft before recording"
+    check obsStatusDescription("recordToggle", waiting) == "Record the selected OBS scene"
     waiting["minecraftRunning"] = %true
-    check obsStatusDescription("recordToggle", waiting) == "Waiting for Minecraft capture"
+    check obsStatusDescription("recordToggle", waiting) == "Record the selected OBS scene"
     waiting["error"] = %"Minecraft audio is missing\nAsync traceback: private details"
-    check obsStatusDescription("recordToggle", waiting) == "Minecraft audio is missing"
+    check obsStatusDescription("recordToggle", waiting) == "Record the selected OBS scene"
+    waiting["recordError"] = %"OBS rejected StartRecord: recording encoder unavailable."
+    check obsStatusDescription("recordToggle", waiting) == waiting["recordError"].getStr()
+    check obsVisualState("recordToggle", waiting) == "unavailable"
     waiting["recording"] = %true
     check obsStatusDescription("recordToggle", waiting) == "Recording"
 
@@ -144,9 +147,9 @@ suite "OBS state":
     unknown["activeProject"] = %""
     check obsVisualState("selectMinecraft", unknown) == ""
     check obsVisualState("selectFirefox", unknown) == ""
-    check obsVisualState("recordToggle", unknown) == "unavailable"
+    check obsVisualState("recordToggle", unknown) == ""
     check obsStatusDescription("recordToggle", unknown) ==
-      "OBS setup not recognized; choose an OBS setup"
+      "Record the selected OBS scene"
     for operation in ["selectMinecraft", "selectFirefox"]:
       check obsVisualState(operation, unavailableObsStatus()) == "unavailable"
       check obsStatusDescription(operation, unavailableObsStatus()) == "OBS control unavailable"
@@ -160,15 +163,15 @@ suite "OBS state":
     firefox["firefoxRunning"] = %true
     check captureReady(firefox)
     check obsVisualState("recordToggle", firefox) == ""
-    check obsStatusDescription("recordToggle", firefox) == "Ready to record"
+    check obsStatusDescription("recordToggle", firefox) == "Record the selected OBS scene"
     firefox["audioPending"] = %true
     check obsStatusDescription("recordToggle", firefox) ==
-      "Ready to record; Firefox audio joins when the page plays sound"
+      "Record the selected OBS scene"
     firefox["captureReady"] = %false
-    check obsVisualState("recordToggle", firefox) == "unavailable"
-    check obsStatusDescription("recordToggle", firefox) == "Waiting for Firefox demo capture"
+    check obsVisualState("recordToggle", firefox) == ""
+    check obsStatusDescription("recordToggle", firefox) == "Record the selected OBS scene"
     firefox["firefoxRunning"] = %false
-    check obsStatusDescription("recordToggle", firefox) == "Open the Firefox demo before recording"
+    check obsStatusDescription("recordToggle", firefox) == "Record the selected OBS scene"
     firefox["workspaceReady"] = %false
     check obsStatusDescription("micToggle", firefox) == "Firefox Demos workspace unavailable"
     let mismatch = status(minecraftReady = true)
@@ -225,14 +228,14 @@ suite "OBS state":
     check obsVisualState("selectWow", wow) == "active"
     check obsStatusDescription("selectWow", wow) == "WoW Demos selected"
     check obsVisualState("selectMinecraft", wow) == ""
-    check obsStatusDescription("recordToggle", wow) == "Waiting for WoW capture"
+    check obsStatusDescription("recordToggle", wow) == "Record the selected OBS scene"
     wow["captureReady"] = %true
-    check obsStatusDescription("recordToggle", wow) == "Ready to record"
+    check obsStatusDescription("recordToggle", wow) == "Record the selected OBS scene"
     wow["audioPending"] = %true
     check obsStatusDescription("recordToggle", wow) ==
-      "Waiting for WoW game audio"
+      "Record the selected OBS scene"
     wow["wowRunning"] = %false
-    check obsStatusDescription("recordToggle", wow) == "Open WoW before recording"
+    check obsStatusDescription("recordToggle", wow) == "Record the selected OBS scene"
     for operation in ["selectWow", "wow1080"]:
       check isObsOperation(operation)
     check obsOperationLabel("selectWow") == "WoW setup"

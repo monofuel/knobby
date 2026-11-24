@@ -138,6 +138,8 @@ proc serveHelper(path: string) =
             let problem = "OBS command failed: " & message{"error"}.getStr()
             setComponentError("actions", problem)
             stderr.writeLine(problem)
+          elif readKnobbyState().actionError.startsWith("OBS command failed:"):
+            setComponentError("actions", "")
         else:
           raise newException(IOError, "OBS helper returned an unknown message type.")
       while errors.find('\n') >= 0:
