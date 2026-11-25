@@ -24,7 +24,7 @@ const
     ButtonBinding(note: 8, label: "Discord", description: "Toggle Discord self-mute through local RPC.", action: ToggleDiscord)]
   GrokCommand* = "firefox --new-window https://grok.com/"
   ClaudeCommand* = "firefox --new-window https://claude.ai/"
-  FfxivLaunchCommand* = "steam steam://rungameid/9332724227821797376"
+  FfxivLaunchCommand* = "steam steam://rungameid/9547416891190935552"
   BenqMicSource* = "alsa_input.usb-Generic_BenQ_EX3210U-00.iec958-stereo"
   GreyBrightness* = "25"
   DarkGrey* = "72"

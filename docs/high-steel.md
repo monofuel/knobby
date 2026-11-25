@@ -93,15 +93,16 @@ works against one's own local client; if Discord ever locks it down, the
 fallback is Vesktop with portal-based global keybinds.
 
 Button 10 launches the non-Steam Steam shortcut named "Final Fantasy XIV",
-which runs XIVLauncher (`XIVLauncher.Core`, the nixpkgs install, config in
-`~/.xlcore`). Going through Steam is deliberate so friends can see the game
+which runs `~/bin/xivlauncher-cpu`. That existing wrapper starts the XIVLauncher
+Flatpak with the saved performance profile and existing `~/.xlcore` game data.
+Going through Steam is deliberate so friends can see the game
 in monofuel's Steam status. FFXIV is not owned on Steam: monofuel plays on a
 regular non-Steam account from before the Steam version existed, and
 XIVLauncher (Dalamud) provides TOTP input and fine-grained wine version
 control. The launch command is:
 
 ```
-steam steam://rungameid/9332724227821797376
+steam steam://rungameid/9547416891190935552
 ```
 
 (The id is the synthetic rungameid for the "Final Fantasy XIV" shortcut in
