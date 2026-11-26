@@ -7,6 +7,9 @@ master, browser, music, and game volume without opening a volume panel or
 leaving the app you're using. Its buttons launch apps and toggle microphone
 or Discord mute.
 
+The Stream Deck's [Games menu](docs/games.md) opens FFXIV, Decompbound's
+expanded viewport player, and the Mono Retro desktop menu.
+
 It runs in the background, reconnects when the controller is unplugged, and
 keeps app volumes at their fader levels when new audio streams appear.
 With OpenRazer installed, it also gives the

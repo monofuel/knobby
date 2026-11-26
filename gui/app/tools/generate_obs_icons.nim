@@ -42,8 +42,10 @@ const
     'D': @["##.", "#.#", "#.#", "#.#", "##."],
     'E': @["###", "#..", "##.", "#..", "###"],
     'F': @["###", "#..", "##.", "#..", "#.."],
+    'G': @[".##", "#..", "#.#", "#.#", ".##"],
     'H': @["#.#", "#.#", "###", "#.#", "#.#"],
     'I': @["#", "#", "#", "#", "#"],
+    'K': @["#.#", "#.#", "##.", "#.#", "#.#"],
     'L': @["#..", "#..", "#..", "#..", "###"],
     'M': @["#...#", "##.##", "#.#.#", "#...#", "#...#"],
     'N': @["#..#", "##.#", "#.##", "#..#", "#..#"],
@@ -954,9 +956,46 @@ proc generateSpotifyIcons() =
       image.drawCompactLabel(label, tone.labelColor())
     image.writeFile(Directory / (name & ".png"))
 
+proc generateGamesIcons() =
+  ## Render original game symbols and integer-grid labels without importing game artwork.
+  const
+    Directory = OutputDirectory.parentDir() / "games"
+    Controller = @[
+      "................", "....########....", "..##rrrrrrrr##..", ".#rrrrrrrrrrrr#.",
+      ".#rr##rrrrhrrr#.", ".#rr##rrrhhrrr#.", ".#######rrrrrr#.", ".#rr##rrrhrrrh#.",
+      ".#rrrrrrrrhrhr#.", ".#rrrrrrrrrhrr#.", ".#rrr######rrr#.", ".#rr#......#rr#.",
+      "..##........##..", "................", "................", "................"]
+    Crystal = @[
+      ".......##.......", "......#hh#......", ".....#hrrr#.....", "....#hhrrrr#....",
+      "...#hhhrrrrd#...", "..#hhhhrrrddd#..", ".#hhhhrrrrdddd#.", ".#hhhrrrrrdddd#.",
+      "..#hhrrrrdddd#..", "...#hrrrddd#....", "....#rrddd#.....", ".....#rdd#......",
+      "......#d#.......", ".......#........", "................", "................"]
+    Viewport = @[
+      "################", "#hhhhhhhhhhhhhh#", "#hddddddddddddh#", "#hd...####...dh#",
+      "#hd..#rrrr#..dh#", "#hd.#rhrrrr#.dh#", "#hd.#hrrrhr#.dh#", "#hd.#rrhrrr#.dh#",
+      "#hd..#rrrr#..dh#", "#hd...####...dh#", "#hddddddddddddh#", "#hhhhhhhhhhhhhh#",
+      "################", "................", "................", "................"]
+  createDir(Directory)
+  let entries = [
+    ("menu", @["GAMES"], PurpleTone, Controller, palette("#152137", "#7884c4", "#e3e8ff", "#3b416b")),
+    ("ffxiv", @["FFXIV"], GreenTone, Crystal, palette("#122634", "#58b9de", "#b8eeff", "#286f9f")),
+    ("decompbound", @["DECOMP", "BOUND"], GreenTone, Viewport, palette("#182e29", "#5d9fe3", "#9be5a5", "#294c49")),
+    ("mono-retro", @["MONO", "RETRO"], GreenTone, Controller, palette("#332613", "#d5a75b", "#fff1c4", "#7b5131")),
+    ("back", @["BACK"], PurpleTone, BackSprite, palette("#1c2034", "#c8bdff", "#eee8ff", "#7564b5"))]
+  for (name, label, tone, sprite, colors) in entries:
+    for row in sprite: doAssert row.len == 16, name & " sprite has an invalid row."
+    let image = newImage(Size, Size)
+    image.fillStone(tone)
+    image.drawSymbol(sprite, colors)
+    image.drawCompactLabel(label, tone.labelColor())
+    image.writeFile(Directory / (name & ".png"))
+
 proc main() =
   ## Regenerate the committed key faces without network access or system fonts.
   createDir(OutputDirectory)
+  if commandLineParams() == @["--games-only"]:
+    generateGamesIcons()
+    return
   if commandLineParams() == @["--spotify-only"]:
     generateSpotifyIcons()
     return
@@ -976,6 +1015,7 @@ proc main() =
   generateObsSetupIcons()
   generateWorkflowIcons()
   generateSpotifyIcons()
+  generateGamesIcons()
 
 when isMainModule:
   main()
