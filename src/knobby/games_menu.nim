@@ -22,6 +22,22 @@ proc gamesFace(key: int, title: string, action: JsonNode, image: string): JsonNo
   %*{"key": key, "title": title, "action": action,
     "visual": {"image": image, "showTitle": false}}
 
+proc refreshDecompboundArtwork*(source: JsonNode, imagePath: string): JsonNode =
+  ## Replace only the image of the unique standard Decompbound action, preserving editor changes.
+  result = parseJson($source)
+  let action = %*{"kind": "command", "command": decompboundCommand()}
+  var matches = 0
+  for menu in result["menus"]:
+    if menu["id"].getStr() == GamesMenuId:
+      for button in menu["deck"]:
+        if button["action"] == action:
+          inc matches
+          if not button.hasKey("visual"): button["visual"] = newJObject()
+          button["visual"]["image"] = %imagePath
+  if matches != 1:
+    raise newException(ValueError, "Decompbound needs exactly one standard action; refusing to replace custom controls.")
+  validateButtonConfig(result)
+
 proc installGamesMenu*(source: JsonNode, artwork: Table[string, string]): JsonNode =
   ## Add Games without replacing other pages, MIDI bindings or an occupied Home entry.
   result = parseJson($source)

@@ -956,6 +956,73 @@ proc generateSpotifyIcons() =
       image.drawCompactLabel(label, tone.labelColor())
     image.writeFile(Directory / (name & ".png"))
 
+proc generateDecompboundIcon() =
+  ## Draw an original sunset suburb beneath a psychic planet on a chunky two-pixel grid.
+  const
+    Directory = OutputDirectory.parentDir() / "games"
+    SceneWidth = 32
+    SceneHeight = 20
+    Scale = 2
+    Sky = ["#302642", "#51334e", "#8e475c", "#c76568", "#e49778"]
+  let image = newImage(Size, Size)
+  image.fillStone(GreenTone)
+  proc dot(x, y: int, color: string) =
+    ## Paint one bounded logical pixel without interpolation.
+    if x < 0 or x >= SceneWidth or y < 0 or y >= SceneHeight: return
+    for dy in 0..<Scale:
+      for dx in 0..<Scale: image[Border+x*Scale+dx, Border+y*Scale+dy] = rgb(color)
+  proc paintRect(x, y, width, height: int, color: string) =
+    ## Paint a small rectangular pixel-art feature.
+    for row in y..<y+height:
+      for column in x..<x+width: dot(column, row, color)
+  for y in 0..<SceneHeight:
+    for x in 0..<SceneWidth:
+      let horizon = 14 + (x div 5) mod 2
+      dot(x, y, if y >= horizon:
+        (if (x+y) mod 7 == 0: "#afbd79" else: "#65866b")
+        else: Sky[min(y div 3, Sky.high)])
+  for (x, y) in [(15, 2), (29, 1), (2, 5)]:
+    dot(x, y, "#fff4b4")
+    if x == 15:
+      dot(x-1, y, "#d89d91")
+      dot(x+1, y, "#d89d91")
+      dot(x, y-1, "#d89d91")
+      dot(x, y+1, "#d89d91")
+  for step in 0..90:
+    let angle = float(step)*2*PI/90
+    dot(23+int(round(cos(angle)*8)), 7+int(round(sin(angle)*2-cos(angle)*2)), "#f88cb1")
+  for y in 1..13:
+    for x in 17..29:
+      let radius = (x-23)*(x-23)+(y-7)*(y-7)
+      if radius <= 30:
+        dot(x, y, if radius >= 21: "#5a314d" elif x+y < 29: "#ffe9a1" else: "#f6b36c")
+  for step in 0..70:
+    let
+      angle = float(step)*0.14
+      radius = 4.0 - float(step)*3.5/70
+    dot(23+int(round(cos(angle)*radius)), 7+int(round(sin(angle)*radius)), "#ae466f")
+  for step in 0..45:
+    let angle = float(step)*PI/45
+    dot(23+int(round(cos(angle)*8)), 7+int(round(sin(angle)*2-cos(angle)*2)), "#ffe8bd")
+  paintRect(4, 13, 9, 6, "#332d45")
+  paintRect(5, 13, 7, 5, "#f6d69e")
+  for row in 0..5:
+    for x in 8-row..8+row: dot(x, 8+row, "#503044")
+  for row in 1..4:
+    for x in 8-row..8+row: dot(x, 8+row, if row < 3: "#f18c78" else: "#c95664")
+  paintRect(5, 14, 3, 2, "#89516b")
+  paintRect(6, 14, 1, 2, "#fff1b0")
+  paintRect(10, 15, 1, 3, "#6d5461")
+  paintRect(9, 19, 4, 1, "#e8bb80")
+  paintRect(17, 15, 3, 1, "#f5d58d")
+  paintRect(18, 16, 1, 1, "#e9aa88")
+  paintRect(17, 17, 2, 2, "#5e3b70")
+  dot(17, 19, "#352a46")
+  dot(19, 19, "#352a46")
+  image.drawCompactLabel(["DECOMP", "BOUND"], GreenTone.labelColor())
+  createDir(Directory)
+  image.writeFile(Directory / "decompbound.png")
+
 proc generateGamesIcons() =
   ## Render original game symbols and integer-grid labels without importing game artwork.
   const
@@ -970,16 +1037,10 @@ proc generateGamesIcons() =
       "...#hhhrrrrd#...", "..#hhhhrrrddd#..", ".#hhhhrrrrdddd#.", ".#hhhrrrrrdddd#.",
       "..#hhrrrrdddd#..", "...#hrrrddd#....", "....#rrddd#.....", ".....#rdd#......",
       "......#d#.......", ".......#........", "................", "................"]
-    Viewport = @[
-      "################", "#hhhhhhhhhhhhhh#", "#hddddddddddddh#", "#hd...####...dh#",
-      "#hd..#rrrr#..dh#", "#hd.#rhrrrr#.dh#", "#hd.#hrrrhr#.dh#", "#hd.#rrhrrr#.dh#",
-      "#hd..#rrrr#..dh#", "#hd...####...dh#", "#hddddddddddddh#", "#hhhhhhhhhhhhhh#",
-      "################", "................", "................", "................"]
   createDir(Directory)
   let entries = [
     ("menu", @["GAMES"], PurpleTone, Controller, palette("#152137", "#7884c4", "#e3e8ff", "#3b416b")),
     ("ffxiv", @["FFXIV"], GreenTone, Crystal, palette("#122634", "#58b9de", "#b8eeff", "#286f9f")),
-    ("decompbound", @["DECOMP", "BOUND"], GreenTone, Viewport, palette("#182e29", "#5d9fe3", "#9be5a5", "#294c49")),
     ("mono-retro", @["MONO", "RETRO"], GreenTone, Controller, palette("#332613", "#d5a75b", "#fff1c4", "#7b5131")),
     ("back", @["BACK"], PurpleTone, BackSprite, palette("#1c2034", "#c8bdff", "#eee8ff", "#7564b5"))]
   for (name, label, tone, sprite, colors) in entries:
@@ -989,10 +1050,14 @@ proc generateGamesIcons() =
     image.drawSymbol(sprite, colors)
     image.drawCompactLabel(label, tone.labelColor())
     image.writeFile(Directory / (name & ".png"))
+  generateDecompboundIcon()
 
 proc main() =
   ## Regenerate the committed key faces without network access or system fonts.
   createDir(OutputDirectory)
+  if commandLineParams() == @["--decompbound-only"]:
+    generateDecompboundIcon()
+    return
   if commandLineParams() == @["--games-only"]:
     generateGamesIcons()
     return

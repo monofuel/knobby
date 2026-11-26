@@ -39,6 +39,23 @@ proc writeHelper(path, text: string) =
   setFilePermissions(path, {fpUserRead, fpUserWrite, fpUserExec})
 
 suite "Games menu":
+  test "art refresh changes only the unique launcher's image and preserves edits":
+    let before = installGamesMenu(fixture(), artwork())
+    before["menus"][^1]["deck"][3]["key"] = %8
+    before["menus"][^1]["deck"][3]["title"] = %"My adventure"
+    before["menus"][^1]["deck"][3]["visual"]["showTitle"] = %true
+    let expected = parseJson($before)
+    expected["menus"][^1]["deck"][3]["visual"]["image"] = %"assets/new.png"
+    check refreshDecompboundArtwork(before, "assets/new.png") == expected
+    check buttonAt(before, GamesMenuId, "deck", 8)["visual"]["image"].getStr() != "assets/new.png"
+    let duplicate = parseJson($before)
+    let copy = parseJson($before["menus"][^1]["deck"][3])
+    copy["key"] = %9
+    duplicate["menus"][^1]["deck"].add(copy)
+    expect ValueError: discard refreshDecompboundArtwork(duplicate, "assets/new.png")
+    before["menus"][^1]["deck"][3]["action"]["command"] = %"custom-command"
+    expect ValueError: discard refreshDecompboundArtwork(before, "assets/new.png")
+
   test "adds only Home7 and three editable launch actions with normal navigation":
     let before = fixture()
     let after = installGamesMenu(before, artwork())
